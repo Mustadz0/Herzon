@@ -20,7 +20,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       color: Colors.blue,
     ),
     _OnboardingPage(
-      icon: Icons.stories,
+      icon: Icons.auto_stories,
       title: 'Stories en direct',
       description: 'Publie des stories photos et video. Voit ce qui se passe autour de toi en temps reel.',
       color: Colors.orange,

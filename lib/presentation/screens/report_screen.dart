@@ -79,10 +79,10 @@ class _ReportScreenState extends State<ReportScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: _reasonController,
+                maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: 'Description',
                   border: OutlineInputBorder(),
-                  maxLines: 3,
                 ),
               ),
             ],
