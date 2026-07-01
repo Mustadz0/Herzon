@@ -5,6 +5,7 @@ import '../providers/notification_provider.dart';
 import '../../core/theme/app_theme.dart';
 import 'feed_screen.dart';
 import 'explorer_screen.dart';
+import 'marketplace_screen.dart';
 import 'messages_screen.dart';
 import 'notifications_screen.dart';
 import 'edit_profile_screen.dart';
@@ -31,6 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           const FeedScreen(),
           const ExplorerScreen(),
+          const MarketplaceScreen(),
           const NotificationsScreen(),
           const MessagesScreen(),
           _ProfileTab(user: auth.user),
@@ -42,6 +44,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.near_me), label: 'Pres'),
           const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Explorer'),
+          const BottomNavigationBarItem(icon: Icon(Icons.store), label: 'Marche'),
           BottomNavigationBarItem(
             icon: notifState.unreadCount > 0
                 ? Badge(
