@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,7 +27,7 @@ class PostNotifier extends StateNotifier<FeedState> {
   final IPostRepository _repo;
   final LocationService _locationService;
   final MediaUploadService _mediaUpload;
-  StreamSubscription? _realtimeSub;
+  RealtimeChannel? _realtimeChannel;
 
   PostNotifier(this._repo, this._locationService, this._mediaUpload) : super(const FeedState());
 
@@ -45,8 +44,8 @@ class PostNotifier extends StateNotifier<FeedState> {
   }
 
   void _subscribeRealtime() {
-    _realtimeSub?.cancel();
-    _realtimeSub = Supabase.instance.client
+    _realtimeChannel?.unsubscribe();
+    _realtimeChannel = Supabase.instance.client
         .channel('public:posts')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
@@ -118,7 +117,7 @@ class PostNotifier extends StateNotifier<FeedState> {
 
   @override
   void dispose() {
-    _realtimeSub?.cancel();
+    _realtimeChannel?.unsubscribe();
     super.dispose();
   }
 }
