@@ -9,11 +9,19 @@ import '../providers/follow_provider.dart';
 import '../screens/comments_screen.dart';
 import '../screens/report_screen.dart';
 import '../screens/edit_post_screen.dart';
+import '../screens/user_profile_screen.dart';
 
 class PostCard extends ConsumerWidget {
   final PostModel post;
 
   const PostCard({super.key, required this.post});
+
+  void _openProfile(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => UserProfileScreen(userId: post.userId)),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,92 +36,95 @@ class PostCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundImage: post.userAvatarUrl != null
-                      ? NetworkImage(post.userAvatarUrl!)
-                      : null,
-                  child: post.userAvatarUrl == null
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.userDisplayName ?? post.userUsername ?? 'Anonyme',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    if (post.contextTag != null)
+            InkWell(
+              onTap: () => _openProfile(context),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: post.userAvatarUrl != null
+                        ? NetworkImage(post.userAvatarUrl!)
+                        : null,
+                    child: post.userAvatarUrl == null
+                        ? const Icon(Icons.person)
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        post.contextTag!,
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        post.userDisplayName ?? post.userUsername ?? 'Anonyme',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                  ],
-                ),
-                const Spacer(),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatDistance(post.distanceMeters),
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    if (post.createdAt != null)
-                      Text(
-                        _formatTime(post.createdAt!),
-                        style: const TextStyle(color: Colors.grey, fontSize: 10),
-                      ),
-                  ],
-                ),
-                if (isOwnPost)
-                  PopupMenuButton<String>(
-                    onSelected: (value) async {
-                      switch (value) {
-                        case 'edit':
-                          final result = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => EditPostScreen(postId: post.id, currentContent: post.content),
-                            ),
-                          );
-                          if (result == true) ref.read(postProvider.notifier).loadFeed();
-                        case 'delete':
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Supprimer'),
-                              content: const Text('Voulez-vous vraiment supprimer cette publication ?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Supprimer', style: TextStyle(color: Colors.red))),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            ref.read(postProvider.notifier).deletePost(post.id);
-                          }
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Modifier')])),
-                      const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: Colors.red))])),
-                    ],
-                  )
-                else
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'report') {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => ReportScreen(postId: post.id)));
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, size: 18), SizedBox(width: 8), Text('Signaler')])),
+                      if (post.contextTag != null)
+                        Text(
+                          post.contextTag!,
+                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        ),
                     ],
                   ),
-              ],
+                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _formatDistance(post.distanceMeters),
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      if (post.createdAt != null)
+                        Text(
+                          _formatTime(post.createdAt!),
+                          style: const TextStyle(color: Colors.grey, fontSize: 10),
+                        ),
+                    ],
+                  ),
+                  if (isOwnPost)
+                    PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        switch (value) {
+                          case 'edit':
+                            final result = await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => EditPostScreen(postId: post.id, currentContent: post.content),
+                              ),
+                            );
+                            if (result == true) ref.read(postProvider.notifier).loadFeed();
+                          case 'delete':
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Supprimer'),
+                                content: const Text('Voulez-vous vraiment supprimer cette publication ?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Supprimer', style: TextStyle(color: Colors.red))),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              ref.read(postProvider.notifier).deletePost(post.id);
+                            }
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Modifier')])),
+                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Supprimer', style: TextStyle(color: Colors.red))])),
+                      ],
+                    )
+                  else
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'report') {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => ReportScreen(postId: post.id)));
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'report', child: Row(children: [Icon(Icons.flag, size: 18), SizedBox(width: 8), Text('Signaler')])),
+                      ],
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             Text(post.content, style: const TextStyle(fontSize: 15)),

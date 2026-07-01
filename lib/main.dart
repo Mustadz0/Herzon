@@ -11,6 +11,9 @@ import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
 import 'presentation/screens/admin/admin_home_screen.dart';
+import 'presentation/screens/comments_screen.dart';
+import 'presentation/screens/user_profile_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +22,10 @@ void main() async {
   const supabaseAnonKey = 'sb_publishable_2wfhoUBeSMqhEZYs0G0c4g_RQS8cnMq';
 
   await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+
+  try {
+    await NotificationService.instance.init();
+  } catch (_) {}
 
   runApp(
     ProviderScope(
@@ -66,7 +73,7 @@ class ProximiteApp extends ConsumerWidget {
         } else if (auth.error != null) {
           home = Scaffold(body: Center(child: Text('Error: ${auth.error}')));
         } else if (auth.isAuthenticated) {
-          home = const HomeScreen();
+          home = NotificationTapHandler(child: const HomeScreen());
         } else {
           home = const LoginScreen();
         }
@@ -81,6 +88,14 @@ class ProximiteApp extends ConsumerWidget {
           routes: {
             '/login': (_) => const LoginScreen(),
             '/admin': (_) => const AdminHomeScreen(),
+            '/profile': (_) {
+              final userId = ModalRoute.of(_)?.settings.arguments as String?;
+              return UserProfileScreen(userId: userId ?? '');
+            },
+            '/comments': (_) {
+              final postId = ModalRoute.of(_)?.settings.arguments as String?;
+              return CommentsScreen(postId: postId ?? '');
+            },
           },
         );
       },

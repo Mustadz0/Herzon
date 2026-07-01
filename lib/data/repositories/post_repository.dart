@@ -3,31 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/post_model.dart';
 
-/// Post Repository Interface
 abstract class IPostRepository {
-  /// Get posts within a radius of a location
   Future<List<PostModel>> getNearbyPosts(
     LatLng location,
-    double radiusMeters,
-  );
+    double radiusMeters, {
+    int page = 1,
+    int pageSize = 20,
+  });
 
-  /// Create a new post
+  Future<int> getNearbyPostsCount(LatLng location, double radiusMeters);
+
   Future<PostModel> createPost(PostModel post);
 
-  /// React to a post
   Future<void> reactToPost(String postId, String reactionType);
 
-  /// Remove a reaction
   Future<void> removeReaction(String postId, String reactionType);
 
-  /// Delete a post
   Future<void> deletePost(String postId);
 
-  /// Update a post content
   Future<void> updatePost(String postId, String content);
 }
 
-/// Supabase implementation
 class SupabasePostRepository implements IPostRepository {
   final SupabaseClient _supabase;
 
@@ -36,19 +32,21 @@ class SupabasePostRepository implements IPostRepository {
   @override
   Future<List<PostModel>> getNearbyPosts(
     LatLng location,
-    double radiusMeters,
-  ) async {
-    // Use the PostGIS function defined in the migration
+    double radiusMeters, {
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     final response = await _supabase.rpc(
       'get_nearby_posts',
       params: {
         'user_lat': location.latitude,
         'user_lng': location.longitude,
         'radius_meters': radiusMeters,
+        'page': page,
+        'page_size': pageSize,
       },
     );
 
-    // Map results to PostModels
     return (response as List<dynamic>)
         .map((json) => PostModel(
               id: json['id'],
@@ -68,6 +66,19 @@ class SupabasePostRepository implements IPostRepository {
               commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
             ))
         .toList();
+  }
+
+  @override
+  Future<int> getNearbyPostsCount(LatLng location, double radiusMeters) async {
+    final response = await _supabase.rpc(
+      'get_nearby_posts_count',
+      params: {
+        'user_lat': location.latitude,
+        'user_lng': location.longitude,
+        'radius_meters': radiusMeters,
+      },
+    );
+    return (response as num).toInt();
   }
 
   @override

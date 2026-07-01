@@ -10,14 +10,30 @@ import '../../core/constants/app_constants.dart';
 class FeedState {
   final List<PostModel> posts;
   final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
   final String? error;
 
-  const FeedState({this.posts = const [], this.isLoading = false, this.error});
+  const FeedState({
+    this.posts = const [],
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.error,
+  });
 
-  FeedState copyWith({List<PostModel>? posts, bool? isLoading, String? error}) {
+  FeedState copyWith({
+    List<PostModel>? posts,
+    bool? isLoading,
+    bool? isLoadingMore,
+    bool? hasMore,
+    String? error,
+  }) {
     return FeedState(
       posts: posts ?? this.posts,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
       error: error ?? this.error,
     );
   }
@@ -28,6 +44,7 @@ class PostNotifier extends StateNotifier<FeedState> {
   final LocationService _locationService;
   final MediaUploadService _mediaUpload;
   RealtimeChannel? _realtimeChannel;
+  int _currentPage = 1;
 
   PostNotifier(this._repo, this._locationService, this._mediaUpload) : super(const FeedState());
 
@@ -35,11 +52,32 @@ class PostNotifier extends StateNotifier<FeedState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final pos = await _locationService.initializeLocation();
-      final posts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters);
-      state = FeedState(posts: posts);
+      final posts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters, page: 1);
+      final total = await _repo.getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
+      _currentPage = 1;
+      state = FeedState(posts: posts, hasMore: posts.length < total);
       _subscribeRealtime();
     } catch (e) {
       state = FeedState(error: e.toString());
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoadingMore || !state.hasMore) return;
+    state = state.copyWith(isLoadingMore: true);
+    try {
+      final pos = await _locationService.initializeLocation();
+      _currentPage++;
+      final newPosts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters, page: _currentPage);
+      final total = await _repo.getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
+      state = state.copyWith(
+        posts: [...state.posts, ...newPosts],
+        isLoadingMore: false,
+        hasMore: state.posts.length + newPosts.length < total,
+      );
+    } catch (_) {
+      _currentPage--;
+      state = state.copyWith(isLoadingMore: false);
     }
   }
 

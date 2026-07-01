@@ -18,6 +18,7 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   FeedMode _mode = FeedMode.latest;
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -26,6 +27,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       ref.read(postProvider.notifier).loadFeed();
       ref.read(storyProvider.notifier).loadStories();
     });
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(postProvider.notifier).loadMore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -33,7 +47,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     final feedState = ref.watch(postProvider);
     final trendingState = ref.watch(trendingProvider);
 
-    return     Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: const Text('Pres de moi'),
         actions: [
@@ -56,13 +70,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           await ref.read(storyProvider.notifier).loadStories();
         },
         child: ListView(
+          controller: _scrollController,
           children: [
             StoryCircleRow(),
             const Divider(height: 1),
             if (_mode == FeedMode.latest)
-              _buildFeedList(feedState)
+              ..._buildFeedList(feedState)
             else
-              _buildTrendingList(trendingState),
+              ..._buildTrendingList(trendingState),
+            if (feedState.isLoadingMore)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
           ],
         ),
       ),
@@ -115,16 +135,16 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
-  Widget _buildFeedList(FeedState state) {
+  List<Widget> _buildFeedList(FeedState state) {
     if (state.isLoading) {
-      return const SizedBox(
+      return [const SizedBox(
         height: 300,
         child: Center(child: CircularProgressIndicator()),
-      );
+      )];
     }
 
     if (state.error != null) {
-      return Center(
+      return [Center(
         child: Column(
           children: [
             const Icon(Icons.error_outline, color: Colors.red, size: 48),
@@ -136,11 +156,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
           ],
         ),
-      );
+      )];
     }
 
     if (state.posts.isEmpty) {
-      return const Center(
+      return [const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
           child: Column(
@@ -155,24 +175,22 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ],
           ),
         ),
-      );
+      )];
     }
 
-    return Column(
-      children: state.posts.map((post) => PostCard(post: post)).toList(),
-    );
+    return state.posts.map((post) => PostCard(post: post)).toList();
   }
 
-  Widget _buildTrendingList(TrendingState state) {
+  List<Widget> _buildTrendingList(TrendingState state) {
     if (state.isLoading) {
-      return const SizedBox(
+      return [const SizedBox(
         height: 300,
         child: Center(child: CircularProgressIndicator()),
-      );
+      )];
     }
 
     if (state.error != null) {
-      return Center(
+      return [Center(
         child: Column(
           children: [
             const Icon(Icons.error_outline, color: Colors.red, size: 48),
@@ -184,38 +202,36 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
           ],
         ),
-      );
+      )];
     }
 
     if (state.posts.isEmpty) {
-      return const Center(
+      return [const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
           child: Text('Aucune tendance pour le moment',
             style: TextStyle(color: Colors.grey, fontSize: 16)),
         ),
-      );
+      )];
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              const Icon(Icons.trending_up, size: 18, color: Colors.orange),
-              const SizedBox(width: 8),
-              Text('Tendances a proximite',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange[700],
-                ),
+    return [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.trending_up, size: 18, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text('Tendances a proximite',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange[700],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        ...state.posts.map((post) => PostCard(post: post)),
-      ],
-    );
+      ),
+      ...state.posts.map((post) => PostCard(post: post)),
+    ];
   }
 }
