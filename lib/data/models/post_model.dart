@@ -19,8 +19,9 @@ class PostModel {
   final String? userDisplayName;
   final String? userAvatarUrl;
 
-  // Computed field
+  // Computed fields
   final double distanceMeters;
+  final int commentCount;
 
   const PostModel({
     required this.id,
@@ -37,6 +38,7 @@ class PostModel {
     this.userDisplayName,
     this.userAvatarUrl,
     this.distanceMeters = 0.0,
+    this.commentCount = 0,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class PostModel {
       userDisplayName: json['display_name'] as String?,
       userAvatarUrl: json['avatar_url'] as String?,
       distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
+      commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -92,6 +95,7 @@ class PostModel {
     String? userDisplayName,
     String? userAvatarUrl,
     double? distanceMeters,
+    int? commentCount,
   }) {
     return PostModel(
       id: id ?? this.id,
@@ -108,6 +112,7 @@ class PostModel {
       userDisplayName: userDisplayName ?? this.userDisplayName,
       userAvatarUrl: userAvatarUrl ?? this.userAvatarUrl,
       distanceMeters: distanceMeters ?? this.distanceMeters,
+      commentCount: commentCount ?? this.commentCount,
     );
   }
 

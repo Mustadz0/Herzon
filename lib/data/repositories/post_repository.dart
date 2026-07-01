@@ -59,6 +59,7 @@ class SupabasePostRepository implements IPostRepository {
               userDisplayName: json['display_name'],
               userAvatarUrl: json['avatar_url'],
               distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
+              commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
             ))
         .toList();
   }

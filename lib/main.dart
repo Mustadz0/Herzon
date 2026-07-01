@@ -10,7 +10,6 @@ import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/admin/admin_home_screen.dart';
 
-/// Main entry point
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

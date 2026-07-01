@@ -102,6 +102,7 @@ class AdminRepository {
         userDisplayName: profile?['display_name'] as String?,
         userAvatarUrl: profile?['avatar_url'] as String?,
         createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
+        commentCount: 0,
       );
     }).toList();
   }

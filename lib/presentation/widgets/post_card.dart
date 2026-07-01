@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/post_model.dart';
 import '../../core/constants/app_constants.dart';
 import '../providers/post_provider.dart';
+import '../providers/follow_provider.dart';
+import '../screens/comments_screen.dart';
 
 class PostCard extends ConsumerWidget {
   final PostModel post;
@@ -11,6 +15,10 @@ class PostCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = Supabase.instance.client.auth.currentUser;
+    final isOwnPost = user != null && user.id == post.userId;
+    final followState = ref.watch(followProvider(post.userId));
+
     return Card(
       margin: const EdgeInsets.all(8),
       child: Padding(
@@ -97,15 +105,62 @@ class PostCard extends ConsumerWidget {
                   );
                 }),
                 const Spacer(),
+                if (!isOwnPost)
+                  IconButton(
+                    icon: Icon(
+                      followState.isFollowing ? Icons.favorite : Icons.favorite_border,
+                      size: 20,
+                      color: followState.isFollowing ? Colors.red : null,
+                    ),
+                    onPressed: followState.isLoading ? null : () {
+                      if (user == null) return;
+                      if (followState.isFollowing) {
+                        ref.read(followProvider(post.userId).notifier).unfollow();
+                      } else {
+                        ref.read(followProvider(post.userId).notifier).follow();
+                      }
+                    },
+                    tooltip: followState.isFollowing ? 'Ne plus suivre' : 'Suivre',
+                  ),
                 IconButton(
-                  icon: const Icon(Icons.favorite_border, size: 20),
-                  onPressed: () {},
-                  tooltip: 'Follow',
+                  icon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.chat_bubble_outline, size: 20),
+                      if (post.commentCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4),
+                          child: Text(
+                            '${post.commentCount}',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ),
+                    ],
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CommentsScreen(postId: post.id),
+                      ),
+                    );
+                  },
+                  tooltip: 'Commenter',
                 ),
                 IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                  onPressed: () {},
-                  tooltip: 'Repondre',
+                  icon: const Icon(Icons.share, size: 20),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(
+                      text: '${post.userDisplayName ?? "Quelqu\'un"} a partage pres de vous: ${post.content}',
+                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Lien copie dans le presse-papier'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  tooltip: 'Partager',
                 ),
               ],
             ),

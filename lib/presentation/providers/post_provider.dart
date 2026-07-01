@@ -47,11 +47,9 @@ class PostNotifier extends StateNotifier<FeedState> {
     if (user == null) throw Exception('Not authenticated');
 
     List<String> mediaUrls = [];
-    String mediaType = 'text';
 
     if (mediaFiles != null && mediaFiles.isNotEmpty) {
       mediaUrls = await _mediaUpload.uploadPostMedia(files: mediaFiles, userId: user.id);
-      mediaType = 'image';
     }
 
     final post = PostModel(
