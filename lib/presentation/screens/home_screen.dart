@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import '../../core/theme/app_theme.dart';
 import 'feed_screen.dart';
 import 'explorer_screen.dart';
 import 'messages_screen.dart';
+import 'notifications_screen.dart';
 import 'edit_profile_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -20,6 +22,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final notifState = ref.watch(notificationProvider);
 
     return Scaffold(
       body: IndexedStack(
@@ -27,6 +30,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           const FeedScreen(),
           const ExplorerScreen(),
+          const NotificationsScreen(),
           const MessagesScreen(),
           _ProfileTab(user: auth.user),
         ],
@@ -34,11 +38,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.near_me), label: 'Pres'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Explorer'),
-          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.near_me), label: 'Pres'),
+          const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Explorer'),
+          BottomNavigationBarItem(
+            icon: notifState.unreadCount > 0
+                ? Badge(
+                    label: Text('${notifState.unreadCount}'),
+                    child: const Icon(Icons.notifications),
+                  )
+                : const Icon(Icons.notifications_outlined),
+            label: 'Infos',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Messages'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );

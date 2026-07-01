@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -27,6 +28,7 @@ class PostNotifier extends StateNotifier<FeedState> {
   final IPostRepository _repo;
   final LocationService _locationService;
   final MediaUploadService _mediaUpload;
+  StreamSubscription? _realtimeSub;
 
   PostNotifier(this._repo, this._locationService, this._mediaUpload) : super(const FeedState());
 
@@ -36,9 +38,25 @@ class PostNotifier extends StateNotifier<FeedState> {
       final pos = await _locationService.initializeLocation();
       final posts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters);
       state = FeedState(posts: posts);
+      _subscribeRealtime();
     } catch (e) {
       state = FeedState(error: e.toString());
     }
+  }
+
+  void _subscribeRealtime() {
+    _realtimeSub?.cancel();
+    _realtimeSub = Supabase.instance.client
+        .channel('public:posts')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'posts',
+          callback: (payload) async {
+            await loadFeed();
+          },
+        )
+        .subscribe();
   }
 
   Future<void> createPost(String content, String? contextTag, {List<File>? mediaFiles}) async {
@@ -66,6 +84,26 @@ class PostNotifier extends StateNotifier<FeedState> {
     await loadFeed();
   }
 
+  Future<void> deletePost(String postId) async {
+    try {
+      await _repo.deletePost(postId);
+      state = state.copyWith(
+        posts: state.posts.where((p) => p.id != postId).toList(),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> editPost(String postId, String content) async {
+    try {
+      await _repo.updatePost(postId, content);
+      state = state.copyWith(
+        posts: state.posts.map((p) =>
+          p.id == postId ? PostModel(id: p.id, userId: p.userId, content: content, latitude: p.latitude, longitude: p.longitude, mediaUrls: p.mediaUrls, mediaType: p.mediaType, contextTag: p.contextTag, reactionCounts: p.reactionCounts, createdAt: p.createdAt, userUsername: p.userUsername, userDisplayName: p.userDisplayName, userAvatarUrl: p.userAvatarUrl, distanceMeters: p.distanceMeters, commentCount: p.commentCount) : p
+        ).toList(),
+      );
+    } catch (_) {}
+  }
+
   Future<void> reactToPost(String postId, String reactionType) async {
     try {
       await _repo.reactToPost(postId, reactionType);
@@ -77,6 +115,12 @@ class PostNotifier extends StateNotifier<FeedState> {
       await _repo.removeReaction(postId, reactionType);
     } catch (_) {}
   }
+
+  @override
+  void dispose() {
+    _realtimeSub?.cancel();
+    super.dispose();
+  }
 }
 
 final postProvider = StateNotifierProvider<PostNotifier, FeedState>((ref) {
@@ -86,5 +130,3 @@ final postProvider = StateNotifierProvider<PostNotifier, FeedState>((ref) {
     ref.watch(mediaUploadServiceProvider),
   );
 });
-
-

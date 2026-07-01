@@ -19,6 +19,12 @@ abstract class IPostRepository {
 
   /// Remove a reaction
   Future<void> removeReaction(String postId, String reactionType);
+
+  /// Delete a post
+  Future<void> deletePost(String postId);
+
+  /// Update a post content
+  Future<void> updatePost(String postId, String content);
 }
 
 /// Supabase implementation
@@ -93,6 +99,16 @@ class SupabasePostRepository implements IPostRepository {
         .delete()
         .eq('post_id', postId)
         .eq('reaction_type', reactionType);
+  }
+
+  @override
+  Future<void> deletePost(String postId) async {
+    await _supabase.from('posts').delete().eq('id', postId);
+  }
+
+  @override
+  Future<void> updatePost(String postId, String content) async {
+    await _supabase.from('posts').update({'content': content}).eq('id', postId);
   }
 
   MediaType _parseMediaType(String? type) {

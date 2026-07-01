@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/story_model.dart';
 import '../providers/story_provider.dart';
 
@@ -17,6 +18,38 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
   void initState() {
     super.initState();
     ref.read(storyProvider.notifier).viewStory(widget.story.id);
+  }
+
+  Future<void> _showViewers() async {
+    final data = await Supabase.instance.client
+        .from('story_views')
+        .select('viewed_at, profiles!inner(username, display_name, avatar_url)')
+        .eq('story_id', widget.story.id)
+        .order('viewed_at', ascending: false);
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => ListView.builder(
+        itemCount: data.length,
+        itemBuilder: (_, i) {
+          final view = data[i];
+          final profile = view['profiles'] as Map?;
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: profile?['avatar_url'] != null
+                  ? NetworkImage(profile!['avatar_url'] as String)
+                  : null,
+              child: profile?['avatar_url'] == null ? const Icon(Icons.person, size: 20) : null,
+            ),
+            title: Text((profile?['display_name'] ?? profile?['username'] ?? 'Anonyme') as String),
+            trailing: view['viewed_at'] != null
+                ? Text(_formatTime(DateTime.parse(view['viewed_at'] as String)), style: const TextStyle(fontSize: 12, color: Colors.grey))
+                : null,
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -95,6 +128,11 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                     ],
                   ),
                   const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.visibility, color: Colors.white70),
+                    onPressed: _showViewers,
+                    tooltip: 'Vues',
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
