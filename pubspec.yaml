@@ -1,0 +1,59 @@
+name: proximite
+description: A real-time proximity-based social network for Algeria.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.0
+  riverpod_annotation: ^2.2.0
+
+  # UI
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  shimmer: ^3.0.0
+
+  # Maps & Location
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+
+  # Backend & Auth
+  supabase_flutter: ^2.0.0
+
+  # Media & Upload
+  image_picker: ^1.0.0
+  path_provider: ^2.1.0
+  
+  # Utilities
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+  uuid: ^4.2.0
+  intl: ^0.18.1
+
+  # Env
+  flutter_dotenv: ^5.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.7
+  freezed: ^2.4.5
+  json_serializable: ^6.7.1
+  riverpod_generator: ^2.3.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    # - .env
