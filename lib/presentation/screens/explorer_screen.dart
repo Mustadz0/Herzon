@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../providers/post_provider.dart';
 import '../../services/location_service.dart';
+import 'search_screen.dart';
 
 class ExplorerScreen extends ConsumerStatefulWidget {
   const ExplorerScreen({super.key});
@@ -40,6 +41,10 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
       appBar: AppBar(
         title: const Text('Explorer'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())),
+          ),
           IconButton(
             icon: const Icon(Icons.my_location),
             onPressed: _initLocation,

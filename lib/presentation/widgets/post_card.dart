@@ -7,6 +7,7 @@ import '../../core/constants/app_constants.dart';
 import '../providers/post_provider.dart';
 import '../providers/follow_provider.dart';
 import '../screens/comments_screen.dart';
+import '../screens/post_detail_screen.dart';
 import '../screens/report_screen.dart';
 import '../screens/edit_post_screen.dart';
 import '../screens/user_profile_screen.dart';
@@ -49,21 +50,22 @@ class PostCard extends ConsumerWidget {
                         : null,
                   ),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.userDisplayName ?? post.userUsername ?? 'Anonyme',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (post.contextTag != null)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          post.contextTag!,
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          post.userDisplayName ?? post.userUsername ?? 'Anonyme',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                    ],
+                        if (post.contextTag != null)
+                          Text(
+                            post.contextTag!,
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -126,29 +128,39 @@ class PostCard extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            Text(post.content, style: const TextStyle(fontSize: 15)),
-            if (post.mediaUrls.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: post.mediaUrls.length,
-                  itemBuilder: (context, index) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        post.mediaUrls[index],
-                        height: 200, width: 200,
-                        fit: BoxFit.cover,
+            InkWell(
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => PostDetailScreen(post: post),
+              )),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(post.content, style: const TextStyle(fontSize: 15)),
+                  if (post.mediaUrls.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 200,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: post.mediaUrls.length,
+                        itemBuilder: (context, index) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              post.mediaUrls[index],
+                              height: 200, width: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                  ],
+                ],
               ),
-            ],
+            ),
             const SizedBox(height: 12),
             Row(
               children: [

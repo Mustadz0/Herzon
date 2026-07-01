@@ -8,6 +8,7 @@ import 'explorer_screen.dart';
 import 'messages_screen.dart';
 import 'notifications_screen.dart';
 import 'edit_profile_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -65,15 +66,28 @@ class _ProfileTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(
+        title: const Text('Profil'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 48,
+              backgroundImage: user?.avatarUrl != null
+                  ? NetworkImage(user!.avatarUrl as String)
+                  : null,
               backgroundColor: AppTheme.primaryColor,
-              child: Icon(Icons.person, size: 48, color: Colors.white),
+              child: user?.avatarUrl == null
+                  ? const Icon(Icons.person, size: 48, color: Colors.white)
+                  : null,
             ),
             const SizedBox(height: 16),
             Text(
