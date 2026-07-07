@@ -23,6 +23,7 @@ import 'package:herzon/services/cache_service.dart';
 import 'package:herzon/services/feature_flag_service.dart';
 import 'package:herzon/services/notification_service.dart';
 import 'package:herzon/services/crashlytics_service.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -96,6 +97,16 @@ void main() async {
   try {
     await NotificationService.instance.init();
   } catch (_) {}
+
+  // Initialize Firebase App Check (anti-abuse protection)
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.playIntegrity,
+    );
+    debugPrint('Firebase App Check activated');
+  } catch (e) {
+    debugPrint('App Check init failed: $e');
+  }
 
   runApp(
     ProviderScope(

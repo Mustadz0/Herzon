@@ -117,6 +117,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.currentIndex,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
