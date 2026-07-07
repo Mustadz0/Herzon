@@ -44,7 +44,7 @@ class SupabaseAuthRepository implements IAuthRepository {
     // Web version would use OAuth redirect
     await _supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'com.example.herzon://login-callback',
+      redirectTo: 'com.heron.app://login-callback',
     );
   }
 

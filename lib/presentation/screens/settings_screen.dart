@@ -287,7 +287,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () {
-              Clipboard.setData(const ClipboardData(text: 'com.example.herzon'));
+              Clipboard.setData(const ClipboardData(text: 'com.heron.app'));
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                 content: Text('ID de l\'application copiÃ©'),
                 behavior: SnackBarBehavior.floating,
