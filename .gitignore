@@ -51,3 +51,7 @@ artifacts/
 .env
 .env.local
 .env.*.local
+
+# Firebase (contains API keys)
+**/google-services.json
+**/GoogleService-Info.plist
