@@ -1,5 +1,20 @@
-/// Post content types
-enum MediaType { text, image, video, vibe }
+﻿/// Post content types
+enum MediaType { text, image, video, vibe, sticker }
+
+/// Poll option data
+class PollOptionData {
+  final String text;
+  final int votes;
+
+  const PollOptionData({required this.text, this.votes = 0});
+
+  factory PollOptionData.fromJson(Map<String, dynamic> json) =>
+      PollOptionData(text: json['text'] as String? ?? '', votes: json['votes'] as int? ?? 0);
+
+  Map<String, dynamic> toJson() => {'text': text, 'votes': votes};
+
+  double get percentage => votes == 0 ? 0.0 : votes.toDouble();
+}
 
 /// Post Model - represents a feed post
 class PostModel {
@@ -23,6 +38,17 @@ class PostModel {
   final double distanceMeters;
   final int commentCount;
 
+  // Poll support
+  final List<PollOptionData>? pollOptions;
+  final int? userPollVoteIndex;
+  final int? pollTotalVotes;
+
+  // Sticker support
+  final String? stickerId;
+
+  // Video support
+  final String? videoUrl;
+
   const PostModel({
     required this.id,
     required this.userId,
@@ -39,6 +65,11 @@ class PostModel {
     this.userAvatarUrl,
     this.distanceMeters = 0.0,
     this.commentCount = 0,
+    this.pollOptions,
+    this.userPollVoteIndex,
+    this.pollTotalVotes,
+    this.stickerId,
+    this.videoUrl,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -62,6 +93,15 @@ class PostModel {
       userAvatarUrl: json['avatar_url'] as String?,
       distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
       commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
+      pollOptions: json['poll'] != null
+          ? (json['poll'] as List<dynamic>)
+              .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
+      userPollVoteIndex: json['user_poll_vote_index'] as int?,
+      pollTotalVotes: json['poll_total_votes'] as int?,
+      stickerId: json['sticker_id'] as String?,
+      videoUrl: json['video_url'] as String?,
     );
   }
 
@@ -77,6 +117,13 @@ class PostModel {
       'context_tag': contextTag,
       'reaction_counts': reactionCounts,
       'created_at': createdAt?.toIso8601String(),
+      'distance_meters': distanceMeters,
+      'comment_count': commentCount,
+      'poll': pollOptions?.map((e) => e.toJson()).toList(),
+      'poll_total_votes': pollTotalVotes,
+      'user_poll_vote_index': userPollVoteIndex,
+      'sticker_id': stickerId,
+      'video_url': videoUrl,
     };
   }
 
@@ -96,6 +143,11 @@ class PostModel {
     String? userAvatarUrl,
     double? distanceMeters,
     int? commentCount,
+    List<PollOptionData>? pollOptions,
+    int? userPollVoteIndex,
+    int? pollTotalVotes,
+    String? stickerId,
+    String? videoUrl,
   }) {
     return PostModel(
       id: id ?? this.id,
@@ -113,6 +165,11 @@ class PostModel {
       userAvatarUrl: userAvatarUrl ?? this.userAvatarUrl,
       distanceMeters: distanceMeters ?? this.distanceMeters,
       commentCount: commentCount ?? this.commentCount,
+      pollOptions: pollOptions ?? this.pollOptions,
+      userPollVoteIndex: userPollVoteIndex ?? this.userPollVoteIndex,
+      pollTotalVotes: pollTotalVotes ?? this.pollTotalVotes,
+      stickerId: stickerId ?? this.stickerId,
+      videoUrl: videoUrl ?? this.videoUrl,
     );
   }
 

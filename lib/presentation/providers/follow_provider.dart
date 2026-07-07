@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/follow_repository.dart';
 
@@ -24,7 +24,9 @@ class FollowNotifier extends StateNotifier<FollowState> {
     try {
       final following = await _repo.isFollowing(user.id, _targetUserId);
       state = FollowState(isFollowing: following);
-    } catch (_) {}
+    } catch (e) {
+      state = FollowState(isFollowing: false, error: e.toString());
+    }
   }
 
   Future<void> follow() async {

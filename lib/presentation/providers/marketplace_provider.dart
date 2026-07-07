@@ -1,5 +1,6 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/marketplace_item_model.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../services/location_service.dart';

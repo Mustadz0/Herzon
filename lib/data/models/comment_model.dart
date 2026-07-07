@@ -1,4 +1,4 @@
-class CommentModel {
+﻿class CommentModel {
   final String id;
   final String postId;
   final String userId;

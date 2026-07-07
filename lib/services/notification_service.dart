@@ -1,5 +1,6 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
+﻿import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 @pragma('vm:entry-point')
@@ -32,10 +33,11 @@ class NotificationService {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
+      final platform = Platform.isIOS ? 'ios' : 'android';
       await Supabase.instance.client.from('device_tokens').upsert({
         'user_id': user.id,
         'fcm_token': token,
-        'platform': 'android',
+        'platform': platform,
       });
     } catch (_) {}
   }

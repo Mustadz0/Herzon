@@ -1,27 +1,79 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'core/theme/app_theme.dart';
-import 'data/repositories/auth_repository.dart';
-import 'data/repositories/post_repository.dart';
-import 'presentation/providers/auth_provider.dart';
-import 'presentation/screens/login_screen.dart';
-import 'presentation/screens/home_screen.dart';
-import 'presentation/screens/onboarding_screen.dart';
-import 'presentation/screens/admin/admin_home_screen.dart';
-import 'presentation/screens/comments_screen.dart';
-import 'presentation/screens/user_profile_screen.dart';
-import 'services/notification_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:herzon/core/theme/app_theme.dart';
+import 'package:herzon/data/repositories/auth_repository.dart';
+import 'package:herzon/data/repositories/post_repository.dart';
+import 'package:herzon/presentation/providers/auth_provider.dart';
+import 'package:herzon/presentation/screens/login_screen.dart';
+import 'package:herzon/presentation/screens/home_screen.dart';
+import 'package:herzon/presentation/screens/onboarding_screen.dart';
+import 'package:herzon/presentation/screens/admin/admin_home_screen.dart';
+import 'package:herzon/presentation/screens/comments_screen.dart';
+import 'package:herzon/presentation/screens/user_profile_screen.dart';
+import 'package:herzon/presentation/screens/create_story_screen.dart';
+import 'package:herzon/presentation/screens/leaderboard_screen.dart';
+import 'package:herzon/presentation/screens/ride_sharing_screen.dart';
+import 'package:herzon/presentation/screens/badges_screen.dart';
+import 'package:herzon/presentation/screens/create_post_screen.dart';
+import 'package:herzon/services/cache_service.dart';
+import 'package:herzon/services/feature_flag_service.dart';
+import 'package:herzon/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const supabaseUrl = 'https://xhjglurrmnmpqzbvctgn.supabase.co';
-  const supabaseAnonKey = 'sb_publishable_2wfhoUBeSMqhEZYs0G0c4g_RQS8cnMq';
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: Colors.red.shade900,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+          child: Text(
+            'RUNTIME ERROR:\n${details.exceptionAsString()}\n\n${details.stack}',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+        ),
+      ),
+    );
+  };
 
-  await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+  FlutterError.onError = (details) {
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+  };
+
+  try {
+    await Hive.initFlutter();
+  } catch (e) {
+    debugPrint('Hive init failed: $e');
+  }
+
+  try {
+    await CacheService.init();
+  } catch (e) {
+    debugPrint('CacheService.init failed: $e');
+  }
+
+  // Load environment variables from .env
+  await dotenv.load(fileName: '.env');
+
+  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+
+  try {
+    await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+  } catch (e) {
+    debugPrint('Supabase init failed: $e');
+  }
+
+  try {
+    await FeatureFlagService.init();
+  } catch (e) {
+    debugPrint('FeatureFlagService.init failed: $e');
+  }
 
   try {
     await NotificationService.instance.init();
@@ -37,13 +89,13 @@ void main() async {
           SupabasePostRepository(supabase: Supabase.instance.client),
         ),
       ],
-      child: const ProximiteApp(),
+      child: const HerzonApp(),
     ),
   );
 }
 
-class ProximiteApp extends ConsumerWidget {
-  const ProximiteApp({super.key});
+class HerzonApp extends ConsumerWidget {
+  const HerzonApp({super.key});
 
   Future<bool> _checkOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
@@ -79,23 +131,28 @@ class ProximiteApp extends ConsumerWidget {
         }
 
         return MaterialApp(
-          title: 'Proximite',
+          title: 'Herzon',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.system,
           home: home,
           routes: {
-            '/login': (_) => const LoginScreen(),
-            '/admin': (_) => const AdminHomeScreen(),
-            '/profile': (_) {
-              final userId = ModalRoute.of(_)?.settings.arguments as String?;
+            '/login': (context) => const LoginScreen(),
+            '/admin': (context) => const AdminHomeScreen(),
+            '/profile': (context) {
+              final userId = ModalRoute.of(context)?.settings.arguments as String?;
               return UserProfileScreen(userId: userId ?? '');
             },
-            '/comments': (_) {
-              final postId = ModalRoute.of(_)?.settings.arguments as String?;
+            '/comments': (context) {
+              final postId = ModalRoute.of(context)?.settings.arguments as String?;
               return CommentsScreen(postId: postId ?? '');
             },
+            '/create_story': (context) => const CreateStoryScreen(),
+            '/create_post': (context) => const CreatePostScreen(),
+            '/leaderboard': (context) => const LeaderboardScreen(),
+            '/ride_sharing': (context) => const RideSharingScreen(),
+            '/badges': (context) => const BadgesScreen(),
           },
         );
       },

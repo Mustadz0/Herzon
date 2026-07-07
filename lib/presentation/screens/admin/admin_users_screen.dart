@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/admin_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../providers/admin_users_provider.dart';
+import '../../widgets/admin/admin_user_card.dart';
 
 class AdminUsersScreen extends ConsumerStatefulWidget {
   const AdminUsersScreen({super.key});
@@ -13,12 +15,6 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
   final _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    Future.microtask(() => ref.read(adminProvider.notifier).loadUsers());
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -26,56 +22,104 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(adminProvider);
+    final usersState = ref.watch(adminUsersProvider);
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search users...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); ref.read(adminProvider.notifier).loadUsers(); })
-                  : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          // Search bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Rechercher un utilisateur...',
+                hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          ref.read(adminUsersProvider.notifier).loadUsers();
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) {
+                ref.read(adminUsersProvider.notifier).loadUsers(search: value);
+                setState(() {});
+              },
             ),
-            onSubmitted: (v) => ref.read(adminProvider.notifier).loadUsers(search: v),
           ),
-        ),
-        Expanded(
-          child: state.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : state.error != null
-                  ? Center(child: Text('Error: ${state.error}'))
-                  : ListView.builder(
-                      itemCount: state.users.length,
-                      itemBuilder: (context, index) {
-                        final user = state.users[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                            child: user.avatarUrl == null ? Text(user.displayName?[0].toUpperCase() ?? '?') : null,
-                          ),
-                          title: Text(user.displayName ?? 'No name'),
-                          subtitle: Text('${user.username ?? "no username"} · ${user.isAdmin ? "Admin" : "User"}'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (user.createdAt != null)
+          // Users list
+          Expanded(
+            child: usersState.isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)))
+                : usersState.error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Color(0xFFEF4444)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Erreur: ${usersState.error}',
+                              style: GoogleFonts.plusJakartaSans(color: Colors.red),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => ref.read(adminUsersProvider.notifier).loadUsers(),
+                              child: const Text('Réessayer'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : usersState.users.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.people_outline, size: 64, color: Colors.grey[300]),
+                                const SizedBox(height: 16),
                                 Text(
-                                  '${DateTime.now().difference(user.createdAt!).inDays}d',
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  'Aucun utilisateur trouvé',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    color: const Color(0xFF94A3B8),
+                                  ),
                                 ),
-                            ],
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: usersState.users.length,
+                            itemBuilder: (context, index) {
+                              final user = usersState.users[index];
+                              return AdminUserCard(
+                                user: user,
+                                onToggleAdmin: () {
+                                  ref.read(adminUsersProvider.notifier).toggleAdmin(
+                                        user.id,
+                                        !(user.isAdmin == true),
+                                      );
+                                },
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

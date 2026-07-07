@@ -1,0 +1,16 @@
+-- ============================================================
+-- MIGRATION 021: Enable RLS on spatial_ref_sys (PostGIS table)
+-- Table is owned by supabase_admin; postgres cannot alter it.
+-- Must be run via Dashboard SQL Editor (as superuser).
+-- This is a no-op placeholder; see instructions below.
+-- ============================================================
+-- To apply manually:
+--   1. Open Supabase Dashboard → SQL Editor
+--   2. Run:
+--      ALTER TABLE spatial_ref_sys ENABLE ROW LEVEL SECURITY;
+--      CREATE POLICY "authenticated_can_read_spatial_ref_sys"
+--        ON spatial_ref_sys FOR SELECT TO authenticated USING (true);
+--      REVOKE INSERT, UPDATE, DELETE ON spatial_ref_sys FROM anon, authenticated;
+--
+-- This migration intentionally does nothing via CLI because postgres
+-- lacks ownership of spatial_ref_sys.

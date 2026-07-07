@@ -1,4 +1,4 @@
-/// User Model - represents a user profile
+﻿/// User Model - represents a user profile
 class UserModel {
   final String id;
   final String? username;

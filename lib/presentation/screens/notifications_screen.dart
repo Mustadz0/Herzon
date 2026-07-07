@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/notification_provider.dart';
+import '../../core/theme/app_theme.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context);
     final state = ref.watch(notificationProvider);
 
     return Scaffold(
@@ -21,30 +23,51 @@ class NotificationsScreen extends ConsumerWidget {
         ],
       ),
       body: state.notifications.isEmpty
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Aucune notification', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  Container(
+                    width: 80, height: 80,
+                    decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.08), shape: BoxShape.circle),
+                    child: Icon(Icons.notifications_none, size: 36, color: AppTheme.primary.withValues(alpha: 0.3)),
+                  ),
+                  const SizedBox(height: 20),
+                  Text('Aucune notification', style: t.textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  Text('Vous serez notifiÃ© des activitÃ©s prÃ¨s de chez vous',
+                    style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant),
+                    textAlign: TextAlign.center),
                 ],
               ),
             )
           : ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: state.notifications.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, __) => const Divider(indent: 72, endIndent: 16),
               itemBuilder: (context, index) {
                 final notif = state.notifications[index];
+                final isUnread = !notif.isRead;
                 return ListTile(
-                  leading: _iconForType(notif.type),
-                  title: Text(notif.title, style: TextStyle(fontWeight: notif.isRead ? FontWeight.normal : FontWeight.bold)),
-                  subtitle: Text(notif.body, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  trailing: notif.createdAt != null
-                      ? Text(_formatTime(notif.createdAt!), style: const TextStyle(fontSize: 11, color: Colors.grey))
+                  leading: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: isUnread ? AppTheme.primary.withValues(alpha: 0.1) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: _iconForType(notif.type),
+                  ),
+                  title: Text(notif.body, style: TextStyle(
+                    fontWeight: isUnread ? FontWeight.w600 : FontWeight.w400)),
+                  subtitle: notif.createdAt != null
+                      ? Text(_formatTime(notif.createdAt!),
+                          style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant))
                       : null,
-                  selected: !notif.isRead,
-                  onTap: () => ref.read(notificationProvider.notifier).markAsRead(notif.id),
+                  trailing: isUnread
+                      ? Container(width: 8, height: 8,
+                          decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle))
+                      : null,
+                  onTap: isUnread ? () => ref.read(notificationProvider.notifier).markAsRead(notif.id) : null,
                 );
               },
             ),
@@ -53,21 +76,17 @@ class NotificationsScreen extends ConsumerWidget {
 
   Widget _iconForType(String type) {
     switch (type) {
-      case 'reaction':
-        return const CircleAvatar(child: Icon(Icons.emoji_emotions, color: Colors.orange));
-      case 'comment':
-        return const CircleAvatar(child: Icon(Icons.chat_bubble, color: Colors.blue));
-      case 'follow':
-        return const CircleAvatar(child: Icon(Icons.person_add, color: Colors.green));
-      default:
-        return const CircleAvatar(child: Icon(Icons.notifications, color: Colors.grey));
+      case 'reaction': return const Icon(Icons.emoji_emotions_outlined, color: AppTheme.accent);
+      case 'comment': return const Icon(Icons.chat_bubble_outline, color: Colors.green);
+      case 'follow': return const Icon(Icons.person_add_outlined, color: AppTheme.primary);
+      default: return const Icon(Icons.notifications_outlined, color: Colors.grey);
     }
   }
 
   String _formatTime(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}min';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    return '${diff.inDays}j';
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes}min';
+    if (diff.inHours < 24) return 'il y a ${diff.inHours}h';
+    return 'il y a ${diff.inDays}j';
   }
 }

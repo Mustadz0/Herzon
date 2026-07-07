@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/story_model.dart';
@@ -21,14 +21,15 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
   }
 
   Future<void> _showViewers() async {
-    final data = await Supabase.instance.client
-        .from('story_views')
-        .select('viewed_at, profiles!inner(username, display_name, avatar_url)')
-        .eq('story_id', widget.story.id)
-        .order('viewed_at', ascending: false);
+    try {
+      final data = await Supabase.instance.client
+          .from('story_views')
+          .select('viewed_at, profiles!inner(username, display_name, avatar_url)')
+          .eq('story_id', widget.story.id)
+          .order('viewed_at', ascending: false);
 
-    if (!mounted) return;
-    showModalBottomSheet(
+      if (!mounted) return;
+      showModalBottomSheet(
       context: context,
       builder: (ctx) => ListView.builder(
         itemCount: data.length,
@@ -50,6 +51,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         },
       ),
     );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), behavior: SnackBarBehavior.floating));
+      }
+    }
   }
 
   @override

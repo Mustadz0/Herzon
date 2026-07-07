@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReportScreen extends StatefulWidget {
@@ -69,12 +69,19 @@ class _ReportScreenState extends State<ReportScreen> {
           children: [
             const Text('Motif du signalement', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            ..._reasons.map((reason) => RadioListTile<String>(
-              title: Text(reason),
-              value: reason,
-              groupValue: _selectedReason,
-              onChanged: (v) => setState(() => _selectedReason = v),
-            )),
+            ..._reasons.map((reason) {
+              final selected = _selectedReason == reason;
+              return ListTile(
+                leading: Radio<String>(
+                  value: reason,
+                  groupValue: _selectedReason,
+                  onChanged: (v) => setState(() => _selectedReason = v),
+                ),
+                title: Text(reason),
+                onTap: () => setState(() => _selectedReason = reason),
+                selected: selected,
+              );
+            }),
             if (_selectedReason == 'Autre') ...[
               const SizedBox(height: 12),
               TextField(

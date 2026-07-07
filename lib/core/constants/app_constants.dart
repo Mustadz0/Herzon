@@ -1,4 +1,4 @@
-/// Core application constants for Proximité
+﻿/// Core application constants for ProximitÃ©
 class AppConstants {
   // Proximity radius in meters
   static const double proximityRadiusMeters = 2000.0;
@@ -16,10 +16,10 @@ class AppConstants {
   static const Duration feedRefreshInterval = Duration(seconds: 30);
 
   // Reaction emojis
-  static const String reactionFire = '🔥';
-  static const String reactionZap = '⚡';
-  static const String reactionEyes = '👀';
-  static const String reactionHourglass = '⏳';
+  static const String reactionFire = 'ðŸ”¥';
+  static const String reactionZap = 'âš¡';
+  static const String reactionEyes = 'ðŸ‘€';
+  static const String reactionHourglass = 'â³';
   static const List<String> reactions = [reactionFire, reactionZap, reactionEyes, reactionHourglass];
 
   // Premium pricing

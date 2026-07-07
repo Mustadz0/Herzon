@@ -1,4 +1,4 @@
-class NotificationModel {
+﻿class NotificationModel {
   final String id;
   final String userId;
   final String type;

@@ -1,4 +1,4 @@
-package com.example.proximite
+package com.example.herzon
 
 import io.flutter.embedding.android.FlutterActivity
 

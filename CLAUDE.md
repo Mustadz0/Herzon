@@ -1,7 +1,7 @@
-# Claude Context — Proximité Mobile App
+# Claude Context — Herzon Mobile App
 
 ## Project Summary
-You are building **Proximité**, a real-time proximity-based social network mobile app for Algeria.
+You are building **Herzon**, a real-time proximity-based social network mobile app for Algeria.
 
 ### Core Concept
 Users open the app and see real-time profiles and content from people within a **500m radius**. They can also explore any area of their city remotely without being physically there.

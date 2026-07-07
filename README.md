@@ -1,10 +1,10 @@
-# Proximite
+# Herzon
 
 A real-time proximity-based social network mobile application built with Flutter and Supabase.
 
 ## Overview
 
-**Proximite** lets users discover and interact with people within a **500-meter radius** around them in real-time. The app features two modes: an **Active Mode** ("Je suis l\u00e0") for posting and interacting when physically present, and an **Explorer Mode** ("Explorer") for browsing locations remotely with read-only access.
+**Herzon** lets users discover and interact with people within a **500-meter radius** around them in real-time. The app features two modes: an **Active Mode** ("Je suis là") for posting and interacting when physically present, and an **Explorer Mode** ("Explorer") for browsing locations remotely with read-only access.
 
 ## Features (MVP)
 
@@ -40,7 +40,7 @@ A real-time proximity-based social network mobile application built with Flutter
 1. Clone the repository:
    ```bash
    git clone <your-repo-url>
-   cd proximite-mobile
+   cd herzon
    ```
 
 2. Install dependencies:

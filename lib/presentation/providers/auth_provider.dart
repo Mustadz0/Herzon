@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../data/models/user_model.dart';
@@ -51,16 +51,6 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     } catch (e) {
       state = AppAuthState(error: e.toString());
     }
-  }
-
-  void signInAsGuest() {
-    final guest = UserModel(
-      id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
-      username: 'Invite',
-      displayName: 'Utilisateur invite',
-      isAnonymous: true,
-    );
-    state = AppAuthState(user: guest);
   }
 
   Future<void> _loadProfile(String id) async {

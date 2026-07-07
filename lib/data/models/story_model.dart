@@ -1,4 +1,4 @@
-class StoryModel {
+﻿class StoryModel {
   final String id;
   final String userId;
   final String mediaUrl;

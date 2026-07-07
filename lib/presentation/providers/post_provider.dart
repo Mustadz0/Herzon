@@ -1,4 +1,5 @@
-import 'dart:io';
+﻿import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/post_model.dart';
@@ -75,7 +76,8 @@ class PostNotifier extends StateNotifier<FeedState> {
         isLoadingMore: false,
         hasMore: state.posts.length + newPosts.length < total,
       );
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('PostProvider loadMore error: $e\n$stackTrace');
       _currentPage--;
       state = state.copyWith(isLoadingMore: false);
     }
@@ -90,20 +92,34 @@ class PostNotifier extends StateNotifier<FeedState> {
           schema: 'public',
           table: 'posts',
           callback: (payload) async {
-            await loadFeed();
+            try {
+              await loadFeed();
+            } catch (e) {
+              // Log using debugPrint for development; consider a proper logger for production.
+              debugPrint('Realtime feed refresh error: $e');
+            }
           },
         )
         .subscribe();
   }
 
-  Future<void> createPost(String content, String? contextTag, {List<File>? mediaFiles}) async {
+  /// Returns the XP earned by the post author (+10 XP per DB trigger).
+  Future<int> createPost(String content, String? contextTag, {List<File>? mediaFiles}) async {
     final pos = await _locationService.initializeLocation();
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
     List<String> mediaUrls = [];
+    String mediaType = 'text';
 
     if (mediaFiles != null && mediaFiles.isNotEmpty) {
+      // Check if first file is video
+      final firstFile = mediaFiles.first.path.toLowerCase();
+      if (firstFile.endsWith('.mp4') || firstFile.endsWith('.mov') || firstFile.endsWith('.avi')) {
+        mediaType = 'video';
+      } else {
+        mediaType = 'image';
+      }
       mediaUrls = await _mediaUpload.uploadPostMedia(files: mediaFiles, userId: user.id);
     }
 
@@ -114,11 +130,12 @@ class PostNotifier extends StateNotifier<FeedState> {
       latitude: pos.latitude,
       longitude: pos.longitude,
       mediaUrls: mediaUrls,
-      mediaType: mediaUrls.isNotEmpty ? MediaType.image : MediaType.text,
+      mediaType: mediaType == 'video' ? MediaType.video : (mediaUrls.isNotEmpty ? MediaType.image : MediaType.text),
       contextTag: contextTag,
     );
     await _repo.createPost(post);
     await loadFeed();
+    return 10; // matches DB `award_xp(p_user_id, 10, 'post_created', ...)` trigger
   }
 
   Future<void> deletePost(String postId) async {
@@ -127,7 +144,9 @@ class PostNotifier extends StateNotifier<FeedState> {
       state = state.copyWith(
         posts: state.posts.where((p) => p.id != postId).toList(),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PostProvider deletePost error: $e');
+    }
   }
 
   Future<void> editPost(String postId, String content) async {
@@ -135,22 +154,45 @@ class PostNotifier extends StateNotifier<FeedState> {
       await _repo.updatePost(postId, content);
       state = state.copyWith(
         posts: state.posts.map((p) =>
-          p.id == postId ? PostModel(id: p.id, userId: p.userId, content: content, latitude: p.latitude, longitude: p.longitude, mediaUrls: p.mediaUrls, mediaType: p.mediaType, contextTag: p.contextTag, reactionCounts: p.reactionCounts, createdAt: p.createdAt, userUsername: p.userUsername, userDisplayName: p.userDisplayName, userAvatarUrl: p.userAvatarUrl, distanceMeters: p.distanceMeters, commentCount: p.commentCount) : p
+          p.id == postId ? p.copyWith(content: content) : p
         ).toList(),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PostProvider editPost error: $e');
+    }
   }
 
-  Future<void> reactToPost(String postId, String reactionType) async {
+  /// Returns XP earned by the post owner (+2 XP per DB trigger on `reactions` insert).
+  Future<int> reactToPost(String postId, String reactionType) async {
+    _optimisticallyUpdateReaction(postId, reactionType, 1);
     try {
       await _repo.reactToPost(postId, reactionType);
-    } catch (_) {}
+      return 2;
+    } catch (_) {
+      _optimisticallyUpdateReaction(postId, reactionType, -1);
+      return 0;
+    }
   }
 
   Future<void> removeReaction(String postId, String reactionType) async {
+    _optimisticallyUpdateReaction(postId, reactionType, -1);
     try {
       await _repo.removeReaction(postId, reactionType);
-    } catch (_) {}
+    } catch (_) {
+      _optimisticallyUpdateReaction(postId, reactionType, 1);
+    }
+  }
+
+  void _optimisticallyUpdateReaction(String postId, String reactionType, int delta) {
+    state = state.copyWith(
+      posts: state.posts.map((p) {
+        if (p.id != postId) return p;
+        final newCounts = Map<String, int>.from(p.reactionCounts);
+        newCounts[reactionType] = (newCounts[reactionType] ?? 0) + delta;
+        if (newCounts[reactionType]! <= 0) newCounts.remove(reactionType);
+        return p.copyWith(reactionCounts: newCounts);
+      }).toList(),
+    );
   }
 
   @override

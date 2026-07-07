@@ -1,4 +1,4 @@
-# Proximite - Project Status
+# Herzon - Project Status
 
 ## Date: 2026-06-26
 ## Version: 1.0.0-MVP
@@ -174,4 +174,4 @@ flutter build appbundle --release
 ## Contact
 
 For questions or issues, refer to the original roadmap:
-`C:\Users\XPRISTO\Downloads\context app proximite.md`
+`C:\Users\XPRISTO\Downloads\context app herzon.md`

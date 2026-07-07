@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/admin_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../providers/admin_posts_provider.dart';
+import '../../widgets/admin/admin_post_card.dart';
 
 class AdminPostsScreen extends ConsumerStatefulWidget {
   const AdminPostsScreen({super.key});
@@ -13,91 +15,106 @@ class _AdminPostsScreenState extends ConsumerState<AdminPostsScreen> {
   final _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    Future.microtask(() => ref.read(adminProvider.notifier).loadPosts());
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _confirmDelete(String postId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Post'),
-        content: const Text('Are you sure you want to delete this post?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+  @override
+  Widget build(BuildContext context) {
+    final postsState = ref.watch(adminPostsProvider);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Rechercher dans les posts...',
+                hintStyle: GoogleFonts.plusJakartaSans(color: const Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          ref.read(adminPostsProvider.notifier).loadPosts();
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFFF1F5F9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) {
+                ref.read(adminPostsProvider.notifier).loadPosts(search: value);
+                setState(() {});
+              },
+            ),
+          ),
+          Expanded(
+            child: postsState.isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)))
+                : postsState.error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline, size: 48, color: Color(0xFFEF4444)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Erreur: ${postsState.error}',
+                              style: GoogleFonts.plusJakartaSans(color: Colors.red),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => ref.read(adminPostsProvider.notifier).loadPosts(),
+                              child: const Text('Réessayer'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : postsState.posts.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.article_outlined, size: 64, color: Colors.grey[300]),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Aucun post trouvé',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    color: const Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: postsState.posts.length,
+                            itemBuilder: (context, index) {
+                              final post = postsState.posts[index];
+                              return AdminPostCard(
+                                post: post,
+                                onDelete: () {
+                                  ref.read(adminPostsProvider.notifier).deletePost(post.id);
+                                },
+                              );
+                            },
+                          ),
+          ),
         ],
       ),
     );
-    if (confirmed == true) {
-      ref.read(adminProvider.notifier).deletePost(postId);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(adminProvider);
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search posts...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onSubmitted: (v) => ref.read(adminProvider.notifier).loadPosts(search: v),
-          ),
-        ),
-        Expanded(
-          child: state.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : state.error != null
-                  ? Center(child: Text('Error: ${state.error}'))
-                  : ListView.builder(
-                      itemCount: state.posts.length,
-                      itemBuilder: (context, index) {
-                        final post = state.posts[index];
-                        return Dismissible(
-                          key: Key(post.id),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 20),
-                            color: Colors.red,
-                            child: const Icon(Icons.delete, color: Colors.white),
-                          ),
-                          onDismissed: (_) => _confirmDelete(post.id),
-                          child: ListTile(
-                            title: Text(post.content, maxLines: 2, overflow: TextOverflow.ellipsis),
-                            subtitle: Text('by ${post.userDisplayName ?? post.userUsername ?? "unknown"} · ${post.createdAt != null ? _formatDate(post.createdAt!) : ""}'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () => _confirmDelete(post.id),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-        ),
-      ],
-    );
-  }
-
-  String _formatDate(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    return '${diff.inDays}d';
   }
 }

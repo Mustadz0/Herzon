@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/theme/app_theme.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -11,31 +14,40 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _currentPage = 0;
+  bool _privacyAccepted = false;
 
   final _pages = [
     _OnboardingPage(
       icon: Icons.explore,
-      title: 'Decouvre ton quartier',
-      description: 'Trouve des gens autour de toi dans un rayon de 2 km. Partage des moments avec ta communaute locale.',
-      color: Colors.blue,
+      title: 'DÃ©couvre ton quartier',
+      description: 'Trouve des gens autour de toi dans un rayon de 2 km. Partage des moments avec ta communautÃ© locale.',
+      color: AppTheme.primary,
     ),
     _OnboardingPage(
       icon: Icons.auto_stories,
       title: 'Stories en direct',
-      description: 'Publie des stories photos et video. Voit ce qui se passe autour de toi en temps reel.',
-      color: Colors.orange,
+      description: 'Publie des stories photos et vidÃ©o. Vois ce qui se passe autour de toi en temps rÃ©el.',
+      color: AppTheme.accent,
     ),
     _OnboardingPage(
       icon: Icons.chat_bubble,
       title: 'Discussion et partage',
-      description: 'Commente, reagis avec des emojis, et connecte avec les gens pres de chez toi.',
-      color: Colors.green,
+      description: 'Commente, rÃ©agis avec des emojis, et connecte avec les gens prÃ¨s de chez toi.',
+      color: AppTheme.success,
     ),
   ];
 
   void _onDone() async {
+    if (!_privacyAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Veuillez accepter la politique de confidentialitÃ© pour continuer'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_complete', true);
+    await prefs.setBool('privacy_accepted', true);
     if (mounted) Navigator.of(context).pushReplacementNamed('/login');
   }
 
@@ -47,6 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context);
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -54,21 +67,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Expanded(
               child: PageView.builder(
                 controller: _controller,
-                itemCount: _pages.length,
+                itemCount: _pages.length + 1, // +1 for consent page
                 onPageChanged: (i) => setState(() => _currentPage = i),
-                itemBuilder: (_, i) => _pages[i],
+                itemBuilder: (_, i) {
+                  if (i == _pages.length) return _buildConsentPage(t);
+                  return _pages[i];
+                },
               ),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_pages.length, (i) =>
+              children: List.generate(_pages.length + 1, (i) =>
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   width: _currentPage == i ? 24 : 8,
                   height: 8,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4),
-                    color: _currentPage == i ? Theme.of(context).primaryColor : Colors.grey.shade300,
+                    color: _currentPage == i ? AppTheme.primary : Colors.grey.shade300,
                   ),
                 ),
               ),
@@ -81,25 +97,104 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    if (_currentPage == _pages.length - 1) {
+                    if (_currentPage == _pages.length) {
                       _onDone();
                     } else {
                       _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
                     }
                   },
-                  child: Text(_currentPage == _pages.length - 1 ? 'Commencer' : 'Suivant'),
+                  child: Text(_currentPage == _pages.length ? 'Commencer' : 'Suivant'),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            if (_currentPage < _pages.length - 1)
+            if (_currentPage < _pages.length)
               TextButton(
-                onPressed: _onDone,
+                onPressed: () => _controller.animateToPage(
+                  _pages.length, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
                 child: const Text('Passer'),
               ),
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildConsentPage(ThemeData t) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.privacy_tip, size: 64, color: AppTheme.primary),
+          ),
+          const SizedBox(height: 24),
+          Text('Protection des donnÃ©es',
+            style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          Text('ConformÃ©ment Ã  la loi algÃ©rienne nÂ° 18-07 et au RGPD, '
+              'vos donnÃ©es personnelles (localisation, photos, interactions) '
+              'sont traitÃ©es uniquement pour le fonctionnement de l\'application.',
+            textAlign: TextAlign.center,
+            style: t.textTheme.bodyMedium?.copyWith(height: 1.5)),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const PrivacyPolicyScreen())),
+                child: const Text('Politique de confidentialitÃ©',
+                  style: TextStyle(fontSize: 13, decoration: TextDecoration.underline)),
+              ),
+              const SizedBox(width: 8),
+              Text('et', style: TextStyle(color: t.colorScheme.onSurfaceVariant)),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const TermsOfServiceScreen())),
+                child: const Text('CGU',
+                  style: TextStyle(fontSize: 13, decoration: TextDecoration.underline)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: t.isDark ? AppTheme.cardDark : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 24, height: 24,
+                  child: Checkbox(
+                    value: _privacyAccepted,
+                    activeColor: AppTheme.primary,
+                    onChanged: (v) => setState(() => _privacyAccepted = v ?? false),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'J\'accepte la collecte et le traitement de mes donnÃ©es '
+                    'personnelles conformÃ©ment Ã  la politique de confidentialitÃ©.',
+                    style: t.textTheme.bodySmall?.copyWith(height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

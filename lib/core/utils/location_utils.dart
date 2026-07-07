@@ -1,8 +1,8 @@
-import 'dart:math';
+﻿import 'dart:math';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
-/// Geolocation utilities for Proximité
+/// Geolocation utilities for ProximitÃ©
 class LocationUtils {
   /// Earth's radius in meters
   static const double earthRadius = 6371000;

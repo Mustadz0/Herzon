@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/post_provider.dart';
 
 class EditPostScreen extends ConsumerStatefulWidget {
   final String postId;
@@ -24,10 +24,14 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   Future<void> _save() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || text.length > 500) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Le texte doit contenir entre 1 et 500 caractÃ¨res')));
+      return;
+    }
     setState(() => _isSubmitting = true);
     try {
-      await Supabase.instance.client.from('posts').update({'content': text}).eq('id', widget.postId);
+      await ref.read(postProvider.notifier).editPost(widget.postId, text);
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {

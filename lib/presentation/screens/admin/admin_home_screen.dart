@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_users_screen.dart';
 import 'admin_posts_screen.dart';
 import 'admin_reports_screen.dart';
+import 'admin_zones_screen.dart';
+import 'admin_messages_screen.dart';
+import 'admin_analytics_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -19,29 +23,91 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     AdminUsersScreen(),
     AdminPostsScreen(),
     AdminReportsScreen(),
+    AdminZonesScreen(),
+    AdminMessagesScreen(),
+    AdminAnalyticsScreen(),
+  ];
+
+  final _titles = const [
+    'Tableau de bord',
+    'Utilisateurs',
+    'Publications',
+    'Signalements',
+    'Zones',
+    'Messages',
+    'Analytiques',
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Admin Panel'),
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+          color: const Color(0xFF1E293B),
           onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          _titles[_currentIndex],
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1E293B),
+          ),
+        ),
+        centerTitle: true,
       ),
       body: _screens[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          NavigationDestination(icon: Icon(Icons.people), label: 'Users'),
-          NavigationDestination(icon: Icon(Icons.article), label: 'Posts'),
-          NavigationDestination(icon: Icon(Icons.flag), label: 'Reports'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (i) => setState(() => _currentIndex = i),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          height: 70,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          indicatorColor: const Color(0xFF4F46E5).withOpacity(0.1),
+          destinations: [
+            _buildNavDestination(0, Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
+            _buildNavDestination(1, Icons.people_outline, Icons.people, 'Users'),
+            _buildNavDestination(2, Icons.article_outlined, Icons.article, 'Posts'),
+            _buildNavDestination(3, Icons.flag_outlined, Icons.flag, 'Reports'),
+            _buildNavDestination(4, Icons.map_outlined, Icons.map, 'Zones'),
+            _buildNavDestination(5, Icons.chat_bubble_outline, Icons.chat_bubble, 'Messages'),
+            _buildNavDestination(6, Icons.analytics_outlined, Icons.analytics, 'Analytics'),
+          ],
+        ),
       ),
+    );
+  }
+
+  NavigationDestination _buildNavDestination(int index, IconData outlineIcon, filledIcon, String label) {
+    final isSelected = _currentIndex == index;
+    return NavigationDestination(
+      icon: Icon(
+        outlineIcon,
+        color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+        size: 22,
+      ),
+      selectedIcon: Icon(
+        filledIcon,
+        color: const Color(0xFF4F46E5),
+        size: 22,
+      ),
+      label: label,
     );
   }
 }
