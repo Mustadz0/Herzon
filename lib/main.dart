@@ -22,11 +22,20 @@ import 'package:herzon/presentation/screens/create_post_screen.dart';
 import 'package:herzon/services/cache_service.dart';
 import 'package:herzon/services/feature_flag_service.dart';
 import 'package:herzon/services/notification_service.dart';
+import 'package:herzon/services/crashlytics_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize crash reporting FIRST (before anything else)
+  await CrashlyticsService.init();
+
   ErrorWidget.builder = (FlutterErrorDetails details) {
+    CrashlyticsService.recordError(
+      details.exception,
+      details.stack,
+      reason: 'ErrorWidget: ${details.context}',
+    );
     return Material(
       color: Colors.red.shade900,
       child: Padding(
@@ -42,7 +51,11 @@ void main() async {
   };
 
   FlutterError.onError = (details) {
-    debugPrint('FlutterError: ${details.exceptionAsString()}');
+    CrashlyticsService.recordError(
+      details.exception,
+      details.stack,
+      reason: 'FlutterError: ${details.context}',
+    );
   };
 
   try {
@@ -65,6 +78,11 @@ void main() async {
 
   try {
     await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+    // Set user in crash reporter
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId != null) {
+      await CrashlyticsService.setUser(userId);
+    }
   } catch (e) {
     debugPrint('Supabase init failed: $e');
   }
