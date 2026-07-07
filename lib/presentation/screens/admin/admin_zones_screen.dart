@@ -28,8 +28,27 @@ class _AdminZonesScreenState extends State<AdminZonesScreen> {
     try {
       final data = await Supabase.instance.client
           .from('zones')
-          .select('*, post_count:posts(id).count()')
+          .select('*')
           .order('name');
+
+      // Count posts per zone separately (no FK between zones and posts)
+      for (var zone in data) {
+        try {
+          final zoneId = zone['id'];
+          if (zoneId != null) {
+            final postCount = await Supabase.instance.client
+                .from('posts')
+                .select('id')
+                .eq('zone_id', zoneId)
+                .count();
+            zone['post_count'] = postCount.count;
+          } else {
+            zone['post_count'] = 0;
+          }
+        } catch (_) {
+          zone['post_count'] = 0;
+        }
+      }
       setState(() {
         _zones = List<Map<String, dynamic>>.from(data);
         _isLoading = false;

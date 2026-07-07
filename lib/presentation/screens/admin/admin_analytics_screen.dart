@@ -27,16 +27,18 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
       _error = null;
     });
     try {
-      final userGrowth = await Supabase.instance.client.rpc('get_user_growth');
-      final engagement = await Supabase.instance.client.rpc('get_engagement_metrics');
-      final postTypes = await Supabase.instance.client.from('posts').select('content_type').count();
-      final reportStats = await Supabase.instance.client.from('reports').select('status').count();
+      final results = await Future.wait([
+        Supabase.instance.client.rpc('get_user_growth').catchError((_) => []),
+        Supabase.instance.client.rpc('get_engagement_metrics').catchError((_) => null),
+        Supabase.instance.client.from('posts').select('content_type').count(),
+        Supabase.instance.client.from('reports').select('status').count(),
+      ]);
       setState(() {
         _analytics = {
-          'user_growth': userGrowth,
-          'engagement': engagement,
-          'post_types': postTypes,
-          'report_stats': reportStats,
+          'user_growth': results[0],
+          'engagement': results[1],
+          'post_types': results[2],
+          'report_stats': results[3],
         };
         _isLoading = false;
       });
@@ -84,90 +86,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                       // User growth chart
                       _buildChartCard(
                         'Croissance des utilisateurs',
-                        LineChart(
-                          LineChartData(
-                            gridData: FlGridData(
-                              show: true,
-                              drawVerticalLine: false,
-                              horizontalInterval: 1,
-                              getDrawingHorizontalLine: (value) => FlLine(
-                                color: const Color(0xFFE2E8F0),
-                                strokeWidth: 1,
-                              ),
-                            ),
-                            titlesData: FlTitlesData(
-                              show: true,
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  getTitlesWidget: (value, meta) {
-                                    final months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'];
-                                    final index = value.toInt();
-                                    if (index >= 0 && index < months.length) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          months[index],
-                                          style: GoogleFonts.plusJakartaSans(
-                                            fontSize: 10,
-                                            color: const Color(0xFF94A3B8),
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                    return const SizedBox.shrink();
-                                  },
-                                ),
-                              ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 30,
-                                  getTitlesWidget: (value, meta) {
-                                    return Text(
-                                      value.toInt().toString(),
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 10,
-                                        color: const Color(0xFF94A3B8),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: const [
-                                  FlSpot(0, 0),
-                                  FlSpot(1, 2),
-                                  FlSpot(2, 5),
-                                  FlSpot(3, 12),
-                                  FlSpot(4, 20),
-                                  FlSpot(5, 35),
-                                ],
-                                isCurved: true,
-                                color: const Color(0xFF4F46E5),
-                                barWidth: 3,
-                                dotData: FlDotData(
-                                  show: true,
-                                  getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
-                                    radius: 4,
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                    strokeColor: const Color(0xFF4F46E5),
-                                  ),
-                                ),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color: const Color(0xFF4F46E5).withOpacity(0.1),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _buildUserGrowthChart(),
                       ),
                       const SizedBox(height: 16),
                       // Engagement metrics
@@ -176,7 +95,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                           Expanded(
                             child: _buildMetricCard(
                               'Likes moyens',
-                              '12.5',
+                              (_analytics['engagement'] as Map<String, dynamic>?)?['avg_likes']?.toStringAsFixed(1) ?? '0',
                               Icons.favorite_outline,
                               const Color(0xFFEF4444),
                             ),
@@ -185,7 +104,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                           Expanded(
                             child: _buildMetricCard(
                               'Commentaires',
-                              '4.2',
+                              (_analytics['engagement'] as Map<String, dynamic>?)?['avg_comments']?.toStringAsFixed(1) ?? '0',
                               Icons.chat_bubble_outline,
                               const Color(0xFF3B82F6),
                             ),
@@ -197,18 +116,18 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                         children: [
                           Expanded(
                             child: _buildMetricCard(
-                              'Partages',
-                              '2.1',
-                              Icons.share_outlined,
+                              'Total réactions',
+                              ((_analytics['engagement'] as Map<String, dynamic>?)?['total_reactions'] ?? 0).toString(),
+                              Icons.favorite,
                               const Color(0xFF10B981),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildMetricCard(
-                              'Portée moyenne',
-                              '340m',
-                              Icons.location_on_outlined,
+                              'Total commentaires',
+                              ((_analytics['engagement'] as Map<String, dynamic>?)?['total_comments'] ?? 0).toString(),
+                              Icons.chat_bubble,
                               const Color(0xFFF59E0B),
                             ),
                           ),
@@ -277,6 +196,103 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  Widget _buildUserGrowthChart() {
+    final growthData = _analytics['user_growth'] as List<dynamic>? ?? [];
+    if (growthData.isEmpty) {
+      return const Center(child: Text('Aucune donnée de croissance disponible'));
+    }
+
+    final spots = <FlSpot>[];
+    final labels = <String>[];
+    for (var i = 0; i < growthData.length; i++) {
+      final item = growthData[i] as Map<String, dynamic>;
+      spots.add(FlSpot(i.toDouble(), (item['new_users'] as num).toDouble()));
+      final monthStr = item['month'] as String? ?? '';
+      if (monthStr.length >= 7) {
+        labels.add(monthStr.substring(5, 7));
+      } else {
+        labels.add('${i + 1}');
+      }
+    }
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 1,
+          getDrawingHorizontalLine: (value) => FlLine(
+            color: const Color(0xFFE2E8F0),
+            strokeWidth: 1,
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index >= 0 && index < labels.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      labels[index],
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10,
+                        color: const Color(0xFF94A3B8),
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              getTitlesWidget: (value, meta) {
+                return Text(
+                  value.toInt().toString(),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                );
+              },
+            ),
+          ),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: const Color(0xFF4F46E5),
+            barWidth: 3,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                radius: 4,
+                color: Colors.white,
+                strokeWidth: 2,
+                strokeColor: const Color(0xFF4F46E5),
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: const Color(0xFF4F46E5).withOpacity(0.1),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
