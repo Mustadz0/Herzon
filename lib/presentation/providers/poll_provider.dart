@@ -1,5 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/models/poll_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/poll_repository.dart';
 
 class PollResult {

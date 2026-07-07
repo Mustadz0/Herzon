@@ -1,6 +1,5 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
@@ -118,7 +117,6 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.currentIndex,
     required this.onTap,
-    this.badgeCount = 0,
   });
 
   @override
@@ -231,12 +229,14 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
       final fwc = await ref.read(followRepositoryProvider).getFollowingCount(uid);
       final postsCount = await Supabase.instance.client
           .rpc('get_user_posts_count', params: {'target_user_id': uid}).maybeSingle();
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _postCount = (postsCount as num?)?.toInt() ?? 0;
         _followerCount = fc;
         _followingCount = fwc;
         _loadingStats = false;
       });
+      }
     } catch (_) {
       if (mounted) setState(() => _loadingStats = false);
     }
@@ -410,7 +410,7 @@ class _CheckInSheet extends ConsumerWidget {
           const SizedBox(height: 20),
           Container(
             width: 64, height: 64,
-            decoration: BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
+            decoration: const BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
             child: const Icon(Icons.check_circle, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 16),

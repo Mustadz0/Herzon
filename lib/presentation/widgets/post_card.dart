@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -138,10 +138,10 @@ class _PostCardState extends ConsumerState<PostCard> with SingleTickerProviderSt
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.near_me, size: 10, color: AppTheme.primary),
+                    const Icon(Icons.near_me, size: 10, color: AppTheme.primary),
                     const SizedBox(width: 3),
                     Text(_formatDistance(post.distanceMeters),
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                   ],
                 ),
               ),
@@ -251,10 +251,10 @@ class _PostCardState extends ConsumerState<PostCard> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.poll_rounded, size: 18, color: AppTheme.primary),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               Text('Sondage', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.primary)),
             ],
           ),
@@ -273,7 +273,7 @@ class _PostCardState extends ConsumerState<PostCard> with SingleTickerProviderSt
 
   Widget _buildActions(BuildContext context, ThemeData t, PostModel post, bool isOwnPost, FollowState followState) {
     final user = Supabase.instance.client.auth.currentUser;
-    final reactions = AppConstants.reactions;
+    const reactions = AppConstants.reactions;
     return Wrap(
       alignment: WrapAlignment.start,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -316,8 +316,11 @@ class _PostCardState extends ConsumerState<PostCard> with SingleTickerProviderSt
               color: followState.isFollowing ? Colors.red : t.colorScheme.onSurfaceVariant),
             onPressed: followState.isLoading ? null : () {
               if (user == null) return;
-              if (followState.isFollowing) ref.read(followProvider(post.userId).notifier).unfollow();
-              else ref.read(followProvider(post.userId).notifier).follow();
+              if (followState.isFollowing) {
+                ref.read(followProvider(post.userId).notifier).unfollow();
+              } else {
+                ref.read(followProvider(post.userId).notifier).follow();
+              }
             },
             style: IconButton.styleFrom(backgroundColor: followState.isFollowing ? Colors.red.withValues(alpha: 0.1) : null),
           ),

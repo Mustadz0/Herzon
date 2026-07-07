@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,8 +7,6 @@ import '../providers/follow_provider.dart';
 import '../providers/gamification_provider.dart';
 import '../providers/block_provider.dart';
 import '../../data/repositories/follow_repository.dart';
-import '../../data/models/blocked_user_model.dart';
-import '../../data/repositories/block_repository.dart';
 import '../widgets/post_card.dart';
 import '../widgets/xp_level_badge.dart';
 import '../../data/models/post_model.dart';
@@ -214,14 +212,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                         final messenger = ScaffoldMessenger.of(context);
                                         if (isBlocked) {
                                           await ref.read(blockProvider.notifier).unblockUser(widget.userId);
-                                          if (mounted) messenger.showSnackBar(const SnackBar(
+                                          if (mounted) {
+                                            messenger.showSnackBar(const SnackBar(
                                               content: Text('Utilisateur dÃ©bloquÃ©'),
                                               behavior: SnackBarBehavior.floating,
                                               duration: Duration(seconds: 2),
                                           ));
+                                          }
                                         } else {
                                           await ref.read(blockProvider.notifier).blockUser(widget.userId, null);
-                                          if (mounted) messenger.showSnackBar(SnackBar(
+                                          if (mounted) {
+                                            messenger.showSnackBar(SnackBar(
                                               content: const Text('Utilisateur bloquÃ©'),
                                               behavior: SnackBarBehavior.floating,
                                               duration: const Duration(seconds: 2),
@@ -230,6 +231,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                                 onPressed: () => ref.read(blockProvider.notifier).unblockUser(widget.userId),
                                               ),
                                           ));
+                                          }
                                         }
                                       },
                                       icon: Icon(isBlocked ? Icons.lock_open_rounded : Icons.block_rounded, size: 16),

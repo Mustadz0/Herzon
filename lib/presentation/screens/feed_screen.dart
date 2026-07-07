@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/post_provider.dart';
@@ -216,12 +216,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         )),
       )];
     }
-    if (state.posts.isEmpty) return [
+    if (state.posts.isEmpty) {
+      return [
       Padding(
         padding: const EdgeInsets.all(40),
         child: Center(child: Text('Aucune tendance pour le moment', style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant))),
       )
     ];
+    }
     return state.posts.map((post) => PostCard(post: post)).toList();
   }
 }

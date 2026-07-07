@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -132,17 +132,17 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.near_me, size: 14, color: AppTheme.primary),
+                                  const Icon(Icons.near_me, size: 14, color: AppTheme.primary),
                                   const SizedBox(width: 4),
-                                  Text('${_formatDistance(post.distanceMeters)}',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                                  Text(_formatDistance(post.distanceMeters),
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primary)),
                                 ],
                               ),
                             ),
                             const Spacer(),
                             TextButton.icon(
                               onPressed: () {
-                                Clipboard.setData(ClipboardData(text: '${post.userDisplayName ?? "Quelqu\'un"} a partage: ${post.content}'));
+                                Clipboard.setData(ClipboardData(text: '${post.userDisplayName ?? "Quelqu'un"} a partage: ${post.content}'));
                                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                                   content: Text('CopiÃ© !'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 2)));
                               },
@@ -183,8 +183,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           Center(
                             child: TextButton.icon(
                               onPressed: followState.isLoading ? null : () {
-                                if (followState.isFollowing) ref.read(followProvider(post.userId).notifier).unfollow();
-                                else ref.read(followProvider(post.userId).notifier).follow();
+                                if (followState.isFollowing) {
+                                  ref.read(followProvider(post.userId).notifier).unfollow();
+                                } else {
+                                  ref.read(followProvider(post.userId).notifier).follow();
+                                }
                               },
                               icon: Icon(followState.isFollowing ? Icons.favorite : Icons.person_add,
                                 color: followState.isFollowing ? Colors.red : null),
@@ -293,7 +296,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  decoration: BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
                   child: IconButton(
                     icon: _isSending
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

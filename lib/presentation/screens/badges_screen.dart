@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:herzon/core/theme/app_theme.dart';
 import 'package:herzon/data/models/badge_model.dart';
 
@@ -131,7 +131,7 @@ class _BadgeCard extends StatelessWidget {
     final isEarned = badge.isEarned;
 
     return Card(
-      color: isEarned ? null : cs.surfaceContainerHighest?.withValues(alpha: 0.3),
+      color: isEarned ? null : cs.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -181,7 +181,7 @@ class _BadgeCard extends StatelessWidget {
               const SizedBox(height: 12),
               LinearProgressIndicator(
                 value: badge.progress,
-                backgroundColor: cs.outlineVariant?.withValues(alpha: 0.5),
+                backgroundColor: cs.outlineVariant.withValues(alpha: 0.5),
                 valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
                 borderRadius: const BorderRadius.all(Radius.circular(4)),
                 minHeight: 6,

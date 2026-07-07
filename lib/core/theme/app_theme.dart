@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
@@ -66,7 +66,7 @@ class AppTheme {
 
   // â”€â”€â”€ Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static ThemeData get lightTheme {
-    final cs = ColorScheme.light(
+    const cs = ColorScheme.light(
       primary: primary,
       onPrimary: Colors.white,
       primaryContainer: Color(0xFFEEF2FF),
@@ -77,13 +77,13 @@ class AppTheme {
       onSecondaryContainer: Color(0xFF92400E),
       tertiary: Color(0xFF7C3AED),
       surface: surfaceLight,
-      onSurface: const Color(0xFF0F172A),
-      onSurfaceVariant: const Color(0xFF475569),
+      onSurface: Color(0xFF0F172A),
+      onSurfaceVariant: Color(0xFF475569),
       error: error,
       onError: Colors.white,
       errorContainer: Color(0xFFFEE2E2),
-      outline: const Color(0xFFCBD5E1),
-      outlineVariant: const Color(0xFFE2E8F0),
+      outline: Color(0xFFCBD5E1),
+      outlineVariant: Color(0xFFE2E8F0),
     );
     return ThemeData(
       useMaterial3: true,
@@ -209,23 +209,23 @@ class AppTheme {
 
   // â”€â”€â”€ Dark Theme â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   static ThemeData get darkTheme {
-    final cs = ColorScheme.dark(
+    const cs = ColorScheme.dark(
       primary: primaryLight,
-      onPrimary: const Color(0xFF1E1B4B),
-      primaryContainer: const Color(0xFF312E81),
-      onPrimaryContainer: const Color(0xFFC7D2FE),
+      onPrimary: Color(0xFF1E1B4B),
+      primaryContainer: Color(0xFF312E81),
+      onPrimaryContainer: Color(0xFFC7D2FE),
       secondary: accentLight,
-      onSecondary: const Color(0xFF451A03),
-      secondaryContainer: const Color(0xFF78350F),
-      tertiary: const Color(0xFFA78BFA),
+      onSecondary: Color(0xFF451A03),
+      secondaryContainer: Color(0xFF78350F),
+      tertiary: Color(0xFFA78BFA),
       surface: surfaceDark,
-      onSurface: const Color(0xFFF1F5F9),
-      onSurfaceVariant: const Color(0xFF94A3B8),
+      onSurface: Color(0xFFF1F5F9),
+      onSurfaceVariant: Color(0xFF94A3B8),
       error: error,
       onError: Colors.white,
-      errorContainer: const Color(0xFF7F1D1D),
-      outline: const Color(0xFF334155),
-      outlineVariant: const Color(0xFF1E293B),
+      errorContainer: Color(0xFF7F1D1D),
+      outline: Color(0xFF334155),
+      outlineVariant: Color(0xFF1E293B),
     );
     return ThemeData(
       useMaterial3: true,
@@ -304,7 +304,7 @@ class AppTheme {
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: primaryLight, width: 1.5),
+          borderSide: const BorderSide(color: primaryLight, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: error)),
         hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: const Color(0xFF64748B)),

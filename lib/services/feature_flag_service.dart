@@ -1,4 +1,4 @@
-﻿import 'package:hive/hive.dart';
+import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FeatureFlagService {
@@ -17,12 +17,12 @@ class FeatureFlagService {
     if (_cacheBox == null) return;
     final cached = _cacheBox!.get('flags') as Map?;
     if (cached != null) {
-      _flags = Map<String, dynamic>.from(cached as Map<dynamic, dynamic>);
+      _flags = Map<String, dynamic>.from(cached);
     }
     final cachedExp = _cacheBox!.get('experiments') as Map?;
     if (cachedExp != null) {
       _experiments = Map<String, String>.from(
-        (cachedExp as Map<dynamic, dynamic>).map(
+        (cachedExp).map(
           (k, v) => MapEntry(k.toString(), v.toString()),
         ),
       );

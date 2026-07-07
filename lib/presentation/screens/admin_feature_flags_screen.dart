@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
@@ -58,7 +58,7 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
                     margin: const EdgeInsets.only(bottom: 8),
                     child: SwitchListTile(
                       title: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('ActivÃ©' + (entry.value ? '' : ' Â· DÃ©sactivÃ©'),
+                      subtitle: Text('ActivÃ©${entry.value ? '' : ' Â· DÃ©sactivÃ©'}',
                         style: TextStyle(color: entry.value ? AppTheme.success : t.colorScheme.onSurfaceVariant)),
                       value: entry.value,
                       onChanged: flagState.isLoading ? null : (val) async {

@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
-import '../providers/auth_provider.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   final dynamic user;
@@ -87,7 +86,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: _nameCtrl,
-            decoration: InputDecoration(hintText: 'Votre nom'),
+            decoration: const InputDecoration(hintText: 'Votre nom'),
             maxLength: 50,
           ),
           const SizedBox(height: 16),
@@ -97,7 +96,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             controller: _bioCtrl,
             maxLines: 3,
             maxLength: 160,
-            decoration: InputDecoration(hintText: 'Parle-nous de toi...'),
+            decoration: const InputDecoration(hintText: 'Parle-nous de toi...'),
           ),
         ],
       ),

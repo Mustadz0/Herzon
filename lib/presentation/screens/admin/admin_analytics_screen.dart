@@ -224,8 +224,8 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
           show: true,
           drawVerticalLine: false,
           horizontalInterval: 1,
-          getDrawingHorizontalLine: (value) => FlLine(
-            color: const Color(0xFFE2E8F0),
+          getDrawingHorizontalLine: (value) => const FlLine(
+            color: Color(0xFFE2E8F0),
             strokeWidth: 1,
           ),
         ),
@@ -267,8 +267,8 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
               },
             ),
           ),
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         borderData: FlBorderData(show: false),
         lineBarsData: [

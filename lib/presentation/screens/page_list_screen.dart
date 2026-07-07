@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/location_service.dart';
@@ -149,7 +149,7 @@ class _PageListScreenState extends ConsumerState<PageListScreen> {
               TextField(controller: descCtrl, decoration: const InputDecoration(labelText: 'Description (optionnelle)'), maxLines: 3),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: category,
+                initialValue: category,
                 decoration: const InputDecoration(labelText: 'Catégorie'),
                 items: const [
                   DropdownMenuItem(value: 'organisation', child: Text('Organisation')),

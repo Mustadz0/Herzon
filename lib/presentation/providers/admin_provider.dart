@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/user_model.dart';
 import '../../data/models/post_model.dart';
@@ -32,7 +32,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   AdminNotifier(this._repo) : super(const AdminState());
 
   Future<void> loadStats() async {
-    state = AdminState(isLoading: true);
+    state = const AdminState(isLoading: true);
     try {
       final stats = await _repo.getStats();
       state = AdminState(stats: stats);
@@ -42,7 +42,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   }
 
   Future<void> loadUsers({String? search}) async {
-    state = AdminState(isLoading: true);
+    state = const AdminState(isLoading: true);
     try {
       final users = await _repo.getAllUsers(search: search);
       state = AdminState(users: users);
@@ -52,7 +52,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   }
 
   Future<void> loadPosts({String? search}) async {
-    state = AdminState(isLoading: true);
+    state = const AdminState(isLoading: true);
     try {
       final posts = await _repo.getAllPosts(search: search);
       state = AdminState(posts: posts);
@@ -62,7 +62,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   }
 
   Future<void> loadReports() async {
-    state = AdminState(isLoading: true);
+    state = const AdminState(isLoading: true);
     try {
       final reports = await _repo.getReports();
       state = AdminState(reports: reports);

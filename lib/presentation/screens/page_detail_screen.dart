@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/page_model.dart';
 import '../../core/theme/app_theme.dart';
@@ -53,7 +53,7 @@ class PageDetailScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Text('@${page.slug} Â· ${page.category}',
-                    style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: const TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),

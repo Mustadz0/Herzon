@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_theme.dart';
 import 'privacy_policy_screen.dart';
@@ -17,19 +17,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _privacyAccepted = false;
 
   final _pages = [
-    _OnboardingPage(
+    const _OnboardingPage(
       icon: Icons.explore,
       title: 'DÃ©couvre ton quartier',
       description: 'Trouve des gens autour de toi dans un rayon de 2 km. Partage des moments avec ta communautÃ© locale.',
       color: AppTheme.primary,
     ),
-    _OnboardingPage(
+    const _OnboardingPage(
       icon: Icons.auto_stories,
       title: 'Stories en direct',
       description: 'Publie des stories photos et vidÃ©o. Vois ce qui se passe autour de toi en temps rÃ©el.',
       color: AppTheme.accent,
     ),
-    _OnboardingPage(
+    const _OnboardingPage(
       icon: Icons.chat_bubble,
       title: 'Discussion et partage',
       description: 'Commente, rÃ©agis avec des emojis, et connecte avec les gens prÃ¨s de chez toi.',

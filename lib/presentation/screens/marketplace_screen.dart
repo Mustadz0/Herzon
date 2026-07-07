@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/marketplace_provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -169,7 +169,7 @@ class _MarketplaceCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text('${item.price!.toStringAsFixed(0)} DA',
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppTheme.primary)),
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppTheme.primary)),
                           ),
                         if (item.price != null) const SizedBox(width: 8),
                         Icon(Icons.near_me, size: 12, color: t.colorScheme.onSurfaceVariant),

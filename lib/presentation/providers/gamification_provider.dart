@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/gamification_model.dart';
 import '../../data/repositories/gamification_repository.dart';
 import '../../services/location_service.dart';
@@ -46,7 +46,7 @@ class GamificationNotifier extends StateNotifier<GamificationState> {
     try {
       final data = await _repo.getUserGamification(userId);
       if (data.isEmpty) {
-        state = GamificationState(isLoading: false);
+        state = const GamificationState(isLoading: false);
         return;
       }
       final stats = UserLevelModel.fromJson(data);

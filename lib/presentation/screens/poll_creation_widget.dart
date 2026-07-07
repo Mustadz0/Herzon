@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:herzon/core/theme/app_theme.dart';
 
 class PollCreationWidget extends StatefulWidget {
@@ -70,7 +70,7 @@ class _PollCreationWidgetState extends State<PollCreationWidget> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest?.withValues(alpha: 0.3),
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: cs.outlineVariant),
           ),
@@ -95,7 +95,7 @@ class _PollCreationWidgetState extends State<PollCreationWidget> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest?.withValues(alpha: 0.2),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: cs.outlineVariant),
       ),

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 /// A glass-card showing the user's current level, XP, and progress to the
@@ -24,7 +24,7 @@ class XpLevelBadge extends StatelessWidget {
     final t = Theme.of(context);
     final pct = (progressPercent.clamp(0, 100)) / 100.0;
     final xpInLevel = (xp % 100);
-    final xpForNext = 100;
+    const xpForNext = 100;
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: compact ? 12 : 18, horizontal: compact ? 14 : 20),
@@ -101,7 +101,7 @@ class XpLevelBadge extends StatelessWidget {
                   Text('$xpInLevel / $xpForNext XP pour niveau ${level + 1}',
                     style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
                   const Spacer(),
-                  Icon(Icons.stars, size: 12, color: AppTheme.accent),
+                  const Icon(Icons.stars, size: 12, color: AppTheme.accent),
                   const SizedBox(width: 4),
                   Text('$xp',
                     style: t.textTheme.bodySmall?.copyWith(color: AppTheme.accent, fontWeight: FontWeight.w700)),

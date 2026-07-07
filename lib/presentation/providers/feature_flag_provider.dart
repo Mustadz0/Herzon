@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/feature_flag_repository.dart';
 
 class FeatureFlagState {
@@ -67,7 +67,7 @@ class FeatureFlagNotifier extends StateNotifier<FeatureFlagState> {
   T getFlagValue<T>(String key, T defaultValue) {
     final value = state.flags[key];
     if (value == null) return defaultValue;
-    if (value is T) return value as T;
+    if (value is T) return value;
     return defaultValue;
   }
 }

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:herzon/core/theme/app_theme.dart';
 import 'package:herzon/data/models/ride_model.dart';
 import 'package:herzon/presentation/widgets/ride_card.dart';
@@ -163,7 +163,7 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
                           children: [
                             const Icon(Icons.error_outline, size: 48, color: Color(0xFFEF4444)),
                             const SizedBox(height: 16),
-                            Text('Erreur: $_error', style: TextStyle(color: Colors.red)),
+                            Text('Erreur: $_error', style: const TextStyle(color: Colors.red)),
                             const SizedBox(height: 16),
                             ElevatedButton(onPressed: _loadRides, child: const Text('Réessayer')),
                           ],

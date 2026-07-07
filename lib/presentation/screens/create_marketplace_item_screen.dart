@@ -1,8 +1,7 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../core/theme/app_theme.dart';
 import '../../data/models/marketplace_item_model.dart';
 import '../providers/marketplace_provider.dart';
 
@@ -131,7 +130,7 @@ class _CreateMarketplaceItemScreenState extends ConsumerState<CreateMarketplaceI
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               decoration: const InputDecoration(labelText: 'Categorie'),
               items: marketplaceCategories.where((c) => c != 'Tout').map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (v) => setState(() => _selectedCategory = v ?? marketplaceCategories[1]),

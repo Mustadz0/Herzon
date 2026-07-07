@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -143,7 +143,7 @@ class HerzonApp extends ConsumerWidget {
         } else if (auth.error != null) {
           home = Scaffold(body: Center(child: Text('Error: ${auth.error}')));
         } else if (auth.isAuthenticated) {
-          home = NotificationTapHandler(child: const HomeScreen());
+          home = const NotificationTapHandler(child: HomeScreen());
         } else {
           home = const LoginScreen();
         }

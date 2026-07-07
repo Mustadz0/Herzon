@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart' as ll;
@@ -89,13 +89,13 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     // Add layers
     try {
       await ctrl.addFillLayer('radius-source', 'radius-fill',
-        FillLayerProperties(fillColor: '#146366F1', fillOpacity: 0.08),
+        const FillLayerProperties(fillColor: '#146366F1', fillOpacity: 0.08),
         enableInteraction: false,
       );
     } catch (_) {}
     try {
       await ctrl.addLineLayer('radius-source', 'radius-outline',
-        LineLayerProperties(lineColor: '#4D6366F1', lineWidth: 2),
+        const LineLayerProperties(lineColor: '#4D6366F1', lineWidth: 2),
         enableInteraction: false,
       );
     } catch (_) {}
@@ -171,7 +171,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               target: LatLng(_userLocation?.latitude ?? 36.7538, _userLocation?.longitude ?? 3.0588),
               zoom: AppConstants.defaultZoom,
             ),
-            minMaxZoomPreference: MinMaxZoomPreference(AppConstants.minZoom, AppConstants.maxZoom),
+            minMaxZoomPreference: const MinMaxZoomPreference(AppConstants.minZoom, AppConstants.maxZoom),
             myLocationEnabled: true,
             myLocationTrackingMode: MyLocationTrackingMode.none,
             onMapCreated: _onMapCreated,
@@ -350,7 +350,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               children: [
                 Container(
                   width: 40, height: 40,
-                  decoration: BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
                   child: const Icon(Icons.person, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 12),

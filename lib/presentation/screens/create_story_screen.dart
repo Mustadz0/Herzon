@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -191,7 +191,7 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
 
   Widget _iconButton(IconData icon, VoidCallback onTap) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.black54,
         shape: BoxShape.circle,
       ),

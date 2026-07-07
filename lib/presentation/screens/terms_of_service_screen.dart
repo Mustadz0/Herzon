@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 /// Affiche les Conditions GÃ©nÃ©rales d'Utilisation (CGU) de ProximitÃ©.
@@ -12,7 +12,7 @@ class TermsOfServiceScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Conditions d\'Utilisation')),
       body: ListView(
         padding: const EdgeInsets.all(20),
-        children: [
+        children: const [
           _Section(
             title: '1. Acceptation des conditions',
             body: 'En crÃ©ant un compte et en utilisant l\'Application ProximitÃ©, '

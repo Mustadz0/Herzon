@@ -1,6 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/constants/app_constants.dart';
 
 /// Affiche la politique de confidentialitÃ© conforme Ã  la loi algÃ©rienne 18-07
 /// et au RGPD (pour les utilisateurs europÃ©ens).
@@ -23,7 +22,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
-        children: [
+        children: const [
           _Section(
             title: '1. Introduction',
             body: 'ProximitÃ© (Â« l\'Application Â») respecte votre vie privÃ©e. '

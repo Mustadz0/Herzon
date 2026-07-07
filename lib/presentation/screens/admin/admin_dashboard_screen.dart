@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -175,16 +175,16 @@ class AdminDashboardScreen extends ConsumerWidget {
                                       },
                                     ),
                                   ),
-                                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                                 ),
                                 borderData: FlBorderData(show: false),
                                 gridData: FlGridData(
                                   show: true,
                                   drawVerticalLine: false,
                                   horizontalInterval: _getMaxY(stats.postsLast7Days) / 4,
-                                  getDrawingHorizontalLine: (value) => FlLine(
-                                    color: const Color(0xFFE2E8F0),
+                                  getDrawingHorizontalLine: (value) => const FlLine(
+                                    color: Color(0xFFE2E8F0),
                                     strokeWidth: 1,
                                   ),
                                 ),

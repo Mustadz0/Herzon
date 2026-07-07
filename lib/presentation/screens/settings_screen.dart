@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -287,7 +287,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: 'com.example.herzon'));
+              Clipboard.setData(const ClipboardData(text: 'com.example.herzon'));
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                 content: Text('ID de l\'application copiÃ©'),
                 behavior: SnackBarBehavior.floating,
@@ -441,7 +441,7 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
         children: [
           Container(
             width: 40, height: 40,
-            decoration: BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
+            decoration: const BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
             child: _profile?['avatar_url'] != null
                 ? ClipRRect(borderRadius: BorderRadius.circular(20),
                     child: Image.network(_profile!['avatar_url'] as String, fit: BoxFit.cover))

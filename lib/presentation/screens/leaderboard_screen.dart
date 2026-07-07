@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:herzon/core/theme/app_theme.dart';
@@ -317,7 +317,7 @@ class _Podium extends StatelessWidget {
   Widget build(BuildContext context) {
     if (top.isEmpty) return const SizedBox.shrink();
 
-    final r1 = top.length > 0 ? top[0] : null;
+    final r1 = top.isNotEmpty ? top[0] : null;
     final r2 = top.length > 1 ? top[1] : null;
     final r3 = top.length > 2 ? top[2] : null;
 
@@ -486,7 +486,7 @@ class _AchievementsGrid extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.workspace_premium_rounded,
+              const Icon(Icons.workspace_premium_rounded,
                   color: AppTheme.primary, size: 20),
               const SizedBox(width: 8),
               Text('SuccÃ¨s dÃ©bloquÃ©s',

@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/follow_repository.dart';
 
@@ -32,10 +32,10 @@ class FollowNotifier extends StateNotifier<FollowState> {
   Future<void> follow() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    state = FollowState(isFollowing: true, isLoading: true);
+    state = const FollowState(isFollowing: true, isLoading: true);
     try {
       await _repo.follow(user.id, _targetUserId);
-      state = FollowState(isFollowing: true);
+      state = const FollowState(isFollowing: true);
     } catch (e) {
       state = FollowState(isFollowing: false, error: e.toString());
     }
@@ -44,10 +44,10 @@ class FollowNotifier extends StateNotifier<FollowState> {
   Future<void> unfollow() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    state = FollowState(isFollowing: false, isLoading: true);
+    state = const FollowState(isFollowing: false, isLoading: true);
     try {
       await _repo.unfollow(user.id, _targetUserId);
-      state = FollowState(isFollowing: false);
+      state = const FollowState(isFollowing: false);
     } catch (e) {
       state = FollowState(isFollowing: true, error: e.toString());
     }
