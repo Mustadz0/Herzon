@@ -7,7 +7,6 @@ class TermsOfServiceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Conditions d\'Utilisation')),
       body: ListView(

@@ -113,11 +113,11 @@ class _ConversationsListScreenState extends ConsumerState<ConversationsListScree
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: hasUnread ? const Color(0xFF4F46E5).withOpacity(0.03) : Colors.white,
+        color: hasUnread ? const Color(0xFF4F46E5).withValues(alpha: 0.03) : Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -133,7 +133,7 @@ class _ConversationsListScreenState extends ConsumerState<ConversationsListScree
               backgroundImage: conv.otherUserAvatar != null
                   ? NetworkImage(conv.otherUserAvatar!)
                   : null,
-              backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
+              backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
               child: conv.otherUserAvatar == null
                   ? Text(
                       (conv.otherUserName ?? '?')[0].toUpperCase(),

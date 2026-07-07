@@ -8,7 +8,6 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Politique de ConfidentialitÃ©'),

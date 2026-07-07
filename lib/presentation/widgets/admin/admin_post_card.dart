@@ -22,7 +22,7 @@ class AdminPostCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -40,7 +40,7 @@ class AdminPostCard extends StatelessWidget {
                   backgroundImage: post.userAvatarUrl != null
                       ? NetworkImage(post.userAvatarUrl!)
                       : null,
-                  backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
+                  backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                   child: post.userAvatarUrl == null
                       ? Text(
                           (post.userDisplayName ?? 'U')[0].toUpperCase(),

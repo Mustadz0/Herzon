@@ -66,7 +66,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -79,7 +79,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           elevation: 0,
           height: 70,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          indicatorColor: const Color(0xFF4F46E5).withOpacity(0.1),
+          indicatorColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
           destinations: [
             _buildNavDestination(0, Icons.dashboard_outlined, Icons.dashboard, 'Dashboard'),
             _buildNavDestination(1, Icons.people_outline, Icons.people, 'Users'),

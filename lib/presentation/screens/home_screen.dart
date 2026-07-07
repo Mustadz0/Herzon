@@ -108,7 +108,6 @@ class _NavItem extends StatelessWidget {
   final String label;
   final int currentIndex;
   final ValueChanged<int> onTap;
-  final int badgeCount;
 
   const _NavItem({
     required this.index,
@@ -117,7 +116,6 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.currentIndex,
     required this.onTap,
-    this.badgeCount = 0,
   });
 
   @override
@@ -144,17 +142,6 @@ class _NavItem extends StatelessWidget {
                 Icon(selected ? (activeIcon ?? icon) : icon,
                   size: 22,
                   color: selected ? AppTheme.primary : t.colorScheme.onSurfaceVariant),
-                if (badgeCount > 0)
-                  Positioned(
-                    right: -6, top: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                      child: Text('$badgeCount', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                        textAlign: TextAlign.center),
-                    ),
-                  ),
               ],
             ),
             const SizedBox(height: 2),
@@ -323,11 +310,11 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _StatItem(value: _loadingStats ? 'â€¦' : '$_postCount', label: 'Posts', t: t),
+                _statItem(value: _loadingStats ? '…' : '$_postCount', label: 'Posts', t: t),
                 Container(width: 1, height: 32, color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-                _StatItem(value: _loadingStats ? 'â€¦' : '$_followerCount', label: 'Fans', t: t),
+                _statItem(value: _loadingStats ? '…' : '$_followerCount', label: 'Fans', t: t),
                 Container(width: 1, height: 32, color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-                _StatItem(value: _loadingStats ? 'â€¦' : '$_followingCount', label: 'Cercle', t: t),
+                _statItem(value: _loadingStats ? '…' : '$_followingCount', label: 'Cercle', t: t),
               ],
             ),
           ),
@@ -385,7 +372,7 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
     );
   }
 
-  Widget _StatItem({required String value, required String label, required ThemeData t}) {
+  Widget _statItem({required String value, required String label, required ThemeData t}) {
     return Column(
       children: [
         Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),

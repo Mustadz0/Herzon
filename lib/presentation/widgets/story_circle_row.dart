@@ -10,7 +10,6 @@ class StoryCircleRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = Theme.of(context);
     final storyState = ref.watch(storyProvider);
     final stories = storyState.stories;
 

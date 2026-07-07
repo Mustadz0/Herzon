@@ -240,7 +240,6 @@ class _PostCardState extends ConsumerState<PostCard> with SingleTickerProviderSt
       totalVotes: post.pollTotalVotes ?? 0,
       userVoteIndex: post.userPollVoteIndex,
     );
-    final pollState = ref.watch(pollProvider);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

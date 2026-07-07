@@ -87,8 +87,6 @@ class _BadgesScreenState extends State<BadgesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-
     return Scaffold(
       appBar: AppBar(title: const Text('My Badges')),
       body: GridView.builder(

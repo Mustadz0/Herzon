@@ -187,6 +187,7 @@ class _PageListScreenState extends ConsumerState<PageListScreen> {
                     try {
                       final locationService = ref.read(locationServiceProvider);
                       final pos = await locationService.initializeLocation();
+                      if (!context.mounted) return;
                       lat = pos.latitude;
                       lng = pos.longitude;
 

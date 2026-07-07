@@ -69,19 +69,21 @@ class _ReportScreenState extends State<ReportScreen> {
           children: [
             const Text('Motif du signalement', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            ..._reasons.map((reason) {
-              final selected = _selectedReason == reason;
-              return ListTile(
-                leading: Radio<String>(
-                  value: reason,
-                  groupValue: _selectedReason,
-                  onChanged: (v) => setState(() => _selectedReason = v),
-                ),
-                title: Text(reason),
-                onTap: () => setState(() => _selectedReason = reason),
-                selected: selected,
-              );
-            }),
+            RadioGroup<String>(
+              groupValue: _selectedReason,
+              onChanged: (v) => setState(() => _selectedReason = v ?? _selectedReason),
+              child: Column(
+                children: _reasons.map((reason) {
+                  final selected = _selectedReason == reason;
+                  return ListTile(
+                    leading: Radio<String>(value: reason),
+                    title: Text(reason),
+                    onTap: () => setState(() => _selectedReason = reason),
+                    selected: selected,
+                  );
+                }).toList(),
+              ),
+            ),
             if (_selectedReason == 'Autre') ...[
               const SizedBox(height: 12),
               TextField(

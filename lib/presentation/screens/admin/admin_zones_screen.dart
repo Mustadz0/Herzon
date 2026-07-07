@@ -113,7 +113,7 @@ class _AdminZonesScreenState extends State<AdminZonesScreen> {
                               borderRadius: BorderRadius.circular(14),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
+                                  color: Colors.black.withValues(alpha: 0.04),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -124,7 +124,7 @@ class _AdminZonesScreenState extends State<AdminZonesScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF7C3AED).withOpacity(0.1),
+                                    color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Icon(Icons.map, color: Color(0xFF7C3AED), size: 24),
@@ -155,7 +155,7 @@ class _AdminZonesScreenState extends State<AdminZonesScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withOpacity(0.1),
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(

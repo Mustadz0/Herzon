@@ -27,7 +27,7 @@ class _StickerPickerState extends State<StickerPicker> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -56,7 +56,7 @@ class _StickerPickerState extends State<StickerPicker> {
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? const Color(0xFF4F46E5).withOpacity(0.1)
+                                  ? const Color(0xFF4F46E5).withValues(alpha: 0.1)
                                   : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(20),
                               border: isSelected

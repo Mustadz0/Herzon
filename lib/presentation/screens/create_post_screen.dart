@@ -8,7 +8,6 @@ import '../providers/post_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/sticker_constants.dart';
 import '../widgets/sticker_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   const CreatePostScreen({super.key});
@@ -80,23 +79,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
     setState(() => _isPosting = true);
     try {
-      final userId = Supabase.instance.client.auth.currentUser!.id;
-
-      // Determine media type and URL
-      String? mediaType;
-      String? mediaUrl;
       List<File> mediaFiles = [];
 
       if (_selectedVideo != null) {
-        mediaType = 'video';
         mediaFiles = [_selectedVideo!];
       } else if (_selectedMedia.isNotEmpty) {
-        mediaType = 'image';
         mediaFiles = _selectedMedia;
-      } else if (_selectedStickerId != null) {
-        mediaType = 'sticker';
-      } else {
-        mediaType = 'text';
       }
 
       // Create post with media
@@ -302,7 +290,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           color: selected
-                              ? const Color(0xFF4F46E5).withOpacity(0.1)
+                              ? const Color(0xFF4F46E5).withValues(alpha: 0.1)
                               : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(20),
                           border: selected
@@ -341,7 +329,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -374,7 +362,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withOpacity(0.1),
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -413,7 +401,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isActive
-              ? const Color(0xFF4F46E5).withOpacity(0.1)
+              ? const Color(0xFF4F46E5).withValues(alpha: 0.1)
               : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(10),
         ),

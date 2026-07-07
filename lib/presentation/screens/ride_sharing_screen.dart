@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:herzon/core/theme/app_theme.dart';
 import 'package:herzon/data/models/ride_model.dart';
 import 'package:herzon/presentation/widgets/ride_card.dart';
 import 'package:herzon/services/location_service.dart';
@@ -108,8 +107,6 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Rides Nearby')),
       body: Column(

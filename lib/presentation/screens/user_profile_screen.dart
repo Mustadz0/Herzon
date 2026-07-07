@@ -145,13 +145,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                               mainAxisSize: MainAxisSize.max,
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Expanded(child: _StatItem(value: '$_postCount', label: 'Posts', t: t)),
+                                Expanded(child: _statItem(value: '$_postCount', label: 'Posts', t: t)),
                                 Container(width: 1, height: 32,
                                   color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-                                 Expanded(child: _StatItem(value: '$_followerCount', label: 'Fans', t: t)),
+                                 Expanded(child: _statItem(value: '$_followerCount', label: 'Fans', t: t)),
                                 Container(width: 1, height: 32,
                                   color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
-                                Expanded(child: _StatItem(value: '$_followingCount', label: 'Cercle', t: t)),
+                                Expanded(child: _statItem(value: '$_followingCount', label: 'Cercle', t: t)),
                               ],
                             ),
                           ),
@@ -279,7 +279,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
   }
 
-  Widget _StatItem({required String value, required String label, required ThemeData t}) {
+  Widget _statItem({required String value, required String label, required ThemeData t}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

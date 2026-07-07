@@ -24,7 +24,7 @@ class AdminUserCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -36,7 +36,7 @@ class AdminUserCard extends StatelessWidget {
         leading: CircleAvatar(
           radius: 24,
           backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-          backgroundColor: const Color(0xFF4F46E5).withOpacity(0.1),
+          backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
           child: user.avatarUrl == null
               ? Text(
                   (user.displayName ?? user.username ?? 'U')[0].toUpperCase(),
@@ -62,7 +62,7 @@ class AdminUserCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withOpacity(0.1),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

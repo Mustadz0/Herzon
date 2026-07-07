@@ -24,6 +24,7 @@ import 'package:herzon/services/feature_flag_service.dart';
 import 'package:herzon/services/notification_service.dart';
 import 'package:herzon/services/crashlytics_service.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_performance/firebase_performance.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -106,6 +107,14 @@ void main() async {
     debugPrint('Firebase App Check activated');
   } catch (e) {
     debugPrint('App Check init failed: $e');
+  }
+
+  // Initialize Firebase Performance Monitoring
+  try {
+    await FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
+    debugPrint('Firebase Performance Monitoring activated');
+  } catch (e) {
+    debugPrint('Performance Monitoring init failed: $e');
   }
 
   runApp(
