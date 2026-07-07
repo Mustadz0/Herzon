@@ -8,7 +8,7 @@ import java.util.Properties
 import java.io.FileInputStream
 
 android {
-    namespace = "com.example.herzon"
+    namespace = "com.heron.app"
     compileSdk = 36
 
     ndkVersion = "28.2.13676358"
@@ -23,7 +23,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.herzon"
+        applicationId = "com.heron.app"
         minSdk = 24    // Android 7.0+ (99%+ du marché)
         targetSdk = 36 // Android 16
         versionCode = flutter.versionCode

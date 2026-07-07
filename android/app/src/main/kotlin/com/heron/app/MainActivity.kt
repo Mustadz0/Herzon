@@ -1,4 +1,4 @@
-package com.example.herzon
+package com.heron.app
 
 import io.flutter.embedding.android.FlutterActivity
 
