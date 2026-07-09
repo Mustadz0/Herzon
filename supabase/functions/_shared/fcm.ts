@@ -1,14 +1,6 @@
-/**
- * FCM HTTP v1 API helper for Supabase Edge Functions.
- * Replaces the deprecated FCM Legacy API (fcm/send).
- *
- * Usage:
- *   import { sendFcmV1 } from "../_shared/fcm.ts";
- *   await sendFcmV1(token, { title, body }, { type: "message", ... });
- */
-
 const FCM_PROJECT_ID = Deno.env.get("FCM_PROJECT_ID") ?? "hoyzen-7fad5";
 const FCM_SERVICE_ACCOUNT = Deno.env.get("FCM_SERVICE_ACCOUNT");
+const FCM_SERVER_KEY = Deno.env.get("FCM_SERVER_KEY");
 
 interface FcmNotification {
   title: string;
@@ -22,13 +14,13 @@ interface FcmData {
 
 let _cachedToken: { token: string; expiresAt: number } | null = null;
 
-async function getAccessToken(): Promise<string> {
-  if (_cachedToken && _cachedToken.expiresAt > Date.now()) {
-    return _cachedToken.token;
+async function _getAccessTokenV1(): Promise<string> {
+  if (!FCM_SERVICE_ACCOUNT) {
+    throw new Error("no_service_account");
   }
 
-  if (!FCM_SERVICE_ACCOUNT) {
-    throw new Error("FCM_SERVICE_ACCOUNT environment variable not set");
+  if (_cachedToken && _cachedToken.expiresAt > Date.now()) {
+    return _cachedToken.token;
   }
 
   const sa = JSON.parse(FCM_SERVICE_ACCOUNT);
@@ -83,65 +75,118 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+async function _sendV1(
+  token: string,
+  notification: FcmNotification,
+  data?: FcmData,
+): Promise<boolean> {
+  const accessToken = await _getAccessTokenV1();
+
+  const message: Record<string, unknown> = {
+    token,
+    notification: {
+      title: notification.title,
+      body: notification.body,
+    },
+    android: {
+      priority: "high",
+      notification: {
+        sound: "default",
+        channel_id: "herzon_default",
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+          badge: 1,
+        },
+      },
+    },
+  };
+
+  if (notification.image) {
+    (message.notification as Record<string, string>).image = notification.image;
+  }
+
+  if (data && Object.keys(data).length > 0) {
+    message.data = data;
+  }
+
+  const res = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ message }),
+    },
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`FCM v1 error: ${res.status} - ${errText}`);
+    return false;
+  }
+  return true;
+}
+
+async function _sendLegacy(
+  token: string,
+  notification: FcmNotification,
+  data?: FcmData,
+): Promise<boolean> {
+  const body: Record<string, unknown> = {
+    to: token,
+    priority: "high",
+    notification: {
+      title: notification.title,
+      body: notification.body,
+      sound: "default",
+      channel_id: "herzon_default",
+    },
+  };
+
+  if (data && Object.keys(data).length > 0) {
+    body.data = data;
+  }
+
+  const res = await fetch("https://fcm.googleapis.com/fcm/send", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `key=${FCM_SERVER_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`FCM legacy error: ${res.status} - ${errText}`);
+    return false;
+  }
+  return true;
+}
+
 export async function sendFcmV1(
   token: string,
   notification: FcmNotification,
   data?: FcmData,
 ): Promise<boolean> {
-  try {
-    const accessToken = await getAccessToken();
-
-    const message: Record<string, unknown> = {
-      token,
-      notification: {
-        title: notification.title,
-        body: notification.body,
-      },
-      android: {
-        priority: "high",
-        notification: {
-          sound: "default",
-          channel_id: "herzon_default",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: "default",
-            badge: 1,
-          },
-        },
-      },
-    };
-
-    if (notification.image) {
-      (message.notification as Record<string, string>).image = notification.image;
+  if (FCM_SERVICE_ACCOUNT) {
+    try {
+      return await _sendV1(token, notification, data);
+    } catch (e) {
+      console.error("FCM v1 failed, falling back to legacy:", e);
     }
-
-    if (data && Object.keys(data).length > 0) {
-      message.data = data;
-    }
-
-    const res = await fetch(
-      `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ message }),
-      },
-    );
-
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`FCM v1 error: ${res.status} - ${errText}`);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.error(`FCM v1 exception:`, e);
-    return false;
   }
+
+  if (FCM_SERVER_KEY) {
+    return await _sendLegacy(token, notification, data);
+  }
+
+  console.error("No FCM credentials configured (neither FCM_SERVICE_ACCOUNT nor FCM_SERVER_KEY)");
+  return false;
 }
