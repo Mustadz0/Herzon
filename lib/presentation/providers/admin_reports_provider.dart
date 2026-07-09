@@ -95,13 +95,10 @@ class AdminReportsNotifier extends StateNotifier<AdminReportsState> {
 
   Future<void> updateReportStatus(String reportId, String status) async {
     try {
-      // Verify admin
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw Exception('Not authenticated');
-      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
-      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
-
-      await _supabase.from('reports').update({'status': status}).eq('id', reportId);
+      await _supabase.rpc('admin_update_report_status', params: {
+        'target_report_id': reportId,
+        'new_status': status,
+      });
       await loadReports(status: state.filterStatus);
     } catch (e) {
       state = state.copyWith(error: e.toString());

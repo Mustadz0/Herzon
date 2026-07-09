@@ -12,6 +12,7 @@ SET search_path = public
 AS $$
 DECLARE
   edge_url text;
+  internal_secret text;
   payload jsonb;
   fcm_tokens text[];
 BEGIN
@@ -35,6 +36,7 @@ BEGIN
     edge_url := 'https://xhjglurrmnmpqzbvctgn.supabase.co';
   END IF;
   edge_url := edge_url || '/functions/v1/send-push';
+  internal_secret := current_setting('app.internal_function_secret', true);
 
   -- Build the request payload
   payload := jsonb_build_object(
@@ -50,7 +52,8 @@ BEGIN
       url := edge_url,
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || current_setting('supabase_anon_key', true)
+        'Authorization', 'Bearer ' || current_setting('supabase_anon_key', true),
+        'X-Internal-Function-Secret', COALESCE(internal_secret, '')
       ),
       body := payload::text,
       timeout_milliseconds := 5000

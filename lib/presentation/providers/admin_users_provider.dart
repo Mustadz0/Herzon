@@ -55,16 +55,10 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
 
   Future<void> toggleAdmin(String userId, bool isAdmin) async {
     try {
-      // Verify current user is admin first
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw Exception('Not authenticated');
-      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
-      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
-
-      // Prevent self-demotion
-      if (userId == currentUserId && !isAdmin) throw Exception('Cannot remove own admin status');
-
-      await _supabase.from('profiles').update({'is_admin': isAdmin}).eq('id', userId);
+      await _supabase.rpc('admin_set_user_admin', params: {
+        'target_user_id': userId,
+        'make_admin': isAdmin,
+      });
       await loadUsers(search: state.searchQuery);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -73,12 +67,10 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
 
   Future<void> toggleVibes(String userId, bool canUseVibes) async {
     try {
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw Exception('Not authenticated');
-      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
-      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
-
-      await _supabase.from('profiles').update({'can_use_vibes': canUseVibes}).eq('id', userId);
+      await _supabase.rpc('admin_set_user_vibes', params: {
+        'target_user_id': userId,
+        'can_use_vibes_value': canUseVibes,
+      });
       await loadUsers(search: state.searchQuery);
     } catch (e) {
       state = state.copyWith(error: e.toString());

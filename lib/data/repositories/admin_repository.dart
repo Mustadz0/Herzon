@@ -141,12 +141,13 @@ class AdminRepository {
   }
 
   Future<void> updateReportStatus(String reportId, String status) async {
-    await _verifyAdmin();
-    await _supabase.from('reports').update({'status': status}).eq('id', reportId);
+    await _supabase.rpc('admin_update_report_status', params: {
+      'target_report_id': reportId,
+      'new_status': status,
+    });
   }
 
   Future<void> deletePost(String postId) async {
-    await _verifyAdmin();
-    await _supabase.from('posts').delete().eq('id', postId);
+    await _supabase.rpc('admin_delete_post', params: {'target_post_id': postId});
   }
 }

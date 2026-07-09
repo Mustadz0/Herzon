@@ -55,13 +55,7 @@ class AdminPostsNotifier extends StateNotifier<AdminPostsState> {
 
   Future<void> deletePost(String postId) async {
     try {
-      // Verify admin
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw Exception('Not authenticated');
-      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
-      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
-
-      await _supabase.from('posts').delete().eq('id', postId);
+      await _supabase.rpc('admin_delete_post', params: {'target_post_id': postId});
       state = state.copyWith(posts: state.posts.where((p) => p.id != postId).toList());
     } catch (e) {
       state = state.copyWith(error: e.toString());

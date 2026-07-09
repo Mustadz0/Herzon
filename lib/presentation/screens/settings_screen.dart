@@ -315,7 +315,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               final uid = Supabase.instance.client.auth.currentUser?.id;
               if (uid != null) {
-                await Supabase.instance.client.from('profiles').delete().eq('id', uid);
+                await Supabase.instance.client.functions.invoke('delete-account');
                 await Supabase.instance.client.auth.signOut();
               }
               if (context.mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);

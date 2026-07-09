@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,13 +39,17 @@ void main() async {
       details.stack,
       reason: 'ErrorWidget: ${details.context}',
     );
+    final message = kDebugMode
+        ? 'RUNTIME ERROR:\n${details.exceptionAsString()}\n\n${details.stack}'
+        : 'Une erreur est survenue. Veuillez relancer l\'application.';
+
     return Material(
       color: Colors.red.shade900,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Text(
-            'RUNTIME ERROR:\n${details.exceptionAsString()}\n\n${details.stack}',
+            message,
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
         ),
