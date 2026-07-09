@@ -17,6 +17,7 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
   File? _mediaFile;
   String _mediaType = 'image';
   bool _isSubmitting = false;
+  bool _showInZone = true;
 
   @override
   void dispose() {
@@ -59,6 +60,7 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
         textOverlay: _textController.text.trim().isEmpty
             ? null
             : _textController.text.trim(),
+        showInZone: _showInZone,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -174,14 +176,53 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
           bottom: 40,
           left: 0,
           right: 0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
             children: [
-              _iconButton(Icons.camera_alt, _pickFromCamera),
-              const SizedBox(width: 24),
-              _iconButton(Icons.photo_library, _pickFromGallery),
-              const SizedBox(width: 24),
-              _iconButton(Icons.videocam, _pickVideo),
+              // Zone visibility toggle
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _showInZone ? Icons.public : Icons.lock_outline,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _showInZone ? 'Visible dans la Zone' : ' prive',
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: _showInZone,
+                      onChanged: (v) => setState(() => _showInZone = v),
+                      activeThumbColor: Colors.white,
+                      activeTrackColor: Colors.green,
+                      inactiveTrackColor: Colors.grey,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Media picker buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _iconButton(Icons.camera_alt, _pickFromCamera),
+                  const SizedBox(width: 24),
+                  _iconButton(Icons.photo_library, _pickFromGallery),
+                  const SizedBox(width: 24),
+                  _iconButton(Icons.videocam, _pickVideo),
+                ],
+              ),
             ],
           ),
         ),

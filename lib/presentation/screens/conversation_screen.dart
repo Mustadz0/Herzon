@@ -345,9 +345,12 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   String _formatMessageTime(DateTime time) {
     final now = DateTime.now();
-    if (time.day == now.day) {
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(time.year, time.month, time.day);
+    final diff = today.difference(messageDate).inDays;
+    if (diff == 0) {
       return 'Aujourd\'hui ${DateFormat('HH:mm').format(time)}';
-    } else if (time.day == now.day - 1) {
+    } else if (diff == 1) {
       return 'Hier ${DateFormat('HH:mm').format(time)}';
     } else {
       return DateFormat('dd/MM HH:mm').format(time);

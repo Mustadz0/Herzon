@@ -144,7 +144,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(text: '${post.userDisplayName ?? "Quelqu'un"} a partage: ${post.content}'));
                                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                  content: Text('CopiÃ© !'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 2)));
+                                  content: Text('Copié !'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 2)));
                               },
                               icon: const Icon(Icons.ios_share, size: 16),
                               label: const Text('Partager'),
@@ -282,7 +282,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   child: TextField(
                     controller: _commentController,
                     decoration: InputDecoration(
-                      hintText: 'Ã‰crire un commentaire...',
+                      hintText: 'Écrire un commentaire...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                       filled: true,
                       fillColor: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),

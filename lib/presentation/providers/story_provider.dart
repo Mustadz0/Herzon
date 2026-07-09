@@ -60,16 +60,28 @@ class StoryNotifier extends StateNotifier<StoriesState> {
     required File mediaFile,
     required String mediaType,
     String? textOverlay,
+    bool showInZone = true,
   }) async {
     final pos = await _locationService.initializeLocation();
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
+
+    // Check if user has permission to use vibes
+    final profile = await Supabase.instance.client
+        .from('profiles')
+        .select('can_use_vibes, is_admin')
+        .eq('id', user.id)
+        .single();
+    if (profile['can_use_vibes'] != true && profile['is_admin'] != true) {
+      throw Exception('Vous n\'etes pas autorise a utiliser les Vibes. Contactez l\'administrateur.');
+    }
 
     await _repo.createStory(
       userId: user.id,
       mediaFile: mediaFile,
       mediaType: mediaType,
       textOverlay: textOverlay,
+      showInZone: showInZone,
       location: pos,
     );
     await loadStories();

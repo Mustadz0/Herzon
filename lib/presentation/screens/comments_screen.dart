@@ -154,7 +154,7 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
                   child: TextField(
                     controller: _controller,
                     decoration: InputDecoration(
-                      hintText: 'Ã‰crire...',
+                      hintText: 'Écrire...',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                       filled: true,
                       fillColor: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),

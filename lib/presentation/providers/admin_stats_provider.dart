@@ -29,6 +29,12 @@ class AdminStatsNotifier extends StateNotifier<AsyncValue<DashboardStats>> {
   Future<void> loadStats() async {
     state = const AsyncValue.loading();
     try {
+      // Verify admin
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw Exception('Not authenticated');
+      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
+      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
+
       final usersCountResp = await _supabase.from('profiles').select('id').count();
       final postsCountResp = await _supabase.from('posts').select('id').count();
       final reportsCountResp = await _supabase.from('reports').select('id').eq('status', 'pending').count();

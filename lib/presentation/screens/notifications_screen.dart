@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/notification_provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -35,7 +35,7 @@ class NotificationsScreen extends ConsumerWidget {
                   const SizedBox(height: 20),
                   Text('Aucune notification', style: t.textTheme.titleMedium),
                   const SizedBox(height: 6),
-                  Text('Vous serez notifiÃ© des activitÃ©s prÃ¨s de chez vous',
+                  Text('Vous serez notifié des activités près de chez vous',
                     style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant),
                     textAlign: TextAlign.center),
                 ],

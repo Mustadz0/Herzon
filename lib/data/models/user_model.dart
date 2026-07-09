@@ -9,6 +9,7 @@ class UserModel {
   final bool isPremium;
   final DateTime? premiumExpiresAt;
   final bool isAdmin;
+  final bool canUseVibes;
   final Map<String, dynamic> privacySettings;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -23,6 +24,7 @@ class UserModel {
     this.isPremium = false,
     this.premiumExpiresAt,
     this.isAdmin = false,
+    this.canUseVibes = false,
     this.privacySettings = const {},
     this.createdAt,
     this.updatedAt,
@@ -38,6 +40,7 @@ class UserModel {
       isAnonymous: json['is_anonymous'] as bool? ?? false,
       isPremium: json['is_premium'] as bool? ?? false,
       isAdmin: json['is_admin'] as bool? ?? false,
+      canUseVibes: json['can_use_vibes'] as bool? ?? false,
       premiumExpiresAt: json['premium_expires_at'] != null
           ? DateTime.parse(json['premium_expires_at'] as String)
           : null,
@@ -61,6 +64,7 @@ class UserModel {
       'is_anonymous': isAnonymous,
       'is_premium': isPremium,
       'is_admin': isAdmin,
+      'can_use_vibes': canUseVibes,
       'premium_expires_at': premiumExpiresAt?.toIso8601String(),
       'privacy_settings': privacySettings,
       'created_at': createdAt?.toIso8601String(),
@@ -78,6 +82,7 @@ class UserModel {
     bool? isPremium,
     DateTime? premiumExpiresAt,
     bool? isAdmin,
+    bool? canUseVibes,
     Map<String, dynamic>? privacySettings,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -92,6 +97,7 @@ class UserModel {
       isPremium: isPremium ?? this.isPremium,
       premiumExpiresAt: premiumExpiresAt ?? this.premiumExpiresAt,
       isAdmin: isAdmin ?? this.isAdmin,
+      canUseVibes: canUseVibes ?? this.canUseVibes,
       privacySettings: privacySettings ?? this.privacySettings,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

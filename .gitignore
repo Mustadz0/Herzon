@@ -55,3 +55,7 @@ artifacts/
 # Firebase (contains API keys)
 **/google-services.json
 **/GoogleService-Info.plist
+
+nul
+main.dart.run.xml
+sup**/sup*db*/

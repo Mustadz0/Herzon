@@ -75,7 +75,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                   labelStyle:
                       tt.labelLarge?.copyWith(fontWeight: FontWeight.w700),
                   tabs: const [
-                    Tab(text: 'Ã€ proximitÃ©'),
+                    Tab(text: 'À proximité'),
                     Tab(text: 'Mon niveau'),
                   ],
                 ),
@@ -283,7 +283,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                 Container(width: 1, height: 32, color: cs.outlineVariant),
                 _Stat(
                     value: '${myLevel.totalReactionsReceived}',
-                    label: 'RÃ©actions'),
+                    label: 'Réactions'),
                 Container(width: 1, height: 32, color: cs.outlineVariant),
                 _Stat(
                     value: '${myLevel.totalCommentsReceived}',
@@ -489,7 +489,7 @@ class _AchievementsGrid extends StatelessWidget {
               const Icon(Icons.workspace_premium_rounded,
                   color: AppTheme.primary, size: 20),
               const SizedBox(width: 8),
-              Text('SuccÃ¨s dÃ©bloquÃ©s',
+              Text('Succès débloqués',
                   style:
                       tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
             ],
@@ -499,13 +499,13 @@ class _AchievementsGrid extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _AchievementBadge(
-                  emoji: 'ðŸŒ±', label: 'Nouveau', unlocked: level >= 1),
+                  emoji: '\u{1F331}', label: 'Nouveau', unlocked: level >= 1),
               _AchievementBadge(
-                  emoji: 'ðŸ”­', label: 'Explorateur', unlocked: level >= 5),
+                  emoji: '\u{1F52E}', label: 'Explorateur', unlocked: level >= 5),
               _AchievementBadge(
-                  emoji: 'ðŸ…', label: 'Ambassadeur', unlocked: level >= 10),
+                  emoji: '\u{1F5FC}', label: 'Ambassadeur', unlocked: level >= 10),
               _AchievementBadge(
-                  emoji: 'ðŸ‘‘', label: 'LÃ©gende', unlocked: level >= 20),
+                  emoji: '\u{1F451}', label: 'Legende', unlocked: level >= 20),
             ],
           ),
         ],

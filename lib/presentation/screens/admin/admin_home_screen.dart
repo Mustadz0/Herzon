@@ -7,6 +7,7 @@ import 'admin_reports_screen.dart';
 import 'admin_zones_screen.dart';
 import 'admin_messages_screen.dart';
 import 'admin_analytics_screen.dart';
+import 'admin_notifications_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -26,6 +27,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     AdminZonesScreen(),
     AdminMessagesScreen(),
     AdminAnalyticsScreen(),
+    AdminNotificationsScreen(),
   ];
 
   final _titles = const [
@@ -36,6 +38,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     'Zones',
     'Messages',
     'Analytiques',
+    'Alertes Admin',
   ];
 
   @override
@@ -88,13 +91,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             _buildNavDestination(4, Icons.map_outlined, Icons.map, 'Zones'),
             _buildNavDestination(5, Icons.chat_bubble_outline, Icons.chat_bubble, 'Messages'),
             _buildNavDestination(6, Icons.analytics_outlined, Icons.analytics, 'Analytics'),
+            _buildNavDestination(7, Icons.notifications_active_outlined, Icons.notifications_active, 'Alertes'),
           ],
         ),
       ),
     );
   }
 
-  NavigationDestination _buildNavDestination(int index, IconData outlineIcon, filledIcon, String label) {
+  NavigationDestination _buildNavDestination(int index, IconData outlineIcon, IconData filledIcon, String label) {
     final isSelected = _currentIndex == index;
     return NavigationDestination(
       icon: Icon(

@@ -61,7 +61,7 @@ class FeatureFlagService {
     'show_pages': {'enabled': false},
     'show_gamification': {'enabled': true},
     'max_post_length': {'value': 500},
-    'nearby_radius': {'value': 2000},
+    'nearby_radius': {'value': 500},
   };
 
   static Future<void> _saveToCache() async {

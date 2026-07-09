@@ -19,20 +19,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pages = [
     const _OnboardingPage(
       icon: Icons.explore,
-      title: 'DÃ©couvre ton quartier',
-      description: 'Trouve des gens autour de toi dans un rayon de 2 km. Partage des moments avec ta communautÃ© locale.',
+      title: 'Découvre ton quartier',
+      description: 'Trouve des gens autour de toi dans un rayon de 500 m. Partage des moments avec ta communauté locale.',
       color: AppTheme.primary,
     ),
     const _OnboardingPage(
       icon: Icons.auto_stories,
       title: 'Stories en direct',
-      description: 'Publie des stories photos et vidÃ©o. Vois ce qui se passe autour de toi en temps rÃ©el.',
+      description: 'Publie des stories photos et vidéo. Vois ce qui se passe autour de toi en temps réel.',
       color: AppTheme.accent,
     ),
     const _OnboardingPage(
       icon: Icons.chat_bubble,
       title: 'Discussion et partage',
-      description: 'Commente, rÃ©agis avec des emojis, et connecte avec les gens prÃ¨s de chez toi.',
+      description: 'Commente, réagis avec des emojis, et connecte avec les gens près de chez toi.',
       color: AppTheme.success,
     ),
   ];
@@ -40,7 +40,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _onDone() async {
     if (!_privacyAccepted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Veuillez accepter la politique de confidentialitÃ© pour continuer'),
+        content: Text('Veuillez accepter la politique de confidentialité pour continuer'),
         behavior: SnackBarBehavior.floating,
       ));
       return;
@@ -136,12 +136,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: const Icon(Icons.privacy_tip, size: 64, color: AppTheme.primary),
           ),
           const SizedBox(height: 24),
-          Text('Protection des donnÃ©es',
+          Text('Protection des données',
             style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
-          Text('ConformÃ©ment Ã  la loi algÃ©rienne nÂ° 18-07 et au RGPD, '
-              'vos donnÃ©es personnelles (localisation, photos, interactions) '
-              'sont traitÃ©es uniquement pour le fonctionnement de l\'application.',
+          Text('Conformément Ã  la loi algérienne nÂ° 18-07 et au RGPD, '
+              'vos données personnelles (localisation, photos, interactions) '
+              'sont traitées uniquement pour le fonctionnement de l\'application.',
             textAlign: TextAlign.center,
             style: t.textTheme.bodyMedium?.copyWith(height: 1.5)),
           const SizedBox(height: 20),
@@ -151,7 +151,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               TextButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(
                     builder: (_) => const PrivacyPolicyScreen())),
-                child: const Text('Politique de confidentialitÃ©',
+                child: const Text('Politique de confidentialité',
                   style: TextStyle(fontSize: 13, decoration: TextDecoration.underline)),
               ),
               const SizedBox(width: 8),
@@ -186,8 +186,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'J\'accepte la collecte et le traitement de mes donnÃ©es '
-                    'personnelles conformÃ©ment Ã  la politique de confidentialitÃ©.',
+                    'J\'accepte la collecte et le traitement de mes données '
+                    'personnelles conformément Ã  la politique de confidentialité.',
                     style: t.textTheme.bodySmall?.copyWith(height: 1.4),
                   ),
                 ),

@@ -1,7 +1,9 @@
 ﻿class NotificationModel {
   final String id;
-  final String userId;
+  final String? userId;
+  final String? adminId;
   final String type;
+  final String recipientType;
   final String title;
   final String body;
   final Map<String, dynamic> data;
@@ -10,8 +12,10 @@
 
   const NotificationModel({
     required this.id,
-    required this.userId,
+    this.userId,
+    this.adminId,
     required this.type,
+    this.recipientType = 'user',
     required this.title,
     required this.body,
     this.data = const {},
@@ -19,11 +23,15 @@
     this.createdAt,
   });
 
+  bool get isAdminNotification => recipientType == 'admin';
+
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
       id: json['id'] as String,
-      userId: json['user_id'] as String,
+      userId: json['user_id'] as String?,
+      adminId: json['admin_id'] as String?,
       type: json['type'] as String,
+      recipientType: json['recipient_type'] as String? ?? 'user',
       title: json['title'] as String,
       body: json['body'] as String,
       data: json['data'] as Map<String, dynamic>? ?? {},
@@ -32,5 +40,20 @@
           ? DateTime.parse(json['created_at'] as String)
           : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'admin_id': adminId,
+      'type': type,
+      'recipient_type': recipientType,
+      'title': title,
+      'body': body,
+      'data': data,
+      'is_read': isRead,
+      'created_at': createdAt?.toIso8601String(),
+    };
   }
 }

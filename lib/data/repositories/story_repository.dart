@@ -12,6 +12,7 @@ abstract class IStoryRepository {
     required File mediaFile,
     required String mediaType,
     String? textOverlay,
+    bool showInZone = true,
     required LatLng location,
   });
   Future<void> viewStory(String storyId, String userId);
@@ -49,6 +50,7 @@ class SupabaseStoryRepository implements IStoryRepository {
     required File mediaFile,
     required String mediaType,
     String? textOverlay,
+    bool showInZone = true,
     required LatLng location,
   }) async {
     final urls = await _mediaUpload.uploadPostMedia(files: [mediaFile], userId: userId);
@@ -58,6 +60,7 @@ class SupabaseStoryRepository implements IStoryRepository {
       'media_url': urls.first,
       'media_type': mediaType,
       'text_overlay': textOverlay,
+      'show_in_zone': showInZone,
       'location': 'POINT(${location.longitude} ${location.latitude})',
     }).select().single();
     return StoryModel.fromJson(response);

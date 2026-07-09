@@ -42,7 +42,8 @@ class AdminPostsNotifier extends StateNotifier<AdminPostsState> {
     try {
       var query = _supabase.from('posts').select('*, profiles(display_name, username, avatar_url)');
       if (search != null && search.isNotEmpty) {
-        query = query.ilike('content', '%$search%');
+        final sanitized = search.replaceAll(RegExp(r'[%_]'), r'\\$&');
+        query = query.ilike('content', '%$sanitized%');
       }
       final data = await query.order('created_at', ascending: false).limit(100);
       final posts = data.map((json) => PostModel.fromJson(json)).toList();
@@ -54,6 +55,12 @@ class AdminPostsNotifier extends StateNotifier<AdminPostsState> {
 
   Future<void> deletePost(String postId) async {
     try {
+      // Verify admin
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw Exception('Not authenticated');
+      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
+      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
+
       await _supabase.from('posts').delete().eq('id', postId);
       state = state.copyWith(posts: state.posts.where((p) => p.id != postId).toList());
     } catch (e) {

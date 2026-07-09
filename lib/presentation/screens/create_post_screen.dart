@@ -92,6 +92,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             text,
             _selectedTag,
             mediaFiles: mediaFiles,
+            stickerId: _selectedStickerId,
           );
 
       if (mounted) Navigator.of(context).pop(true);

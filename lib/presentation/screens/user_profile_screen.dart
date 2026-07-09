@@ -10,6 +10,7 @@ import '../../data/repositories/follow_repository.dart';
 import '../widgets/post_card.dart';
 import '../widgets/xp_level_badge.dart';
 import '../../data/models/post_model.dart';
+import 'conversation_screen.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -186,7 +187,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                   size: 18,
                                 ),
                                 label: Text(followState.isLoading
-                                  ? 'Chargementâ€¦'
+                                  ? 'Chargement…'
                                   : (followState.isFollowing ? 'Dans mon Cercle' : 'Rejoindre le Cercle')),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: followState.isFollowing
@@ -197,6 +198,37 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                     : null,
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                 ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Message button
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final userId = widget.userId;
+                                  final userName = _profile?['display_name'] ?? 'Utilisateur';
+                                  try {
+                                    final convId = await Supabase.instance.client
+                                        .rpc('get_or_create_conversation', params: {'other_user_id': userId});
+                                    if (!context.mounted) return;
+                                    Navigator.push(context, MaterialPageRoute(
+                                      builder: (_) => ConversationScreen(
+                                        conversationId: convId as String,
+                                        otherUserId: widget.userId,
+                                        otherUserName: userName,
+                                      ),
+                                    ));
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      content: Text('Erreur: $e'),
+                                      behavior: SnackBarBehavior.floating,
+                                    ));
+                                  }
+                                },
+                                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                                label: const Text('Envoyer un message'),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -214,7 +246,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                           await ref.read(blockProvider.notifier).unblockUser(widget.userId);
                                           if (mounted) {
                                             messenger.showSnackBar(const SnackBar(
-                                              content: Text('Utilisateur dÃ©bloquÃ©'),
+                                              content: Text('Utilisateur débloqué'),
                                               behavior: SnackBarBehavior.floating,
                                               duration: Duration(seconds: 2),
                                           ));
@@ -223,7 +255,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                           await ref.read(blockProvider.notifier).blockUser(widget.userId, null);
                                           if (mounted) {
                                             messenger.showSnackBar(SnackBar(
-                                              content: const Text('Utilisateur bloquÃ©'),
+                                              content: const Text('Utilisateur bloqué'),
                                               behavior: SnackBarBehavior.floating,
                                               duration: const Duration(seconds: 2),
                                               action: SnackBarAction(
@@ -235,7 +267,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                         }
                                       },
                                       icon: Icon(isBlocked ? Icons.lock_open_rounded : Icons.block_rounded, size: 16),
-                                      label: Text(isBlocked ? 'DÃ©bloquer' : 'Bloquer'),
+                                      label: Text(isBlocked ? 'Débloquer' : 'Bloquer'),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: isBlocked ? AppTheme.success : AppTheme.error,
                                         side: BorderSide(color: isBlocked ? AppTheme.success : AppTheme.error.withValues(alpha: 0.4)),
@@ -249,7 +281,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                                     onPressed: () {
                                       Clipboard.setData(ClipboardData(text: 'profil:${widget.userId}'));
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                        content: Text('Profil copiÃ©'), 
+                                        content: Text('Profil copié'),
                                         behavior: SnackBarBehavior.floating,
                                         duration: Duration(seconds: 2),
                                       ));

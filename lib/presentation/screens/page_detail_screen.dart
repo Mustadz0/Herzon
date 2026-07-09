@@ -71,7 +71,7 @@ class PageDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Ã€ propos', style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  Text('À propos', style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   Text(page.description!, style: t.textTheme.bodyMedium),
                 ],

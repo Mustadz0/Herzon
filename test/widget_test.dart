@@ -2,7 +2,7 @@
 import 'package:herzon/core/constants/app_constants.dart';
 
 void main() {
-  test('proximity radius is 2km', () {
-    expect(AppConstants.proximityRadiusMeters, 2000.0);
+  test('proximity radius is 500m', () {
+    expect(AppConstants.proximityRadiusMeters, 500.0);
   });
 }

@@ -45,7 +45,7 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Activez ou dÃ©sactivez des fonctionnalitÃ©s Ã  distance sans publier de mise Ã  jour.',
+                          'Activez ou désactivez des fonctionnalités Ã  distance sans publier de mise Ã  jour.',
                           style: t.textTheme.bodySmall?.copyWith(color: AppTheme.primaryDark),
                         ),
                       ),
@@ -58,7 +58,7 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
                     margin: const EdgeInsets.only(bottom: 8),
                     child: SwitchListTile(
                       title: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('ActivÃ©${entry.value ? '' : ' Â· DÃ©sactivÃ©'}',
+                      subtitle: Text('Activé${entry.value ? '' : ' Â· Désactivé'}',
                         style: TextStyle(color: entry.value ? AppTheme.success : t.colorScheme.onSurfaceVariant)),
                       value: entry.value,
                       onChanged: flagState.isLoading ? null : (val) async {
@@ -81,7 +81,7 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
                   );
                 }),
                 const SizedBox(height: 24),
-                Text('ExpÃ©riences A/B', style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                Text('Expériences A/B', style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -94,10 +94,10 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
                     children: [
                       Icon(Icons.science_outlined, size: 48, color: t.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
                       const SizedBox(height: 12),
-                      Text('Gestion des expÃ©riences A/B',
+                      Text('Gestion des expériences A/B',
                         style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
-                      Text('Les utilisateurs sont assignÃ©s automatiquement via l\'API Supabase.',
+                      Text('Les utilisateurs sont assignés automatiquement via l\'API Supabase.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: t.colorScheme.onSurfaceVariant, fontSize: 12)),
                     ],

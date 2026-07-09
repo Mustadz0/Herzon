@@ -64,6 +64,7 @@ class SupabasePostRepository implements IPostRepository {
               userAvatarUrl: json['avatar_url'],
               distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
               commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
+              stickerId: json['sticker_id'] as String?,
             ))
         .toList();
   }
@@ -90,6 +91,7 @@ class SupabasePostRepository implements IPostRepository {
       'media_type': post.mediaType.name,
       'location': 'POINT(${post.longitude} ${post.latitude})',
       'context_tag': post.contextTag,
+      if (post.stickerId != null) 'sticker_id': post.stickerId,
     }).select().single();
 
     return PostModel.fromJson(response);
@@ -97,19 +99,25 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<void> reactToPost(String postId, String reactionType) async {
-    await _supabase.from('reactions').insert({
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not authenticated');
+    await _supabase.from('reactions').upsert({
       'post_id': postId,
+      'user_id': userId,
       'reaction_type': reactionType,
-    });
+    }, onConflict: 'post_id,user_id,reaction_type');
   }
 
   @override
   Future<void> removeReaction(String postId, String reactionType) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not authenticated');
     await _supabase
         .from('reactions')
         .delete()
         .eq('post_id', postId)
-        .eq('reaction_type', reactionType);
+        .eq('reaction_type', reactionType)
+        .eq('user_id', userId);
   }
 
   @override

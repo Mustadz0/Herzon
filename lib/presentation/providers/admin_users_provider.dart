@@ -42,7 +42,8 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
     try {
       var query = _supabase.from('profiles').select();
       if (search != null && search.isNotEmpty) {
-        query = query.or('display_name.ilike.%$search%,username.ilike.%$search%');
+        final sanitized = search.replaceAll(RegExp(r'[%_]'), r'\\$&');
+        query = query.or('display_name.ilike.%$sanitized%,username.ilike.%$sanitized%');
       }
       final data = await query.order('created_at', ascending: false);
       final users = data.map((json) => UserModel.fromJson(json)).toList();
@@ -54,7 +55,30 @@ class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
 
   Future<void> toggleAdmin(String userId, bool isAdmin) async {
     try {
+      // Verify current user is admin first
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw Exception('Not authenticated');
+      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
+      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
+
+      // Prevent self-demotion
+      if (userId == currentUserId && !isAdmin) throw Exception('Cannot remove own admin status');
+
       await _supabase.from('profiles').update({'is_admin': isAdmin}).eq('id', userId);
+      await loadUsers(search: state.searchQuery);
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+    }
+  }
+
+  Future<void> toggleVibes(String userId, bool canUseVibes) async {
+    try {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw Exception('Not authenticated');
+      final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
+      if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
+
+      await _supabase.from('profiles').update({'can_use_vibes': canUseVibes}).eq('id', userId);
       await loadUsers(search: state.searchQuery);
     } catch (e) {
       state = state.copyWith(error: e.toString());

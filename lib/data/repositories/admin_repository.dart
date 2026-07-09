@@ -59,24 +59,35 @@ class AdminRepository {
 
   AdminRepository({required SupabaseClient supabase}) : _supabase = supabase;
 
+  Future<void> _verifyAdmin() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not authenticated');
+    final profile = await _supabase.from('profiles').select('is_admin').eq('id', userId).single();
+    if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
+  }
+
+  String _sanitizeSearch(String query) => query.replaceAll(RegExp(r'[%_]'), r'\\$&');
+
   Future<DashboardStats> getStats() async {
-    final userCount = (await _supabase.from('profiles').select('id')).length;
-    final postCount = (await _supabase.from('posts').select('id')).length;
-    final reportCount = (await _supabase.from('reports').select('id').eq('status', 'pending')).length;
-    final activeCount = (await _supabase.from('profiles').select('id').gte('updated_at', DateTime.now().subtract(const Duration(hours: 24)).toIso8601String())).length;
+    await _verifyAdmin();
+    final usersCountResp = await _supabase.from('profiles').select('id').count();
+    final postsCountResp = await _supabase.from('posts').select('id').count();
+    final reportsCountResp = await _supabase.from('reports').select('id').eq('status', 'pending').count();
+    final activeCountResp = await _supabase.from('profiles').select('id').gte('last_active_at', DateTime.now().subtract(const Duration(hours: 24)).toIso8601String()).count();
 
     return DashboardStats(
-      totalUsers: userCount,
-      totalPosts: postCount,
-      pendingReports: reportCount,
-      activeUsersToday: activeCount,
+      totalUsers: usersCountResp.count,
+      totalPosts: postsCountResp.count,
+      pendingReports: reportsCountResp.count,
+      activeUsersToday: activeCountResp.count,
     );
   }
 
   Future<List<UserModel>> getAllUsers({String? search}) async {
     var query = _supabase.from('profiles').select();
     if (search != null && search.isNotEmpty) {
-      query = query.or('display_name.ilike.%$search%,username.ilike.%$search%');
+      final sanitized = _sanitizeSearch(search);
+      query = query.or('display_name.ilike.%$sanitized%,username.ilike.%$sanitized%');
     }
     final data = await query.order('created_at', ascending: false);
     return data.map((json) => UserModel.fromJson(json)).toList();
@@ -85,7 +96,8 @@ class AdminRepository {
   Future<List<PostModel>> getAllPosts({String? search}) async {
     var query = _supabase.from('posts').select('*, profiles!inner(username, display_name, avatar_url)');
     if (search != null && search.isNotEmpty) {
-      query = query.ilike('content', '%$search%');
+      final sanitized = _sanitizeSearch(search);
+      query = query.ilike('content', '%$sanitized%');
     }
     final data = await query.order('created_at', ascending: false);
     return data.map((json) {
@@ -108,6 +120,7 @@ class AdminRepository {
   }
 
   Future<List<ReportItem>> getReports() async {
+    await _verifyAdmin();
     final data = await _supabase
         .from('reports')
         .select('*, reporter:profiles!reporter_id(display_name), reported:profiles!reported_user_id(display_name)')
@@ -128,10 +141,12 @@ class AdminRepository {
   }
 
   Future<void> updateReportStatus(String reportId, String status) async {
+    await _verifyAdmin();
     await _supabase.from('reports').update({'status': status}).eq('id', reportId);
   }
 
   Future<void> deletePost(String postId) async {
+    await _verifyAdmin();
     await _supabase.from('posts').delete().eq('id', postId);
   }
 }

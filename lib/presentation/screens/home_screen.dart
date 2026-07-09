@@ -22,6 +22,7 @@ import 'settings_screen.dart';
 import 'page_list_screen.dart';
 import 'admin_feature_flags_screen.dart';
 import 'vibes/vibe_viewer_screen.dart';
+import 'messages_screen.dart';
 import '../widgets/xp_level_badge.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -31,19 +32,16 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
-  late AnimationController _bounceCtrl;
 
   @override
   void initState() {
     super.initState();
-    _bounceCtrl = AnimationController(duration: const Duration(milliseconds: 400), vsync: this);
   }
 
   @override
   void dispose() {
-    _bounceCtrl.dispose();
     super.dispose();
   }
 
@@ -63,14 +61,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           _ProfileTab(user: auth.user, unreadCount: notifState.unreadCount),
         ],
       ),
-      bottomNavigationBar: ClipRect(
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
           child: Container(
             decoration: BoxDecoration(
-              color: (t.isDark ? AppTheme.cardDark : AppTheme.cardGlassLight).withValues(alpha: 0.8),
-              border: Border(top: BorderSide(color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9))),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: t.isDark ? 0.2 : 0.05), blurRadius: 16, offset: const Offset(0, -4))],
+              color: (t.isDark ? AppTheme.navDark : AppTheme.navLight),
+              border: Border(
+                top: BorderSide(
+                  color: AppTheme.outlineVariant.withValues(alpha: 0.2),
+                  width: 0.5,
+                ),
+              ),
+              boxShadow: AppTheme.glassShadowHeavy,
             ),
             child: SafeArea(
               child: Padding(
@@ -97,7 +101,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   void _onTap(int i) {
     setState(() => _currentIndex = i);
-    _bounceCtrl.forward().then((_) => _bounceCtrl.reverse());
   }
 }
 
@@ -120,7 +123,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
     final selected = index == currentIndex;
 
     return GestureDetector(
@@ -128,30 +131,34 @@ class _NavItem extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppTheme.primary.withValues(alpha: 0.1) : Colors.transparent,
+          gradient: selected ? AppTheme.brandGradient : null,
           borderRadius: BorderRadius.circular(12),
+          boxShadow: selected ? [
+            BoxShadow(
+              color: cs.primary.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(selected ? (activeIcon ?? icon) : icon,
-                  size: 22,
-                  color: selected ? AppTheme.primary : t.colorScheme.onSurfaceVariant),
-              ],
+            Icon(
+              selected ? (activeIcon ?? icon) : icon,
+              size: 24,
+              color: selected ? cs.onPrimary : cs.onSurfaceVariant,
             ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
+            const SizedBox(height: 4),
+            Text(
+              label,
               style: TextStyle(
-                fontSize: 10, fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppTheme.primary : t.colorScheme.onSurfaceVariant,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected ? cs.onPrimary : cs.onSurfaceVariant,
               ),
-              child: Text(label),
             ),
           ],
         ),
@@ -169,11 +176,17 @@ class _CenterFab extends StatelessWidget {
     return GestureDetector(
       onTap: onPressed,
       child: Container(
-        width: 48, height: 48,
+        width: 56, height: 56,
         decoration: BoxDecoration(
           gradient: AppTheme.brandGradient,
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: AppTheme.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.secondary.withValues(alpha: 0.4),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
@@ -219,7 +232,9 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
           .rpc('get_user_posts_count', params: {'target_user_id': uid}).maybeSingle();
       if (mounted) {
         setState(() {
-        _postCount = (postsCount as num?)?.toInt() ?? 0;
+        _postCount = postsCount is Map<String, dynamic>
+            ? (postsCount.values.first as num?)?.toInt() ?? 0
+            : (postsCount as num?)?.toInt() ?? 0;
         _followerCount = fc;
         _followingCount = fwc;
         _loadingStats = false;
@@ -245,6 +260,10 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
               child: const Icon(Icons.notifications_outlined),
             ),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConversationsListScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
@@ -345,7 +364,7 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
             child: TextButton.icon(
               onPressed: () => ref.read(authProvider.notifier).signOut(),
               icon: const Icon(Icons.logout, size: 18, color: Colors.red),
-              label: const Text('DÃ©connexion', style: TextStyle(color: Colors.red)),
+              label: const Text('Déconnexion', style: TextStyle(color: Colors.red)),
             ),
           ),
           const SizedBox(height: 24),
@@ -402,7 +421,7 @@ class _CheckInSheet extends ConsumerWidget {
             child: const Icon(Icons.check_circle, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 16),
-          Text("Vous Ãªtes Ã  proximitÃ©", style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+Text("Vous êtes à proximité", style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text("Faites un check-in pour gagner des badges et grimper dans le classement !",
             textAlign: TextAlign.center,
@@ -419,7 +438,7 @@ class _CheckInSheet extends ConsumerWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Check-in effectuÃ© ! +10 XP'),
+                    content: Text('Check-in effectué ! +10 XP'),
                     behavior: SnackBarBehavior.floating,
                     duration: Duration(seconds: 2),
                   ));

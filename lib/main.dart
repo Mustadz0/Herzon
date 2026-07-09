@@ -180,7 +180,10 @@ class HerzonApp extends ConsumerWidget {
             '/admin': (context) => const AdminHomeScreen(),
             '/profile': (context) {
               final userId = ModalRoute.of(context)?.settings.arguments as String?;
-              return UserProfileScreen(userId: userId ?? '');
+              if (userId == null || userId.isEmpty) {
+                return const LoginScreen();
+              }
+              return UserProfileScreen(userId: userId);
             },
             '/comments': (context) {
               final postId = ModalRoute.of(context)?.settings.arguments as String?;

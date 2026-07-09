@@ -27,7 +27,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MarchÃ©'),
+        title: const Text('Marché'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
@@ -74,7 +74,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                           const SizedBox(height: 16),
                           FilledButton.tonalIcon(
                             onPressed: () => ref.read(marketplaceProvider.notifier).loadItems(),
-                            icon: const Icon(Icons.refresh, size: 18), label: const Text('RÃ©essayer')),
+                            icon: const Icon(Icons.refresh, size: 18), label: const Text('Réessayer')),
                         ],
                       ))
                     : state.items.isEmpty

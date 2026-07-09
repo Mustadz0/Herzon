@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
@@ -32,7 +32,7 @@ class LoginScreen extends ConsumerWidget {
                   width: 120, height: 120,
                 ),
                 const SizedBox(height: 8),
-                Text("DÃ©couvrez ce qui se passe autour de vous",
+                Text("Découvrez ce qui se passe autour de vous",
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: t.colorScheme.onSurfaceVariant),
                   textAlign: TextAlign.center),
                 const Spacer(flex: 2),

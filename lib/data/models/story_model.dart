@@ -4,6 +4,7 @@
   final String mediaUrl;
   final String mediaType;
   final String? textOverlay;
+  final bool showInZone;
   final DateTime? createdAt;
   final DateTime? expiresAt;
   final String? username;
@@ -16,6 +17,7 @@
     required this.mediaUrl,
     required this.mediaType,
     this.textOverlay,
+    this.showInZone = true,
     this.createdAt,
     this.expiresAt,
     this.username,
@@ -30,6 +32,7 @@
       mediaUrl: json['media_url'] as String,
       mediaType: json['media_type'] as String,
       textOverlay: json['text_overlay'] as String?,
+      showInZone: json['show_in_zone'] as bool? ?? true,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
@@ -49,6 +52,7 @@
       'media_url': mediaUrl,
       'media_type': mediaType,
       'text_overlay': textOverlay,
+      'show_in_zone': showInZone,
     };
   }
 }

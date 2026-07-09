@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/post_provider.dart';
 
@@ -26,7 +26,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty || text.length > 500) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Le texte doit contenir entre 1 et 500 caractÃ¨res')));
+        const SnackBar(content: Text('Le texte doit contenir entre 1 et 500 caractères')));
       return;
     }
     setState(() => _isSubmitting = true);

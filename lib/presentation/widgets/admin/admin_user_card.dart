@@ -7,12 +7,14 @@ class AdminUserCard extends StatelessWidget {
   final UserModel user;
   final VoidCallback? onTap;
   final VoidCallback? onToggleAdmin;
+  final VoidCallback? onToggleVibes;
 
   const AdminUserCard({
     super.key,
     required this.user,
     this.onTap,
     this.onToggleAdmin,
+    this.onToggleVibes,
   });
 
   @override
@@ -58,6 +60,23 @@ class AdminUserCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (user.canUseVibes)
+              Container(
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Vibes',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF22C55E),
+                  ),
+                ),
+              ),
             if (user.isAdmin == true)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -103,6 +122,7 @@ class AdminUserCard extends StatelessWidget {
             ? PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'toggle_admin') onToggleAdmin!();
+                  if (value == 'toggle_vibes') onToggleVibes?.call();
                 },
                 icon: const Icon(Icons.more_vert, size: 20),
                 itemBuilder: (context) => [
@@ -118,6 +138,23 @@ class AdminUserCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           user.isAdmin == true ? 'Retirer admin' : 'Rendre admin',
+                          style: GoogleFonts.plusJakartaSans(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'toggle_vibes',
+                    child: Row(
+                      children: [
+                        Icon(
+                          user.canUseVibes ? Icons.videocam_off : Icons.videocam,
+                          size: 18,
+                          color: user.canUseVibes ? const Color(0xFFEF4444) : const Color(0xFF22C55E),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          user.canUseVibes ? 'Retirer Vibes' : 'Autoriser Vibes',
                           style: GoogleFonts.plusJakartaSans(fontSize: 13),
                         ),
                       ],

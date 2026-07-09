@@ -28,7 +28,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final blockState = ref.watch(blockProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ParamÃ¨tres')),
+      appBar: AppBar(title: const Text('Paramètres')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -54,7 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Utilisateurs bloquÃ©s',
+                          Text('Utilisateurs bloqués',
                             style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                           Text('${blockState.blockedUsers.length} utilisateur(s)',
                             style: TextStyle(color: t.colorScheme.onSurfaceVariant)),
@@ -78,7 +78,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       children: [
                         Icon(Icons.shield_outlined, size: 40, color: t.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
                         const SizedBox(height: 8),
-                        Text('Aucun utilisateur bloquÃ©',
+                        Text('Aucun utilisateur bloqué',
                           style: TextStyle(color: t.colorScheme.onSurfaceVariant)),
                       ],
                     ),
@@ -89,7 +89,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          // â”€â”€â”€ ConfidentialitÃ© â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // â”€â”€â”€ Confidentialité â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Consumer(builder: (context, ref, _) {
             final privacy = ref.watch(privacyProvider);
             return Container(
@@ -113,7 +113,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         child: const Icon(Icons.shield_rounded, color: AppTheme.primary, size: 18),
                       ),
                       const SizedBox(width: 12),
-                      Text('ConfidentialitÃ©', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      Text('Confidentialité', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -183,7 +183,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     )),
                   ),
                   _PrivacySwitch(
-                    label: 'Afficher mon Ã¢ge',
+                    label: 'Afficher mon âge',
                     value: privacy.showAge,
                     onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
                       showProfileTo: privacy.showProfileTo,
@@ -197,7 +197,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     )),
                   ),
                   _PrivacySwitch(
-                    label: 'Afficher "Plus de dÃ©tails"',
+                    label: 'Afficher "Plus de détails"',
                     value: privacy.showDetails,
                     onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
                       showProfileTo: privacy.showProfileTo,
@@ -256,29 +256,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       child: const Icon(Icons.gavel_rounded, color: AppTheme.primary, size: 18),
                     ),
                     const SizedBox(width: 12),
-                    Text('Informations lÃ©gales',
+                    Text('Informations légales',
                       style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                   ],
                 ),
                 const SizedBox(height: 16),
                 _LegalTile(
                   icon: Icons.privacy_tip_outlined,
-                  label: 'Politique de confidentialitÃ©',
-                  subtitle: 'Loi algÃ©rienne 18-07 & RGPD',
+                  label: 'Politique de confidentialité',
+                  subtitle: 'Loi algérienne 18-07 & RGPD',
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
                 ),
                 const Divider(height: 1),
                 _LegalTile(
                   icon: Icons.description_outlined,
                   label: 'Conditions d\'utilisation',
-                  subtitle: 'CGU de ProximitÃ©',
+                  subtitle: 'CGU de Proximité',
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsOfServiceScreen())),
                 ),
                 const Divider(height: 1),
                 _LegalTile(
                   icon: Icons.delete_sweep_outlined,
                   label: 'Supprimer mon compte',
-                  subtitle: 'Effacer toutes mes donnÃ©es',
+                  subtitle: 'Effacer toutes mes données',
                   onTap: () => _showDeleteAccountDialog(context),
                 ),
               ],
@@ -289,7 +289,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () {
               Clipboard.setData(const ClipboardData(text: 'com.heron.app'));
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('ID de l\'application copiÃ©'),
+                content: Text('ID de l\'application copié'),
                 behavior: SnackBarBehavior.floating,
               ));
             },
@@ -306,9 +306,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer mon compte'),
-        content: const Text('Cette action est irrÃ©versible. Toutes vos donnÃ©es '
-            '(publications, messages, rÃ©actions, photos) seront dÃ©finitivement '
-            'effacÃ©es.\n\nVoulez-vous vraiment supprimer votre compte ?'),
+        content: const Text('Cette action est irréversible. Toutes vos données '
+            '(publications, messages, réactions, photos) seront définitivement '
+            'effacées.\n\nVoulez-vous vraiment supprimer votre compte ?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
           FilledButton(
@@ -321,7 +321,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (context.mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
             },
             style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
-            child: const Text('Supprimer dÃ©finitivement'),
+            child: const Text('Supprimer définitivement'),
           ),
         ],
       ),
@@ -429,7 +429,9 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
           .eq('id', widget.userId)
           .maybeSingle();
       if (mounted) setState(() => _profile = data);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load profile: $e');
+    }
   }
 
   @override
@@ -458,7 +460,7 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
             onPressed: () async {
               await ref.read(blockProvider.notifier).unblockUser(widget.userId);
             },
-            child: const Text('DÃ©bloquer', style: TextStyle(color: AppTheme.primary)),
+            child: const Text('Débloquer', style: TextStyle(color: AppTheme.primary)),
           ),
         ],
       ),

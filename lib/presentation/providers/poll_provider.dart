@@ -90,6 +90,6 @@ class PollNotifier extends StateNotifier<PollState> {
   }
 }
 
-final pollProvider = StateNotifierProvider<PollNotifier, PollState>((ref) {
+final pollProvider = StateNotifierProvider.family<PollNotifier, PollState, String>((ref, postId) {
   return PollNotifier(ref.watch(pollRepositoryProvider));
 });

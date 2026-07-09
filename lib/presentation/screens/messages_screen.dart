@@ -136,7 +136,7 @@ class _ConversationsListScreenState extends ConsumerState<ConversationsListScree
               backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
               child: conv.otherUserAvatar == null
                   ? Text(
-                      (conv.otherUserName ?? '?')[0].toUpperCase(),
+                      (conv.otherUserName?.isNotEmpty == true ? conv.otherUserName![0] : '?').toUpperCase(),
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,

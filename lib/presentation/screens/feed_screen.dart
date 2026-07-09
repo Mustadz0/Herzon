@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/post_provider.dart';
 import '../providers/story_provider.dart';
-import '../providers/trending_provider.dart';
 import '../widgets/post_card.dart';
 import '../widgets/story_circle_row.dart';
 import 'create_post_screen.dart';
+import 'search_screen.dart';
+import 'messages_screen.dart';
+import 'explorer_screen.dart';
 import '../../core/theme/app_theme.dart';
-import '../../services/location_service.dart';
-
-enum FeedMode { latest, trending }
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -20,7 +18,6 @@ class FeedScreen extends ConsumerStatefulWidget {
 }
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
-  FeedMode _mode = FeedMode.latest;
   final _scrollController = ScrollController();
 
   @override
@@ -45,258 +42,314 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     super.dispose();
   }
 
-  Future<void> _jeSuisLa(BuildContext context) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    try {
-      final loc = await ref.read(locationServiceProvider).initializeLocation();
-      final zoneName = '${loc.latitude.toStringAsFixed(2)}, ${loc.longitude.toStringAsFixed(2)}';
-      final displayName = user.userMetadata?['display_name'] as String? ?? user.email ?? 'Quelqu\'un';
-      await Supabase.instance.client.functions.invoke('je-suis-la', body: {
-        'userId': user.id,
-        'userName': displayName,
-        'zoneName': zoneName,
-      });
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Row(children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 18),
-            SizedBox(width: 8),
-            Text('Je suis lÃ  ! Vos Fans et votre Cercle ont Ã©tÃ© notifiÃ©s.'),
-          ]),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
-        ));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur: $e'),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     final feedState = ref.watch(postProvider);
-    final trendingState = ref.watch(trendingProvider);
 
     return Scaffold(
-      appBar: AppBar(
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                'assets/images/logo_new.png',
-                width: 28, height: 28,
-              ),
-              const SizedBox(width: 10),
-              const Text('Herzon', style: TextStyle(fontWeight: FontWeight.w700)),
-            ],
-          ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.location_on_rounded, color: AppTheme.primary),
-            tooltip: 'Je suis lÃ ',
-            onPressed: () => _jeSuisLa(context),
-          ),
-          _ModeToggle(
-            mode: _mode,
-            onChanged: (m) {
-              setState(() => _mode = m);
-              if (m == FeedMode.trending) ref.read(trendingProvider.notifier).loadTrending();
+      backgroundColor: const Color(0xFF0F0F0F),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              await ref.read(postProvider.notifier).loadFeed();
+              await ref.read(storyProvider.notifier).loadStories();
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () {
-              ref.read(postProvider.notifier).loadFeed();
-              ref.read(storyProvider.notifier).loadStories();
-              if (_mode == FeedMode.trending) ref.read(trendingProvider.notifier).loadTrending();
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(postProvider.notifier).loadFeed();
-          await ref.read(storyProvider.notifier).loadStories();
-        },
-        child: ListView(
-          controller: _scrollController,
-          padding: const EdgeInsets.only(top: 8, bottom: 16),
-          children: [
-            const StoryCircleRow(),
+            child: ListView(
+              controller: _scrollController,
+              children: [
+            // Herzon logo centered
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Center(
+                child: ShaderMask(
+                  shaderCallback: (bounds) => AppTheme.brandGradient.createShader(bounds),
+                  child: const Text(
+                    'Herzon',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Hot + Zone Name + Je suis la
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
-                  Icon(Icons.linear_scale, size: 16, color: t.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  Text(_mode == FeedMode.latest ? 'Fil d\'actualitÃ©' : 'Tendances',
-                    style: t.textTheme.labelLarge?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+                  // Hot button
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.brandGradient,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.whatshot, color: Colors.white, size: 16),
+                        const SizedBox(width: 4),
+                        const Text('Hot', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Zone name + people count
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExplorerScreen())),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.near_me, color: Color(0xFF4F46E5), size: 14),
+                            const SizedBox(width: 6),
+                            const Expanded(
+                              child: Text(
+                                'La Zone',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text('12', style: TextStyle(color: const Color(0xFF4F46E5), fontSize: 11, fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Je suis la button
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.5)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.my_location, color: const Color(0xFF4F46E5), size: 14),
+                        const SizedBox(width: 4),
+                        const Text('Je suis la', style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w600, fontSize: 12)),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            if (_mode == FeedMode.latest) ..._buildFeedList(feedState, t)
-            else ..._buildTrendingList(trendingState, t),
+
+            // Recent/Top toggle + Search + Notifications
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              child: Row(
+                children: [
+                  // Recent/Top toggle pills
+                  _buildPillToggle(),
+                  const Spacer(),
+                  _smallActionButton(Icons.search, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen()))),
+                  const SizedBox(width: 6),
+                  _smallActionButton(Icons.notifications_outlined, () {}),
+                ],
+              ),
+            ),
+
+            // Stories
+            const Padding(
+              padding: EdgeInsets.only(top: 4, bottom: 8),
+              child: StoryCircleRow(),
+            ),
+
+            // Section: Ce qui se passe
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 3, height: 18,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.brandGradient,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Ce qui se passe',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Feed posts
+            if (feedState.isLoading)
+              ...List.generate(3, (_) => _shimmerCard())
+            else if (feedState.error != null)
+              _errorState(feedState.error!)
+            else if (feedState.posts.isEmpty)
+              _emptyState()
+            else
+              ...feedState.posts.map((post) => PostCard(post: post)),
+
             if (feedState.isLoadingMore)
               const Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5))),
+                child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF4F46E5)))),
               ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final created = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const CreatePostScreen()));
-          if (created == true) ref.read(postProvider.notifier).loadFeed();
-        },
-        child: const Icon(Icons.edit_outlined),
-      ),
-    );
-  }
-
-  List<Widget> _buildFeedList(FeedState state, ThemeData t) {
-    if (state.isLoading) return [_ShimmerLoading()];
-    if (state.error != null) {
-      return [Padding(
-        padding: const EdgeInsets.all(40),
-        child: Center(child: Column(
-          children: [
-            Icon(Icons.cloud_off, size: 48, color: t.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
-            const SizedBox(height: 16),
-            Text('Erreur: ${state.error}', style: t.textTheme.bodyMedium, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(onPressed: () => ref.read(postProvider.notifier).loadFeed(),
-              icon: const Icon(Icons.refresh, size: 18), label: const Text('RÃ©essayer')),
-          ],
-        )),
-      )];
-    }
-    if (state.posts.isEmpty) {
-      return [Padding(
-        padding: const EdgeInsets.all(40),
-        child: Center(child: Column(
-          children: [
-            Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-              child: Icon(Icons.near_me_disabled, size: 36, color: AppTheme.primary.withValues(alpha: 0.4)),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConversationsListScreen())),
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: AppTheme.brandGradient,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.secondary.withValues(alpha: 0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 28),
             ),
-            const SizedBox(height: 20),
-            Text('Rien dans un rayon de 2 km', style: t.textTheme.titleMedium),
-            const SizedBox(height: 6),
-            Text('Soyez le premier Ã  publier !', style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant)),
-          ],
-        )),
-      )];
-    }
-    return state.posts.map((post) => PostCard(post: post)).toList();
-  }
-
-  List<Widget> _buildTrendingList(TrendingState state, ThemeData t) {
-    if (state.isLoading) return [_ShimmerLoading()];
-    if (state.error != null) {
-      return [Padding(
-        padding: const EdgeInsets.all(40),
-        child: Center(child: Column(
-          children: [
-            Icon(Icons.trending_down, size: 48, color: t.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
-            const SizedBox(height: 16),
-            Text('Erreur: ${state.error}', style: t.textTheme.bodyMedium, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton.tonalIcon(onPressed: () => ref.read(trendingProvider.notifier).loadTrending(),
-              icon: const Icon(Icons.refresh, size: 18), label: const Text('RÃ©essayer')),
-          ],
-        )),
-      )];
-    }
-    if (state.posts.isEmpty) {
-      return [
-      Padding(
-        padding: const EdgeInsets.all(40),
-        child: Center(child: Text('Aucune tendance pour le moment', style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant))),
-      )
-    ];
-    }
-    return state.posts.map((post) => PostCard(post: post)).toList();
-  }
-}
-
-class _ModeToggle extends StatelessWidget {
-  final FeedMode mode;
-  final ValueChanged<FeedMode> onChanged;
-  const _ModeToggle({required this.mode, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context);
-    return GestureDetector(
-      onTap: () => onChanged(mode == FeedMode.latest ? FeedMode.trending : FeedMode.latest),
-      child: Container(
-        margin: const EdgeInsets.only(right: 4),
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(10),
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ToggleOption(icon: Icons.access_time, label: 'RÃ©cent', selected: mode == FeedMode.latest),
-            _ToggleOption(icon: Icons.trending_up, label: 'Top', selected: mode == FeedMode.trending),
-          ],
-        ),
-      ),
-    );
+      ],
+    ),
+  );
   }
-}
 
-class _ToggleOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  const _ToggleOption({required this.icon, required this.label, required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+  Widget _buildPillToggle() {
+    return Container(
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: selected ? AppTheme.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant)),
+          _pillOption('Recent', true),
+          _pillOption('Top', false),
         ],
       ),
     );
   }
-}
 
-class _ShimmerLoading extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(3, (_) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        height: 200,
-        decoration: BoxDecoration(
-          color: Theme.of(context).isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(20),
+  Widget _pillOption(String label, bool selected) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: selected ? AppTheme.brandGradient : null,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: selected ? Colors.white : Colors.white.withValues(alpha: 0.6),
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
         ),
-      )),
+      ),
+    );
+  }
+
+  Widget _smallActionButton(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 18),
+      ),
+    );
+  }
+
+  Widget _shimmerCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      height: 280,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
+  }
+
+  Widget _errorState(String error) {
+    return Padding(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        children: [
+          const Icon(Icons.cloud_off, size: 48, color: Color(0xFFEF4444)),
+          const SizedBox(height: 16),
+          Text('Erreur', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(error, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13), textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton.tonal(onPressed: () => ref.read(postProvider.notifier).loadFeed(), child: const Text('Réessayer')),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Padding(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        children: [
+          Container(
+            width: 100, height: 100,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: AppTheme.brandGradient.colors.map((c) => c.withValues(alpha: 0.15)).toList()),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.near_me_disabled, size: 44, color: AppTheme.primary.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(height: 24),
+          Text('Rien dans la zone', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
+          const SizedBox(height: 8),
+          Text('Soyez le premier a publier !', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14)),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () async {
+              final created = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const CreatePostScreen()));
+              if (created == true) ref.read(postProvider.notifier).loadFeed();
+            },
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Creer un post'),
+          ),
+        ],
+      ),
     );
   }
 }

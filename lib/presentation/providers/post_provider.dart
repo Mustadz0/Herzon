@@ -14,6 +14,7 @@ class FeedState {
   final bool isLoadingMore;
   final bool hasMore;
   final String? error;
+  final Map<String, Set<String>> userReactions;
 
   const FeedState({
     this.posts = const [],
@@ -21,6 +22,7 @@ class FeedState {
     this.isLoadingMore = false,
     this.hasMore = true,
     this.error,
+    this.userReactions = const {},
   });
 
   FeedState copyWith({
@@ -29,6 +31,7 @@ class FeedState {
     bool? isLoadingMore,
     bool? hasMore,
     String? error,
+    Map<String, Set<String>>? userReactions,
   }) {
     return FeedState(
       posts: posts ?? this.posts,
@@ -36,6 +39,7 @@ class FeedState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       hasMore: hasMore ?? this.hasMore,
       error: error ?? this.error,
+      userReactions: userReactions ?? this.userReactions,
     );
   }
 }
@@ -46,6 +50,7 @@ class PostNotifier extends StateNotifier<FeedState> {
   final MediaUploadService _mediaUpload;
   RealtimeChannel? _realtimeChannel;
   int _currentPage = 1;
+  bool _isReacting = false;
 
   PostNotifier(this._repo, this._locationService, this._mediaUpload) : super(const FeedState());
 
@@ -55,8 +60,9 @@ class PostNotifier extends StateNotifier<FeedState> {
       final pos = await _locationService.initializeLocation();
       final posts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters, page: 1);
       final total = await _repo.getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
+      final userReactions = await _fetchUserReactions();
       _currentPage = 1;
-      state = FeedState(posts: posts, hasMore: posts.length < total);
+      state = FeedState(posts: posts, hasMore: posts.length < total, userReactions: userReactions);
       _subscribeRealtime();
     } catch (e) {
       state = FeedState(error: e.toString());
@@ -71,10 +77,14 @@ class PostNotifier extends StateNotifier<FeedState> {
       _currentPage++;
       final newPosts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters, page: _currentPage);
       final total = await _repo.getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
+      // When loading more, we preserve existing reactions for existing posts
+      // and fetch reactions for new posts only
+      final existingReactions = state.userReactions;
       state = state.copyWith(
         posts: [...state.posts, ...newPosts],
         isLoadingMore: false,
         hasMore: state.posts.length + newPosts.length < total,
+        userReactions: existingReactions,
       );
     } catch (e, stackTrace) {
       debugPrint('PostProvider loadMore error: $e\n$stackTrace');
@@ -104,7 +114,7 @@ class PostNotifier extends StateNotifier<FeedState> {
   }
 
   /// Returns the XP earned by the post author (+10 XP per DB trigger).
-  Future<int> createPost(String content, String? contextTag, {List<File>? mediaFiles}) async {
+  Future<int> createPost(String content, String? contextTag, {List<File>? mediaFiles, String? stickerId}) async {
     final pos = await _locationService.initializeLocation();
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
@@ -132,6 +142,7 @@ class PostNotifier extends StateNotifier<FeedState> {
       mediaUrls: mediaUrls,
       mediaType: mediaType == 'video' ? MediaType.video : (mediaUrls.isNotEmpty ? MediaType.image : MediaType.text),
       contextTag: contextTag,
+      stickerId: stickerId,
     );
     await _repo.createPost(post);
     await loadFeed();
@@ -164,23 +175,66 @@ class PostNotifier extends StateNotifier<FeedState> {
 
   /// Returns XP earned by the post owner (+2 XP per DB trigger on `reactions` insert).
   Future<int> reactToPost(String postId, String reactionType) async {
+    if (_isReacting) return 0;
+    _isReacting = true;
+
+    // Optimistic: update count + userReactions
     _optimisticallyUpdateReaction(postId, reactionType, 1);
+    state = state.copyWith(
+      userReactions: _updateUserReaction(state.userReactions, postId, reactionType, true),
+    );
+
     try {
       await _repo.reactToPost(postId, reactionType);
+      _isReacting = false;
       return 2;
     } catch (_) {
+      _isReacting = false;
       _optimisticallyUpdateReaction(postId, reactionType, -1);
+      state = state.copyWith(
+        userReactions: _updateUserReaction(state.userReactions, postId, reactionType, false),
+      );
       return 0;
     }
   }
 
   Future<void> removeReaction(String postId, String reactionType) async {
+    if (_isReacting) return;
+    _isReacting = true;
+
     _optimisticallyUpdateReaction(postId, reactionType, -1);
+    state = state.copyWith(
+      userReactions: _updateUserReaction(state.userReactions, postId, reactionType, false),
+    );
+
     try {
       await _repo.removeReaction(postId, reactionType);
+      _isReacting = false;
     } catch (_) {
+      _isReacting = false;
       _optimisticallyUpdateReaction(postId, reactionType, 1);
+      state = state.copyWith(
+        userReactions: _updateUserReaction(state.userReactions, postId, reactionType, true),
+      );
     }
+  }
+
+  Map<String, Set<String>> _updateUserReaction(
+    Map<String, Set<String>> reactions, String postId, String reactionType, bool add,
+  ) {
+    final updated = Map<String, Set<String>>.from(reactions);
+    final existing = updated[postId]?.toSet() ?? <String>{};
+    if (add) {
+      existing.add(reactionType);
+    } else {
+      existing.remove(reactionType);
+    }
+    if (existing.isEmpty) {
+      updated.remove(postId);
+    } else {
+      updated[postId] = existing;
+    }
+    return updated;
   }
 
   void _optimisticallyUpdateReaction(String postId, String reactionType, int delta) {
@@ -188,11 +242,35 @@ class PostNotifier extends StateNotifier<FeedState> {
       posts: state.posts.map((p) {
         if (p.id != postId) return p;
         final newCounts = Map<String, int>.from(p.reactionCounts);
-        newCounts[reactionType] = (newCounts[reactionType] ?? 0) + delta;
-        if (newCounts[reactionType]! <= 0) newCounts.remove(reactionType);
+        final current = newCounts[reactionType] ?? 0;
+        final newVal = current + delta;
+        if (newVal <= 0) {
+          newCounts.remove(reactionType);
+        } else {
+          newCounts[reactionType] = newVal;
+        }
         return p.copyWith(reactionCounts: newCounts);
       }).toList(),
     );
+  }
+
+  Future<Map<String, Set<String>>> _fetchUserReactions() async {
+    final supabase = Supabase.instance.client;
+    final response = await supabase.rpc('get_user_reactions');
+    
+    // response looks like: [{post_id: "...", reaction_type: "fire"}, ...]
+    final userReactions = <String, Set<String>>{};
+    for (final row in response) {
+      final postId = row['post_id'] as String;
+      final reactionType = row['reaction_type'] as String;
+      
+      if (userReactions.containsKey(postId)) {
+        userReactions[postId]!.add(reactionType);
+      } else {
+        userReactions[postId] = {reactionType};
+      }
+    }
+    return userReactions;
   }
 
   @override

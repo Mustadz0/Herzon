@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 abstract class ISuggestionRepository {
   Future<List<Map<String, dynamic>>> getSuggestedPosts(
     double userLat, double userLng,
-    {double radiusMeters = 2000, int limit = 20});
+    {double radiusMeters = 500, int limit = 20});
 }
 
 class SupabaseSuggestionRepository implements ISuggestionRepository {
@@ -15,7 +15,7 @@ class SupabaseSuggestionRepository implements ISuggestionRepository {
   @override
   Future<List<Map<String, dynamic>>> getSuggestedPosts(
     double userLat, double userLng,
-    {double radiusMeters = 2000, int limit = 20}) async {
+    {double radiusMeters = 500, int limit = 20}) async {
     final response = await _supabase.rpc('get_suggested_posts', params: {
       'p_user_lat': userLat,
       'p_user_lng': userLng,

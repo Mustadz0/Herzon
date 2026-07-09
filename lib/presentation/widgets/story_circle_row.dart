@@ -1,15 +1,46 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/story_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/story_model.dart';
 import '../screens/story_viewer_screen.dart';
 
-class StoryCircleRow extends ConsumerWidget {
+class StoryCircleRow extends ConsumerStatefulWidget {
   const StoryCircleRow({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StoryCircleRow> createState() => _StoryCircleRowState();
+}
+
+class _StoryCircleRowState extends ConsumerState<StoryCircleRow> {
+  bool _canUseVibes = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkVibesPermission();
+  }
+
+  Future<void> _checkVibesPermission() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    try {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('can_use_vibes, is_admin')
+          .eq('id', user.id)
+          .single();
+      if (mounted) {
+        setState(() {
+          _canUseVibes = profile['can_use_vibes'] == true || profile['is_admin'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final storyState = ref.watch(storyProvider);
     final stories = storyState.stories;
 
@@ -33,10 +64,10 @@ class StoryCircleRow extends ConsumerWidget {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: stories.length + 1,
+        itemCount: stories.length + (_canUseVibes ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == 0) return const _AddStoryCircle();
-          final story = stories[index - 1];
+          if (_canUseVibes && index == 0) return const _AddStoryCircle();
+          final story = _canUseVibes ? stories[index - 1] : stories[index];
           final hasUnviewed = !storyState.viewedStoryIds.contains(story.id);
           return _StoryCircle(story: story, hasUnviewed: hasUnviewed,
             onTap: () {

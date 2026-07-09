@@ -114,6 +114,12 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                                         !(user.isAdmin == true),
                                       );
                                 },
+                                onToggleVibes: () {
+                                  ref.read(adminUsersProvider.notifier).toggleVibes(
+                                        user.id,
+                                        !user.canUseVibes,
+                                      );
+                                },
                               );
                             },
                           ),

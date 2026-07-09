@@ -1,9 +1,9 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../data/models/post_model.dart';
-import '../../data/repositories/post_repository.dart';
-import '../../core/constants/app_constants.dart';
+import '../data/models/post_model.dart';
+import '../data/repositories/post_repository.dart';
+import '../core/constants/app_constants.dart';
 
 class FeedState {
   final List<PostModel> posts;

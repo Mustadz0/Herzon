@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/message_model.dart';
@@ -89,8 +90,8 @@ class MessagesNotifier extends StateNotifier<AsyncValue<List<MessageModel>>> {
       state.whenData((messages) {
         state = AsyncValue.data([...messages, message]);
       });
-    } catch (e) {
-      // Error handled by state
+    } catch (e, st) {
+      state = AsyncValue.error('Failed to send message: $e', st);
     }
   }
 
@@ -98,7 +99,7 @@ class MessagesNotifier extends StateNotifier<AsyncValue<List<MessageModel>>> {
     try {
       await _repository.markAsRead(conversationId);
     } catch (e) {
-      // Error handled silently
+      debugPrint('Failed to mark as read: $e');
     }
   }
 

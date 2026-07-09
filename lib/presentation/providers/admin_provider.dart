@@ -34,7 +34,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   Future<void> loadStats() async {
     state = const AdminState(isLoading: true);
     try {
-      final stats = await _repo.getStats();
+      final stats = await _repo.getStats(); // admin check inside repo
       state = AdminState(stats: stats);
     } catch (e) {
       state = AdminState(error: e.toString());
@@ -64,7 +64,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
   Future<void> loadReports() async {
     state = const AdminState(isLoading: true);
     try {
-      final reports = await _repo.getReports();
+      final reports = await _repo.getReports(); // admin check inside repo
       state = AdminState(reports: reports);
     } catch (e) {
       state = AdminState(error: e.toString());
@@ -73,7 +73,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
 
   Future<void> deletePost(String postId) async {
     try {
-      await _repo.deletePost(postId);
+      await _repo.deletePost(postId); // admin check inside repo
       state = AdminState(posts: state.posts.where((p) => p.id != postId).toList());
     } catch (e) {
       state = AdminState(error: e.toString());
@@ -82,7 +82,7 @@ class AdminNotifier extends StateNotifier<AdminState> {
 
   Future<void> resolveReport(String reportId, String status) async {
     try {
-      await _repo.updateReportStatus(reportId, status);
+      await _repo.updateReportStatus(reportId, status); // admin check inside repo
       await loadReports();
     } catch (e) {
       state = AdminState(error: e.toString());

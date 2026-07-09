@@ -30,13 +30,17 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
       final results = await Future.wait([
         Supabase.instance.client.rpc('get_user_growth').catchError((_) => []),
         Supabase.instance.client.rpc('get_engagement_metrics').catchError((_) => null),
-        Supabase.instance.client.from('posts').select('content_type').count(),
+        Supabase.instance.client.from('posts').select('media_type').count(),
         Supabase.instance.client.from('reports').select('status').count(),
       ]);
       setState(() {
+        final engagementRaw = results[1];
+        final engagementMap = engagementRaw is List<dynamic> && engagementRaw.isNotEmpty
+            ? engagementRaw[0] as Map<String, dynamic>
+            : engagementRaw as Map<String, dynamic>? ?? <String, dynamic>{};
         _analytics = {
           'user_growth': results[0],
-          'engagement': results[1],
+          'engagement': engagementMap,
           'post_types': results[2],
           'report_stats': results[3],
         };

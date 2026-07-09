@@ -24,31 +24,54 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
     try {
       final data = await Supabase.instance.client
           .from('story_views')
-          .select('viewed_at, profiles!inner(username, display_name, avatar_url)')
+          .select('created_at, user_id, profiles:user_id(username, display_name, avatar_url)')
           .eq('story_id', widget.story.id)
-          .order('viewed_at', ascending: false);
+          .order('created_at', ascending: false);
 
       if (!mounted) return;
       showModalBottomSheet(
       context: context,
-      builder: (ctx) => ListView.builder(
-        itemCount: data.length,
-        itemBuilder: (_, i) {
-          final view = data[i];
-          final profile = view['profiles'] as Map?;
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundImage: profile?['avatar_url'] != null
-                  ? NetworkImage(profile!['avatar_url'] as String)
-                  : null,
-              child: profile?['avatar_url'] == null ? const Icon(Icons.person, size: 20) : null,
-            ),
-            title: Text((profile?['display_name'] ?? profile?['username'] ?? 'Anonyme') as String),
-            trailing: view['viewed_at'] != null
-                ? Text(_formatTime(DateTime.parse(view['viewed_at'] as String)), style: const TextStyle(fontSize: 12, color: Colors.grey))
-                : null,
-          );
-        },
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40, height: 4,
+            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('${data.length} vue${data.length > 1 ? 's' : ''}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          ),
+          Flexible(
+            child: data.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text('Aucune vue pour le moment', style: TextStyle(color: Colors.grey)),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: data.length,
+                    itemBuilder: (_, i) {
+                      final view = data[i];
+                      final profile = view['profiles'] as Map?;
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: profile?['avatar_url'] != null
+                              ? NetworkImage(profile!['avatar_url'] as String)
+                              : null,
+                          child: profile?['avatar_url'] == null ? const Icon(Icons.person, size: 20) : null,
+                        ),
+                        title: Text((profile?['display_name'] ?? profile?['username'] ?? 'Anonyme') as String),
+                        trailing: view['created_at'] != null
+                            ? Text(_formatTime(DateTime.parse(view['created_at'] as String)), style: const TextStyle(fontSize: 12, color: Colors.grey))
+                            : null,
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(height: 8),
+        ],
       ),
     );
     } catch (e) {
@@ -135,11 +158,12 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                     ],
                   ),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.visibility, color: Colors.white70),
-                    onPressed: _showViewers,
-                    tooltip: 'Vues',
-                  ),
+                  if (story.userId == Supabase.instance.client.auth.currentUser?.id)
+                    IconButton(
+                      icon: const Icon(Icons.visibility, color: Colors.white70),
+                      onPressed: _showViewers,
+                      tooltip: 'Vues',
+                    ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
