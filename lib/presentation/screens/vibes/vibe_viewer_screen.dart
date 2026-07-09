@@ -354,10 +354,10 @@ class _VibeStoryCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'VIBE INTENSITY',
                             style: TextStyle(
                               color: Colors.white,
@@ -366,7 +366,7 @@ class _VibeStoryCard extends StatelessWidget {
                               letterSpacing: 0.1,
                             ),
                           ),
-                          const Text(
+                          Text(
                             '75%',
                             style: TextStyle(
                               color: Colors.white,

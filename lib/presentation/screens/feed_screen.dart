@@ -88,12 +88,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       gradient: AppTheme.brandGradient,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.whatshot, color: Colors.white, size: 16),
-                        const SizedBox(width: 4),
-                        const Text('Hot', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                        Icon(Icons.whatshot, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text('Hot', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -125,7 +125,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                 color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Text('12', style: TextStyle(color: const Color(0xFF4F46E5), fontSize: 11, fontWeight: FontWeight.w700)),
+                              child: const Text('12', style: TextStyle(color: Color(0xFF4F46E5), fontSize: 11, fontWeight: FontWeight.w700)),
                             ),
                           ],
                         ),
@@ -140,12 +140,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.5)),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.my_location, color: const Color(0xFF4F46E5), size: 14),
-                        const SizedBox(width: 4),
-                        const Text('Je suis la', style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w600, fontSize: 12)),
+                        Icon(Icons.my_location, size: 14),
+                        SizedBox(width: 4),
+                        Text('Je suis la', style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w600, fontSize: 12)),
                       ],
                     ),
                   ),
@@ -187,7 +187,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
+                  const Text(
                     'Ce qui se passe',
                     style: TextStyle(
                       color: Colors.white,
@@ -336,7 +336,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             child: Icon(Icons.near_me_disabled, size: 44, color: AppTheme.primary.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 24),
-          Text('Rien dans la zone', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
+          const Text('Rien dans la zone', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
           const SizedBox(height: 8),
           Text('Soyez le premier a publier !', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14)),
           const SizedBox(height: 20),

@@ -279,9 +279,9 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                       child: Row(
                         children: [
-                          Icon(Icons.search, color: AppTheme.outline, size: 22),
+                          const Icon(Icons.search, size: 22),
                           const SizedBox(width: 12),
-                          Expanded(
+                          const Expanded(
                             child: Text(
                               'Explorer les zones chaudes...',
                               style: TextStyle(
@@ -297,7 +297,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                               color: AppTheme.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.tune, color: AppTheme.primary, size: 18),
+                            child: const Icon(Icons.tune, size: 18),
                           ),
                         ],
                       ),
@@ -388,13 +388,13 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 ))
                               : suggestions.posts.isEmpty
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(24),
+                                  ? const Padding(
+                                      padding: EdgeInsets.all(24),
                                       child: Column(
                                         children: [
-                                          Icon(Icons.lightbulb_outline, size: 32, color: AppTheme.outline.withValues(alpha: 0.3)),
-                                          const SizedBox(height: 8),
-                                          Text('Aucune suggestion', style: TextStyle(color: AppTheme.outline)),
+                                          Icon(Icons.lightbulb_outline, size: 32),
+                                          SizedBox(height: 8),
+                                          Text('Aucune suggestion'),
                                         ],
                                       ),
                                     )
@@ -435,7 +435,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.location_on, color: AppTheme.primary, size: 20),
+                  const Icon(Icons.location_on, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -535,12 +535,12 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                           color: AppTheme.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.my_location, color: AppTheme.primary, size: 14),
-                            const SizedBox(width: 4),
-                            Text('Je suis la', style: TextStyle(color: AppTheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                            Icon(Icons.my_location, size: 14),
+                            SizedBox(width: 4),
+                            Text('Je suis la'),
                           ],
                         ),
                       ),

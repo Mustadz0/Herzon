@@ -56,7 +56,7 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
               color: AppTheme.primary.withValues(alpha: 0.05),
               child: Row(
                 children: [
-                  Icon(Icons.circle_notifications, size: 16, color: AppTheme.primary),
+                  const Icon(Icons.circle_notifications, size: 16),
                   const SizedBox(width: 8),
                   Text(
                     '${state.unreadCount} non lue(s)',
