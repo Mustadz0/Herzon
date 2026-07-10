@@ -11,13 +11,15 @@ class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
 
   @override
-  ConsumerState<LeaderboardScreen> createState() => _LeaderboardScreenState();
+  ConsumerState<LeaderboardScreen> createState() =>
+      _LeaderboardScreenState();
 }
 
 class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
 
+  // Medal colours — intentionally fixed (not part of the app palette)
   static const _gold = Color(0xFFFFD700);
   static const _silver = Color(0xFFC0C0C0);
   static const _bronze = Color(0xFFCD7F32);
@@ -28,9 +30,12 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(gamificationProvider.notifier).loadLeaderboard();
-      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+      final userId =
+          Supabase.instance.client.auth.currentUser?.id ?? '';
       if (userId.isNotEmpty) {
-        ref.read(gamificationProvider.notifier).loadUserStats(userId);
+        ref
+            .read(gamificationProvider.notifier)
+            .loadUserStats(userId);
       }
     });
   }
@@ -43,8 +48,8 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    final tt = context.tt;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final gamState = ref.watch(gamificationProvider);
 
     return Scaffold(
@@ -52,12 +57,14 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
           SliverAppBar.large(
             title: Text('Classement',
-                style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                style: tt.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800)),
             actions: [
               IconButton(
                 tooltip: 'Actualiser',
-                onPressed: () =>
-                    ref.read(gamificationProvider.notifier).loadLeaderboard(),
+                onPressed: () => ref
+                    .read(gamificationProvider.notifier)
+                    .loadLeaderboard(),
                 icon: const Icon(Icons.refresh_rounded),
               ),
             ],
@@ -72,8 +79,10 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                   indicatorWeight: 3,
                   labelColor: cs.primary,
                   unselectedLabelColor: cs.onSurfaceVariant,
-                  labelStyle:
-                      tt.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                  dividerColor:
+                      cs.outlineVariant.withValues(alpha: 0.3),
+                  labelStyle: tt.labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
                   tabs: const [
                     Tab(text: 'À proximité'),
                     Tab(text: 'Mon niveau'),
@@ -85,13 +94,15 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
         ],
         body: RefreshIndicator(
           onRefresh: () async {
-            await ref.read(gamificationProvider.notifier).loadLeaderboard();
+            await ref
+                .read(gamificationProvider.notifier)
+                .loadLeaderboard();
           },
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildLeaderboard(gamState),
-              _buildMyLevel(gamState),
+              _buildLeaderboard(context, gamState),
+              _buildMyLevel(context, gamState),
             ],
           ),
         ),
@@ -99,13 +110,16 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     );
   }
 
-  Widget _buildLeaderboard(GamificationState gamState) {
+  Widget _buildLeaderboard(
+      BuildContext context, GamificationState gamState) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
     if (gamState.isLoading && gamState.leaderboard.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
+
     final entries = gamState.leaderboard;
-    final cs = context.cs;
-    final tt = context.tt;
 
     if (entries.isEmpty) {
       return ListView(
@@ -125,15 +139,17 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
           ),
           const SizedBox(height: 24),
           Center(
-            child: Text('Devenez le premier !',
-                style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+            child: Text('Devenez le premier !',
+                style: tt.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w800)),
           ),
           const SizedBox(height: 8),
           Center(
             child: Text(
               'Postez, interagissez, gagnez des XP\net grimpez au sommet.',
               textAlign: TextAlign.center,
-              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              style: tt.bodyMedium
+                  ?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),
         ],
@@ -148,17 +164,23 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: _Podium(top: top3, gold: _gold, silver: _silver, bronze: _bronze),
+          child: _Podium(
+              top: top3,
+              gold: _gold,
+              silver: _silver,
+              bronze: _bronze),
         ),
         if (rest.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 24),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.cardGlassLight,
+                color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: cs.outlineVariant),
+                border:
+                    Border.all(color: cs.outlineVariant),
               ),
               child: Row(
                 children: [
@@ -167,9 +189,9 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Soyez le prochain challenger !',
-                      style: tt.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      'Soyez le prochain challenger !',
+                      style: tt.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -182,7 +204,8 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => UserProfileScreen(userId: e.userId),
+                    builder: (_) =>
+                        UserProfileScreen(userId: e.userId),
                   ),
                 ),
               )),
@@ -190,10 +213,11 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     );
   }
 
-  Widget _buildMyLevel(GamificationState gamState) {
+  Widget _buildMyLevel(
+      BuildContext context, GamificationState gamState) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final myLevel = gamState.userLevel;
-    final cs = context.cs;
-    final tt = context.tt;
 
     if (myLevel == null) {
       return const Center(child: CircularProgressIndicator());
@@ -208,6 +232,8 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: 24),
+
+          // Circular XP ring
           SizedBox(
             width: 220,
             height: 220,
@@ -223,8 +249,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                       value: value,
                       strokeWidth: 12,
                       backgroundColor: cs.outlineVariant,
-                      valueColor:
-                          const AlwaysStoppedAnimation(AppTheme.primary),
+                      valueColor: AlwaysStoppedAnimation(cs.primary),
                     ),
                   ),
                   Container(
@@ -237,15 +262,22 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Nv.',
-                            style: tt.labelSmall?.copyWith(
-                                color: cs.onPrimary.withValues(alpha: 0.8),
-                                letterSpacing: 1)),
-                        Text('${myLevel.level}',
-                            style: tt.displaySmall?.copyWith(
-                                color: cs.onPrimary,
-                                fontWeight: FontWeight.w800,
-                                height: 1)),
+                        Text(
+                          'Nv.',
+                          style: tt.labelSmall?.copyWith(
+                            color: cs.onPrimary
+                                .withValues(alpha: 0.8),
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        Text(
+                          '${myLevel.level}',
+                          style: tt.displaySmall?.copyWith(
+                            color: cs.onPrimary,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -254,37 +286,49 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
             ),
           ),
           const SizedBox(height: 32),
-          Text('${myLevel.xp} XP',
-              style: tt.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w800, color: AppTheme.primary)),
+
+          Text(
+            '${myLevel.xp} XP',
+            style: tt.displaySmall?.copyWith(
+                fontWeight: FontWeight.w800, color: cs.primary),
+          ),
           const SizedBox(height: 4),
-          Text('$xpIntoLevel / 100 XP vers le niveau ${myLevel.level + 1}',
-              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+          Text(
+            '$xpIntoLevel / 100 XP vers le niveau ${myLevel.level + 1}',
+            style:
+                tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+          ),
           const SizedBox(height: 40),
+
+          // Stats card
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppTheme.primary.withValues(alpha: 0.1),
-                  AppTheme.accent.withValues(alpha: 0.1),
+                  cs.primary.withValues(alpha: 0.1),
+                  cs.tertiary.withValues(alpha: 0.1),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
-              border:
-                  Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+              border: Border.all(
+                  color: cs.primary.withValues(alpha: 0.2)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _Stat(value: '${myLevel.totalPosts}', label: 'Posts'),
-                Container(width: 1, height: 32, color: cs.outlineVariant),
+                _Stat(
+                    value: '${myLevel.totalPosts}',
+                    label: 'Posts'),
+                Container(
+                    width: 1, height: 32, color: cs.outlineVariant),
                 _Stat(
                     value: '${myLevel.totalReactionsReceived}',
                     label: 'Réactions'),
-                Container(width: 1, height: 32, color: cs.outlineVariant),
+                Container(
+                    width: 1, height: 32, color: cs.outlineVariant),
                 _Stat(
                     value: '${myLevel.totalCommentsReceived}',
                     label: 'Commentaires'),
@@ -292,6 +336,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
             ),
           ),
           const SizedBox(height: 24),
+
           _AchievementsGrid(level: myLevel.level),
           const SizedBox(height: 24),
         ],
@@ -299,6 +344,8 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     );
   }
 }
+
+// ─── Podium ──────────────────────────────────────────────────────────────────────
 
 class _Podium extends StatelessWidget {
   final List<LeaderboardEntryModel> top;
@@ -326,14 +373,13 @@ class _Podium extends StatelessWidget {
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          if (r2 != null)
-            const Positioned(left: 16, bottom: 0, child: SizedBox.shrink()),
           Positioned(
             left: 16,
             bottom: 0,
             child: r2 == null
                 ? const SizedBox.shrink()
-                : _PodiumUser(entry: r2, color: silver, height: 120),
+                : _PodiumUser(
+                    entry: r2, color: silver, height: 120),
           ),
           Positioned(
             bottom: 30,
@@ -343,8 +389,8 @@ class _Podium extends StatelessWidget {
                 ? const SizedBox.shrink()
                 : Align(
                     alignment: Alignment.center,
-                    child:
-                        _PodiumUser(entry: r1, color: gold, height: 160),
+                    child: _PodiumUser(
+                        entry: r1, color: gold, height: 160),
                   ),
           ),
           Positioned(
@@ -352,7 +398,8 @@ class _Podium extends StatelessWidget {
             bottom: 0,
             child: r3 == null
                 ? const SizedBox.shrink()
-                : _PodiumUser(entry: r3, color: bronze, height: 90),
+                : _PodiumUser(
+                    entry: r3, color: bronze, height: 90),
           ),
         ],
       ),
@@ -365,16 +412,20 @@ class _PodiumUser extends StatelessWidget {
   final Color color;
   final double height;
   const _PodiumUser(
-      {required this.entry, required this.color, required this.height});
+      {required this.entry,
+      required this.color,
+      required this.height});
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    final tt = context.tt;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => UserProfileScreen(userId: entry.userId)),
+        MaterialPageRoute(
+            builder: (_) =>
+                UserProfileScreen(userId: entry.userId)),
       ),
       child: SizedBox(
         width: 100,
@@ -396,26 +447,30 @@ class _PodiumUser extends StatelessWidget {
                 ],
               ),
               child: CircleAvatar(
-                backgroundImage:
-                    (entry.avatarUrl != null && entry.avatarUrl!.isNotEmpty)
-                        ? NetworkImage(entry.avatarUrl!)
-                        : null,
+                backgroundImage: (entry.avatarUrl != null &&
+                        entry.avatarUrl!.isNotEmpty)
+                    ? NetworkImage(entry.avatarUrl!)
+                    : null,
                 backgroundColor: cs.surfaceContainerLowest,
                 child: entry.avatarUrl == null
-                    ? Icon(Icons.person_rounded, color: cs.onSurface)
+                    ? Icon(Icons.person_rounded,
+                        color: cs.onSurface)
                     : null,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               entry.displayName ?? entry.username,
-              style: tt.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: tt.labelMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            Text('${entry.xp} XP',
-                style: tt.labelSmall
-                    ?.copyWith(color: color, fontWeight: FontWeight.w700)),
+            Text(
+              '${entry.xp} XP',
+              style: tt.labelSmall?.copyWith(
+                  color: color, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
             Container(
               height: height,
@@ -424,18 +479,21 @@ class _PodiumUser extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     color.withValues(alpha: 0.9),
-                    color.withValues(alpha: 0.4)
+                    color.withValues(alpha: 0.4),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(8)),
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(8)),
               ),
               alignment: Alignment.center,
-              child: Text('${entry.rank}',
-                  style: tt.headlineMedium?.copyWith(
-                      color: Colors.white, fontWeight: FontWeight.w900)),
+              child: Text(
+                '${entry.rank}',
+                style: tt.headlineMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900),
+              ),
             ),
           ],
         ),
@@ -444,6 +502,8 @@ class _PodiumUser extends StatelessWidget {
   }
 }
 
+// ─── Stat chip ───────────────────────────────────────────────────────────────────
+
 class _Stat extends StatelessWidget {
   final String value;
   final String label;
@@ -451,20 +511,26 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    final tt = context.tt;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Column(
       children: [
-        Text(value,
-            style: tt.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800, color: AppTheme.primary)),
+        Text(
+          value,
+          style: tt.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800, color: cs.primary),
+        ),
         const SizedBox(height: 4),
-        Text(label,
-            style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
+        Text(
+          label,
+          style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+        ),
       ],
     );
   }
 }
+
+// ─── Achievements ─────────────────────────────────────────────────────────────
 
 class _AchievementsGrid extends StatelessWidget {
   final int level;
@@ -472,12 +538,12 @@ class _AchievementsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
-    final tt = context.tt;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardGlassLight,
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: cs.outlineVariant),
       ),
@@ -486,12 +552,12 @@ class _AchievementsGrid extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.workspace_premium_rounded,
-                  color: AppTheme.primary, size: 20),
+              Icon(Icons.workspace_premium_rounded,
+                  color: cs.primary, size: 20),
               const SizedBox(width: 8),
               Text('Succès débloqués',
-                  style:
-                      tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                  style: tt.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
             ],
           ),
           const SizedBox(height: 16),
@@ -499,13 +565,21 @@ class _AchievementsGrid extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _AchievementBadge(
-                  emoji: '\u{1F331}', label: 'Nouveau', unlocked: level >= 1),
+                  emoji: '\u{1F331}',
+                  label: 'Nouveau',
+                  unlocked: level >= 1),
               _AchievementBadge(
-                  emoji: '\u{1F52E}', label: 'Explorateur', unlocked: level >= 5),
+                  emoji: '\u{1F52E}',
+                  label: 'Explorateur',
+                  unlocked: level >= 5),
               _AchievementBadge(
-                  emoji: '\u{1F5FC}', label: 'Ambassadeur', unlocked: level >= 10),
+                  emoji: '\u{1F5FC}',
+                  label: 'Ambassadeur',
+                  unlocked: level >= 10),
               _AchievementBadge(
-                  emoji: '\u{1F451}', label: 'Legende', unlocked: level >= 20),
+                  emoji: '\u{1F451}',
+                  label: 'Legende',
+                  unlocked: level >= 20),
             ],
           ),
         ],
@@ -519,11 +593,14 @@ class _AchievementBadge extends StatelessWidget {
   final String label;
   final bool unlocked;
   const _AchievementBadge(
-      {required this.emoji, required this.label, required this.unlocked});
+      {required this.emoji,
+      required this.label,
+      required this.unlocked});
 
   @override
   Widget build(BuildContext context) {
-    final cs = context.cs;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Column(
       children: [
         Container(
@@ -533,21 +610,25 @@ class _AchievementBadge extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: unlocked
-                ? AppTheme.primary.withValues(alpha: 0.15)
+                ? cs.primary.withValues(alpha: 0.15)
                 : cs.surfaceContainerHighest,
             border: Border.all(
-              color: unlocked ? AppTheme.primary : cs.outlineVariant,
+              color:
+                  unlocked ? cs.primary : cs.outlineVariant,
               width: 2,
             ),
           ),
           child: Opacity(
             opacity: unlocked ? 1 : 0.35,
-            child: Text(emoji, style: const TextStyle(fontSize: 28)),
+            child: Text(emoji,
+                style: const TextStyle(fontSize: 28)),
           ),
         ),
         const SizedBox(height: 6),
-        Text(label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: tt.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
       ],
     );
   }
