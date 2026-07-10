@@ -79,22 +79,23 @@ class AppTheme {
   static const Color surfaceDark = inverseSurface;
   static const Color cardLight = surfaceContainerLowest;
   static const Color cardDark = Color(0xFF1E293B);
-  static const Color cardGlassLight = Color(0xB3FFFFFF);
+  // FIX #5: cardGlassLight uses surfaceContainerLow for visible depth instead of near-white
+  static const Color cardGlassLight = surfaceContainerLow;
   static const Color cardGlassDark = Color(0xB31E293B);
 
-  // Gradients
+  // Gradients — FIX #4: use palette constants instead of hardcoded hex values
   static const LinearGradient brandGradient = LinearGradient(
     colors: [primary, secondary],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   static const LinearGradient accentGradient = LinearGradient(
-    colors: [Color(0xFF2170E4), Color(0xFF9C48EA)],
+    colors: [primaryContainer, secondaryContainer],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   static const LinearGradient warmGradient = LinearGradient(
-    colors: [Color(0xFF8127CF), Color(0xFF4648D4)],
+    colors: [secondary, tertiary],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -119,53 +120,69 @@ class AppTheme {
     BoxShadow(color: primary.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, -4)),
   ];
 
-  // Typography (Kinetic Proximity)
-  // display-lg: 48px, 800, 56px, -0.02em
+  // ━━━ Typography (Kinetic Proximity) ━━━
+  // display-xl: 48px, 800 — display font only
   static TextStyle get _displayLarge => GoogleFonts.plusJakartaSans(
-    fontSize: 48, fontWeight: FontWeight.w800, height: 56/48, letterSpacing: -0.02,
+    fontSize: 48, fontWeight: FontWeight.w800, height: 56 / 48, letterSpacing: -0.02,
   );
-  // headline-lg: 32px, 700, 40px, -0.01em
+  // display-lg: 36px, 700 — FIX #10: added displaySmall
+  static TextStyle get _displaySmall => GoogleFonts.plusJakartaSans(
+    fontSize: 36, fontWeight: FontWeight.w700, height: 44 / 36, letterSpacing: -0.01,
+  );
+  // headline-lg: 32px, 700
   static TextStyle get _displayMedium => GoogleFonts.plusJakartaSans(
-    fontSize: 32, fontWeight: FontWeight.w700, height: 40/32, letterSpacing: -0.01,
+    fontSize: 32, fontWeight: FontWeight.w700, height: 40 / 32, letterSpacing: -0.01,
   );
-  // headline-lg-mobile: 28px, 700, 36px
+  // headline-lg-mobile: 28px, 700
   static TextStyle get _headlineLarge => GoogleFonts.plusJakartaSans(
-    fontSize: 28, fontWeight: FontWeight.w700, height: 36/28,
+    fontSize: 28, fontWeight: FontWeight.w700, height: 36 / 28,
   );
-  // headline-md: 24px, 600, 32px
+  // headline-md: 24px, 600
   static TextStyle get _headlineMedium => GoogleFonts.plusJakartaSans(
-    fontSize: 24, fontWeight: FontWeight.w600, height: 32/24,
+    fontSize: 24, fontWeight: FontWeight.w600, height: 32 / 24,
   );
   // headline-sm: 20px, 600
   static TextStyle get _headlineSmall => GoogleFonts.plusJakartaSans(
-    fontSize: 20, fontWeight: FontWeight.w600, height: 28/20,
+    fontSize: 20, fontWeight: FontWeight.w600, height: 28 / 20,
   );
-  // body-lg: 18px, 400, 28px
+  // title-lg: 18px, 500
   static TextStyle get _titleLarge => GoogleFonts.plusJakartaSans(
-    fontSize: 18, fontWeight: FontWeight.w400, height: 28/18,
+    fontSize: 18, fontWeight: FontWeight.w500, height: 28 / 18,
   );
-  // body-md: 16px, 400, 24px
+  // title-md: 16px, 500
   static TextStyle get _titleMedium => GoogleFonts.plusJakartaSans(
-    fontSize: 16, fontWeight: FontWeight.w400, height: 24/16,
+    fontSize: 16, fontWeight: FontWeight.w500, height: 24 / 16,
   );
-  // label-md: 14px, 600, 20px, 0.01em
+  // title-sm / label-md: 14px, 600
   static TextStyle get _titleSmall => GoogleFonts.plusJakartaSans(
-    fontSize: 14, fontWeight: FontWeight.w600, height: 20/14, letterSpacing: 0.01,
+    fontSize: 14, fontWeight: FontWeight.w600, height: 20 / 14, letterSpacing: 0.01,
   );
-  // body-lg (alias)
-  static TextStyle get _bodyLarge => _titleLarge;
-  // body-md (alias)
-  static TextStyle get _bodyMedium => _titleMedium;
-  // label-sm: 12px, 500, 16px
+  // FIX #8: bodyLarge has its own distinct style (18px, 400) — not an alias of titleLarge
+  static TextStyle get _bodyLarge => GoogleFonts.plusJakartaSans(
+    fontSize: 18, fontWeight: FontWeight.w400, height: 28 / 18,
+  );
+  // FIX #8: bodyMedium has its own distinct style (16px, 400) — not an alias of titleMedium
+  static TextStyle get _bodyMedium => GoogleFonts.plusJakartaSans(
+    fontSize: 16, fontWeight: FontWeight.w400, height: 24 / 16,
+  );
+  // body-sm: 14px, 400
   static TextStyle get _bodySmall => GoogleFonts.plusJakartaSans(
-    fontSize: 12, fontWeight: FontWeight.w500, height: 16/12,
+    fontSize: 14, fontWeight: FontWeight.w400, height: 20 / 14,
   );
-  // label-md (alias)
-  static TextStyle get _labelLarge => _titleSmall;
-  // label-sm (alias)
-  static TextStyle get _labelSmall => _bodySmall;
+  // label-lg: 14px, 600
+  static TextStyle get _labelLarge => GoogleFonts.plusJakartaSans(
+    fontSize: 14, fontWeight: FontWeight.w600, height: 20 / 14, letterSpacing: 0.01,
+  );
+  // FIX #1: labelMedium added — 12px, 500 (used by Chips, Badges, Tabs in M3)
+  static TextStyle get _labelMedium => GoogleFonts.plusJakartaSans(
+    fontSize: 12, fontWeight: FontWeight.w500, height: 16 / 12, letterSpacing: 0.05,
+  );
+  // label-sm: 11px, 500
+  static TextStyle get _labelSmall => GoogleFonts.plusJakartaSans(
+    fontSize: 11, fontWeight: FontWeight.w500, height: 16 / 11, letterSpacing: 0.05,
+  );
 
-  // Light Theme
+  // ━━━ Light Theme ━━━
   static ThemeData get lightTheme {
     const cs = ColorScheme.light(
       primary: primary,
@@ -203,21 +220,23 @@ class AppTheme {
       textTheme: GoogleFonts.plusJakartaSansTextTheme().copyWith(
         displayLarge: _displayLarge,
         displayMedium: _displayMedium,
+        displaySmall: _displaySmall,   // FIX #10
         headlineLarge: _headlineLarge,
         headlineMedium: _headlineMedium,
         headlineSmall: _headlineSmall,
         titleLarge: _titleLarge,
         titleMedium: _titleMedium,
         titleSmall: _titleSmall,
-        bodyLarge: _bodyLarge,
-        bodyMedium: _bodyMedium,
+        bodyLarge: _bodyLarge,         // FIX #8
+        bodyMedium: _bodyMedium,       // FIX #8
         bodySmall: _bodySmall,
         labelLarge: _labelLarge,
+        labelMedium: _labelMedium,     // FIX #1
         labelSmall: _labelSmall,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: cardGlassLight,
+        color: cardGlassLight,         // FIX #5: surfaceContainerLow for visible depth
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -230,7 +249,9 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: cs.onSurface,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface),
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface,
+        ),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: navLight,
@@ -255,7 +276,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-          side: BorderSide(color: cs.secondary, width: 1.5),
+          side: const BorderSide(color: secondary, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           textStyle: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600),
         ),
@@ -270,13 +291,20 @@ class AppTheme {
         filled: true,
         fillColor: surfaceContainerLow,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none,
+        ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: primary, width: 2),
         ),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: error)),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: error),
+        ),
         hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: outline),
         labelStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: onSurfaceVariant),
       ),
@@ -310,15 +338,19 @@ class AppTheme {
         indicatorColor: primary.withValues(alpha: 0.12),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600, color: primary);
+            return GoogleFonts.plusJakartaSans(
+              fontSize: 11, fontWeight: FontWeight.w600, color: primary,
+            );
           }
-          return GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w500, color: outline);
+          return GoogleFonts.plusJakartaSans(
+            fontSize: 11, fontWeight: FontWeight.w500, color: outline,
+          );
         }),
       ),
     );
   }
 
-  // Dark Theme
+  // ━━━ Dark Theme ━━━
   static ThemeData get darkTheme {
     const cs = ColorScheme.dark(
       primary: inversePrimary,
@@ -356,16 +388,18 @@ class AppTheme {
       textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme).copyWith(
         displayLarge: _displayLarge.copyWith(color: cs.onSurface),
         displayMedium: _displayMedium.copyWith(color: cs.onSurface),
+        displaySmall: _displaySmall.copyWith(color: cs.onSurface),     // FIX #10
         headlineLarge: _headlineLarge.copyWith(color: cs.onSurface),
         headlineMedium: _headlineMedium.copyWith(color: cs.onSurface),
         headlineSmall: _headlineSmall.copyWith(color: cs.onSurface),
         titleLarge: _titleLarge.copyWith(color: cs.onSurface),
         titleMedium: _titleMedium.copyWith(color: cs.onSurface),
         titleSmall: _titleSmall.copyWith(color: cs.onSurface),
-        bodyLarge: _bodyLarge.copyWith(color: cs.onSurface),
-        bodyMedium: _bodyMedium.copyWith(color: cs.onSurface),
+        bodyLarge: _bodyLarge.copyWith(color: cs.onSurface),           // FIX #8
+        bodyMedium: _bodyMedium.copyWith(color: cs.onSurface),         // FIX #8
         bodySmall: _bodySmall.copyWith(color: cs.onSurfaceVariant),
         labelLarge: _labelLarge.copyWith(color: cs.onSurfaceVariant),
+        labelMedium: _labelMedium.copyWith(color: cs.onSurfaceVariant), // FIX #1
         labelSmall: _labelSmall.copyWith(color: cs.onSurfaceVariant),
       ),
       cardTheme: CardThemeData(
@@ -383,12 +417,15 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: cs.onSurface,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface),
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface,
+        ),
       ),
+      // FIX #2: selectedItemColor → cs.primary (= inversePrimary = 0xFFADC6FF, light blue — readable on dark bg)
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: navDark,
-        selectedItemColor: cs.inversePrimary,
-        unselectedItemColor: outline,
+        selectedItemColor: cs.primary,
+        unselectedItemColor: cs.onSurfaceVariant,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         selectedLabelStyle: GoogleFonts.plusJakartaSans(fontSize: 11, fontWeight: FontWeight.w600),
@@ -404,10 +441,12 @@ class AppTheme {
           textStyle: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
+      // FIX #6: OutlinedButton dark uses cs.primary (light blue) instead of grey outline
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-          side: BorderSide(color: cs.outline),
+          side: BorderSide(color: cs.primary, width: 1.5),
+          foregroundColor: cs.primary,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           textStyle: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600),
         ),
@@ -422,19 +461,28 @@ class AppTheme {
         filled: true,
         fillColor: cs.surfaceContainerLow,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none,
+        ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: cs.inversePrimary, width: 2),
+          borderSide: BorderSide(color: cs.primary, width: 2),
         ),
-        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: cs.error)),
-        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: outline),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: cs.error),
+        ),
+        // FIX #7: hintStyle uses cs.onSurfaceVariant instead of fixed outline color
+        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: cs.onSurfaceVariant),
         labelStyle: GoogleFonts.plusJakartaSans(fontSize: 14, color: cs.onSurfaceVariant),
       ),
+      // FIX #3: FAB dark uses cs.primary (light blue) + cs.onPrimary (dark) — good contrast
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: cs.primaryContainer,
-        foregroundColor: cs.onPrimaryContainer,
+        backgroundColor: cs.primary,
+        foregroundColor: cs.onPrimary,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
@@ -454,7 +502,23 @@ class AppTheme {
         elevation: 4,
       ),
       dividerTheme: DividerThemeData(
-        space: 0, thickness: 0.5, color: cs.onSurfaceVariant,
+        space: 0, thickness: 0.5, color: cs.outlineVariant,
+      ),
+      // FIX #9: navigationBarTheme added to darkTheme (was missing)
+      navigationBarTheme: NavigationBarThemeData(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        indicatorColor: inversePrimary.withValues(alpha: 0.15),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.plusJakartaSans(
+              fontSize: 11, fontWeight: FontWeight.w600, color: inversePrimary,
+            );
+          }
+          return GoogleFonts.plusJakartaSans(
+            fontSize: 11, fontWeight: FontWeight.w500, color: outline,
+          );
+        }),
       ),
     );
   }
