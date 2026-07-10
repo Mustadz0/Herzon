@@ -24,7 +24,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     final blockState = ref.watch(blockProvider);
 
     return Scaffold(
@@ -32,13 +33,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: t.isDark ? AppTheme.cardDark : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-            ),
+          // ─── Blocked users ───────────────────────────────────────
+          _SettingsCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -46,8 +42,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppTheme.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.block_rounded, color: AppTheme.error, size: 22),
+                      decoration: BoxDecoration(
+                        color: cs.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.block_rounded,
+                          color: cs.error, size: 22),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -55,9 +55,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Utilisateurs bloqués',
-                            style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                          Text('${blockState.blockedUsers.length} utilisateur(s)',
-                            style: TextStyle(color: t.colorScheme.onSurfaceVariant)),
+                              style: tt.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          Text(
+                            '${blockState.blockedUsers.length} utilisateur(s)',
+                            style: tt.bodySmall
+                                ?.copyWith(color: cs.onSurfaceVariant),
+                          ),
                         ],
                       ),
                     ),
@@ -65,214 +69,170 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 16),
                 if (blockState.isLoading)
-                  const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+                  const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator()))
                 else if (blockState.blockedUsers.isEmpty)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                      color: cs.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       children: [
-                        Icon(Icons.shield_outlined, size: 40, color: t.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                        Icon(Icons.shield_outlined,
+                            size: 40,
+                            color: cs.onSurfaceVariant
+                                .withValues(alpha: 0.4)),
                         const SizedBox(height: 8),
                         Text('Aucun utilisateur bloqué',
-                          style: TextStyle(color: t.colorScheme.onSurfaceVariant)),
+                            style: tt.bodySmall
+                                ?.copyWith(color: cs.onSurfaceVariant)),
                       ],
                     ),
                   )
                 else
-                  ...blockState.blockedUsers.map((userId) => _BlockedUserTile(userId: userId)),
+                  ...blockState.blockedUsers
+                      .map((uid) => _BlockedUserTile(userId: uid)),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          // â”€â”€â”€ Confidentialité â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+          // ─── Privacy ──────────────────────────────────────────────
           Consumer(builder: (context, ref, _) {
             final privacy = ref.watch(privacyProvider);
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: t.isDark ? AppTheme.cardDark : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-              ),
+            return _SettingsCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.shield_rounded, color: AppTheme.primary, size: 18),
-                      ),
-                      const SizedBox(width: 12),
-                      Text('Confidentialité', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                    ],
+                  _SectionHeader(
+                    icon: Icons.shield_rounded,
+                    label: 'Confidentialité',
                   ),
                   const SizedBox(height: 16),
                   _PrivacyDropdown(
                     label: 'Qui peut voir mon profil',
                     value: privacy.showProfileTo,
                     items: const ['all', 'proches', 'nobody'],
-                    itemLabels: const ['Tous', 'Proches uniquement', 'Personne'],
-                    onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
-                      showProfileTo: v,
-                      allowMessages: privacy.allowMessages,
-                      showActivity: privacy.showActivity,
-                      allowAddProches: privacy.allowAddProches,
-                      showZone: privacy.showZone,
-                      showAge: privacy.showAge,
-                      showDetails: privacy.showDetails,
-                      invisibleMode: privacy.invisibleMode,
-                    )),
+                    itemLabels: const [
+                      'Tous',
+                      'Proches uniquement',
+                      'Personne'
+                    ],
+                    onChanged: (v) =>
+                        ref.read(privacyProvider.notifier).update(
+                              privacy.copyWith(showProfileTo: v),
+                            ),
                   ),
                   const Divider(height: 1),
                   _PrivacyDropdown(
-                    label: 'Qui peut m\'envoyer un message',
+                    label: "Qui peut m'envoyer un message",
                     value: privacy.allowMessages ? 'all' : 'nobody',
                     items: const ['all', 'proches', 'nobody'],
-                    itemLabels: const ['Tous', 'Proches uniquement', 'Personne'],
-                    onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
-                      showProfileTo: privacy.showProfileTo,
-                      allowMessages: v != 'nobody',
-                      showActivity: privacy.showActivity,
-                      allowAddProches: privacy.allowAddProches,
-                      showZone: privacy.showZone,
-                      showAge: privacy.showAge,
-                      showDetails: privacy.showDetails,
-                      invisibleMode: privacy.invisibleMode,
-                    )),
+                    itemLabels: const [
+                      'Tous',
+                      'Proches uniquement',
+                      'Personne'
+                    ],
+                    onChanged: (v) =>
+                        ref.read(privacyProvider.notifier).update(
+                              privacy.copyWith(allowMessages: v != 'nobody'),
+                            ),
                   ),
                   const Divider(height: 1),
                   _PrivacyDropdown(
-                    label: 'Qui peut m\'ajouter aux Proches',
+                    label: "Qui peut m'ajouter aux Proches",
                     value: privacy.allowAddProches ? 'all' : 'nobody',
                     items: const ['all', 'nobody'],
                     itemLabels: const ['Tous', 'Personne'],
-                    onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
-                      showProfileTo: privacy.showProfileTo,
-                      allowMessages: privacy.allowMessages,
-                      showActivity: privacy.showActivity,
-                      allowAddProches: v == 'all',
-                      showZone: privacy.showZone,
-                      showAge: privacy.showAge,
-                      showDetails: privacy.showDetails,
-                      invisibleMode: privacy.invisibleMode,
-                    )),
+                    onChanged: (v) =>
+                        ref.read(privacyProvider.notifier).update(
+                              privacy.copyWith(allowAddProches: v == 'all'),
+                            ),
                   ),
                   const Divider(height: 1),
                   _PrivacySwitch(
                     label: 'Afficher ma zone active',
                     value: privacy.showZone,
-                    onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
-                      showProfileTo: privacy.showProfileTo,
-                      allowMessages: privacy.allowMessages,
-                      showActivity: privacy.showActivity,
-                      allowAddProches: privacy.allowAddProches,
-                      showZone: v,
-                      showAge: privacy.showAge,
-                      showDetails: privacy.showDetails,
-                      invisibleMode: privacy.invisibleMode,
-                    )),
+                    onChanged: (v) =>
+                        ref.read(privacyProvider.notifier).update(
+                              privacy.copyWith(showZone: v),
+                            ),
                   ),
                   _PrivacySwitch(
                     label: 'Afficher mon âge',
                     value: privacy.showAge,
-                    onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
-                      showProfileTo: privacy.showProfileTo,
-                      allowMessages: privacy.allowMessages,
-                      showActivity: privacy.showActivity,
-                      allowAddProches: privacy.allowAddProches,
-                      showZone: privacy.showZone,
-                      showAge: v,
-                      showDetails: privacy.showDetails,
-                      invisibleMode: privacy.invisibleMode,
-                    )),
+                    onChanged: (v) =>
+                        ref.read(privacyProvider.notifier).update(
+                              privacy.copyWith(showAge: v),
+                            ),
                   ),
                   _PrivacySwitch(
-                    label: 'Afficher "Plus de détails"',
+                    label: '"Plus de détails" visible',
                     value: privacy.showDetails,
-                    onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
-                      showProfileTo: privacy.showProfileTo,
-                      allowMessages: privacy.allowMessages,
-                      showActivity: privacy.showActivity,
-                      allowAddProches: privacy.allowAddProches,
-                      showZone: privacy.showZone,
-                      showAge: privacy.showAge,
-                      showDetails: v,
-                      invisibleMode: privacy.invisibleMode,
-                    )),
+                    onChanged: (v) =>
+                        ref.read(privacyProvider.notifier).update(
+                              privacy.copyWith(showDetails: v),
+                            ),
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Mode invisible', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    subtitle: Text('Personne ne me voit dans la zone',
-                      style: TextStyle(fontSize: 12, color: t.colorScheme.onSurfaceVariant)),
+                    title: Text('Mode invisible',
+                        style: tt.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      'Personne ne me voit dans la zone',
+                      style:
+                          tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    ),
                     value: privacy.invisibleMode,
-                    activeThumbColor: AppTheme.primary,
-                    onChanged: (v) => ref.read(privacyProvider.notifier).update(PrivacySettings(
-                      showProfileTo: privacy.showProfileTo,
-                      allowMessages: privacy.allowMessages,
-                      showActivity: privacy.showActivity,
-                      allowAddProches: privacy.allowAddProches,
-                      showZone: privacy.showZone,
-                      showAge: privacy.showAge,
-                      showDetails: privacy.showDetails,
-                      invisibleMode: v,
-                    )),
+                    activeColor: cs.primary,
+                    onChanged: (v) =>
+                        ref.read(privacyProvider.notifier).update(
+                              privacy.copyWith(invisibleMode: v),
+                            ),
                   ),
                 ],
               ),
             );
           }),
           const SizedBox(height: 16),
-          // â”€â”€â”€ Section juridique â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: t.isDark ? AppTheme.cardDark : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
-            ),
+
+          // ─── Legal ────────────────────────────────────────────────
+          _SettingsCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.gavel_rounded, color: AppTheme.primary, size: 18),
-                    ),
-                    const SizedBox(width: 12),
-                    Text('Informations légales',
-                      style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                  ],
+                _SectionHeader(
+                  icon: Icons.gavel_rounded,
+                  label: 'Informations légales',
                 ),
                 const SizedBox(height: 16),
                 _LegalTile(
                   icon: Icons.privacy_tip_outlined,
                   label: 'Politique de confidentialité',
                   subtitle: 'Loi algérienne 18-07 & RGPD',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen())),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PrivacyPolicyScreen()),
+                  ),
                 ),
                 const Divider(height: 1),
                 _LegalTile(
                   icon: Icons.description_outlined,
-                  label: 'Conditions d\'utilisation',
+                  label: "Conditions d'utilisation",
                   subtitle: 'CGU de Proximité',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TermsOfServiceScreen())),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TermsOfServiceScreen()),
+                  ),
                 ),
                 const Divider(height: 1),
                 _LegalTile(
@@ -285,13 +245,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
           OutlinedButton.icon(
             onPressed: () {
-              Clipboard.setData(const ClipboardData(text: 'com.heron.app'));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('ID de l\'application copié'),
-                behavior: SnackBarBehavior.floating,
-              ));
+              Clipboard.setData(
+                  const ClipboardData(text: 'com.heron.app'));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("ID de l'application copié"),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
             },
             icon: const Icon(Icons.info_outline, size: 18),
             label: const Text('Version 1.0.0'),
@@ -302,25 +266,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showDeleteAccountDialog(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer mon compte'),
-        content: const Text('Cette action est irréversible. Toutes vos données '
-            '(publications, messages, réactions, photos) seront définitivement '
-            'effacées.\n\nVoulez-vous vraiment supprimer votre compte ?'),
+        content: const Text(
+          'Cette action est irréversible. Toutes vos données '
+          '(publications, messages, réactions, photos) seront définitivement '
+          'effacées.\n\nVoulez-vous vraiment supprimer votre compte ?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
-              final uid = Supabase.instance.client.auth.currentUser?.id;
+              final uid =
+                  Supabase.instance.client.auth.currentUser?.id;
               if (uid != null) {
-                await Supabase.instance.client.functions.invoke('delete-account');
+                await Supabase.instance.client.functions
+                    .invoke('delete-account');
                 await Supabase.instance.client.auth.signOut();
               }
-              if (context.mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (_) => false);
+              }
             },
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
+            style:
+                FilledButton.styleFrom(backgroundColor: cs.error),
             child: const Text('Supprimer définitivement'),
           ),
         ],
@@ -329,19 +304,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
+// ─── Shared card shell ───────────────────────────────────────────────────────
+
+class _SettingsCard extends StatelessWidget {
+  final Widget child;
+  const _SettingsCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _SectionHeader({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: cs.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: cs.primary, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Text(label,
+            style:
+                tt.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+}
+
+// ─── Privacy helpers ─────────────────────────────────────────────────────────
+
 class _PrivacySwitch extends StatelessWidget {
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
-  const _PrivacySwitch({required this.label, required this.value, required this.onChanged});
+  const _PrivacySwitch(
+      {required this.label,
+      required this.value,
+      required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
-      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      title: Text(label,
+          style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
       value: value,
-      activeThumbColor: AppTheme.primary,
+      activeColor: cs.primary,
       onChanged: onChanged,
     );
   }
@@ -354,28 +386,41 @@ class _PrivacyDropdown extends StatelessWidget {
   final List<String> itemLabels;
   final ValueChanged<String> onChanged;
   const _PrivacyDropdown({
-    required this.label, required this.value, required this.items,
-    required this.itemLabels, required this.onChanged,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabels,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            child: Text(label,
+                style: tt.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
           ),
           DropdownButton<String>(
             value: value,
             underline: const SizedBox(),
-            items: List.generate(items.length, (i) => DropdownMenuItem(
-              value: items[i],
-              child: Text(itemLabels[i], style: TextStyle(color: t.colorScheme.onSurfaceVariant, fontSize: 13)),
-            )),
-            onChanged: (v) { if (v != null) onChanged(v); },
+            items: List.generate(
+              items.length,
+              (i) => DropdownMenuItem(
+                value: items[i],
+                child: Text(itemLabels[i],
+                    style: tt.bodySmall
+                        ?.copyWith(color: cs.onSurfaceVariant)),
+              ),
+            ),
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
           ),
         ],
       ),
@@ -389,16 +434,26 @@ class _LegalTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _LegalTile({required this.icon, required this.label, required this.subtitle, required this.onTap});
+  const _LegalTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
-      title: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      trailing: const Icon(Icons.chevron_right, size: 18),
+      leading: Icon(icon, size: 20, color: cs.onSurfaceVariant),
+      title: Text(label,
+          style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle,
+          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+      trailing:
+          Icon(Icons.chevron_right, size: 18, color: cs.onSurfaceVariant),
       onTap: onTap,
     );
   }
@@ -436,31 +491,43 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
-            decoration: const BoxDecoration(gradient: AppTheme.brandGradient, shape: BoxShape.circle),
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+                gradient: AppTheme.brandGradient,
+                shape: BoxShape.circle),
             child: _profile?['avatar_url'] != null
-                ? ClipRRect(borderRadius: BorderRadius.circular(20),
-                    child: Image.network(_profile!['avatar_url'] as String, fit: BoxFit.cover))
-                : const Icon(Icons.person, color: Colors.white, size: 20),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.network(
+                        _profile!['avatar_url'] as String,
+                        fit: BoxFit.cover))
+                : const Icon(Icons.person,
+                    color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(_profile?['display_name'] ?? _profile?['username'] ?? widget.userId,
-              style: t.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            child: Text(
+              _profile?['display_name'] ??
+                  _profile?['username'] ??
+                  widget.userId,
+              style: tt.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           TextButton(
-            onPressed: () async {
-              await ref.read(blockProvider.notifier).unblockUser(widget.userId);
-            },
-            child: const Text('Débloquer', style: TextStyle(color: AppTheme.primary)),
+            onPressed: () =>
+                ref.read(blockProvider.notifier).unblockUser(widget.userId),
+            child: Text('Débloquer',
+                style: TextStyle(color: cs.primary)),
           ),
         ],
       ),

@@ -1,112 +1,187 @@
-﻿import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'user_profile_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/search_provider.dart';
+import '../widgets/post_card.dart';
+import '../widgets/user_list_tile.dart';
+import '../../core/theme/app_theme.dart';
 
-class SearchScreen extends StatefulWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
-  final _controller = TextEditingController();
-  List<dynamic> _results = [];
-  bool _isSearching = false;
+class _SearchScreenState extends ConsumerState<SearchScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  final _ctrl = TextEditingController();
+  final _focus = FocusNode();
 
-  Future<void> _search(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() => _results = []);
-      return;
-    }
-    setState(() => _isSearching = true);
-    try {
-      final data = await Supabase.instance.client.rpc('search_users', params: {'query': query.trim()});
-      if (mounted) setState(() => _results = data as List<dynamic>);
-    } catch (_) {
-      if (mounted) setState(() => _results = []);
-    } finally {
-      if (mounted) setState(() => _isSearching = false);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _focus.requestFocus());
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _tabController.dispose();
+    _ctrl.dispose();
+    _focus.dispose();
     super.dispose();
+  }
+
+  void _onSearch(String q) {
+    final trimmed = q.trim();
+    if (trimmed.isEmpty) return;
+    ref.read(searchProvider.notifier).search(trimmed);
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final state = ref.watch(searchProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Rechercher')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _controller,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Nom d\'utilisateur...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.surface,
-                suffixIcon: _controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _controller.clear();
-                          _search('');
-                        },
-                      )
-                    : null,
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: SearchBar(
+            controller: _ctrl,
+            focusNode: _focus,
+            hintText: 'Rechercher personnes, posts...',
+            hintStyle: WidgetStatePropertyAll(
+              tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+            ),
+            leading: Icon(Icons.search, color: cs.onSurfaceVariant),
+            trailing: [
+              if (_ctrl.text.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _ctrl.clear();
+                    ref.read(searchProvider.notifier).clear();
+                  },
+                ),
+            ],
+            onChanged: _onSearch,
+            onSubmitted: _onSearch,
+            elevation: const WidgetStatePropertyAll(0),
+            backgroundColor: WidgetStatePropertyAll(cs.surfaceContainerLow),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(
+                    color: cs.outlineVariant.withValues(alpha: 0.5)),
               ),
-              onChanged: _search,
             ),
           ),
-          Expanded(
-            child: _isSearching
-                ? const Center(child: CircularProgressIndicator())
-                : _results.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.search, size: 48, color: Colors.grey[400]),
-                            const SizedBox(height: 16),
-                            Text(_controller.text.isEmpty
-                                ? 'Cherche quelqu\'un'
-                                : 'Aucun resultat',
-                              style: TextStyle(color: Colors.grey[500], fontSize: 16)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _results.length,
-                        itemBuilder: (context, index) {
-                          final user = _results[index];
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: user['avatar_url'] != null
-                                  ? NetworkImage(user['avatar_url'] as String)
-                                  : null,
-                              child: user['avatar_url'] == null
-                                  ? const Icon(Icons.person)
-                                  : null,
-                            ),
-                            title: Text(user['display_name'] ?? user['username'] ?? 'Anonyme'),
-                            subtitle: user['bio'] != null ? Text(user['bio'] as String, maxLines: 1, overflow: TextOverflow.ellipsis) : null,
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => UserProfileScreen(userId: user['id'] as String)),
-                            ),
-                          );
-                        },
-                      ),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Posts'),
+            Tab(text: 'Personnes'),
+          ],
+          indicatorColor: cs.primary,
+          labelColor: cs.primary,
+          unselectedLabelColor: cs.onSurfaceVariant,
+          dividerColor: cs.outlineVariant.withValues(alpha: 0.3),
+        ),
+      ),
+      body: state.isLoading
+          ? Center(
+              child: CircularProgressIndicator(color: cs.primary))
+          : state.query.isEmpty
+              ? _EmptyHint(cs: cs, tt: tt)
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Posts tab
+                    state.posts.isEmpty
+                        ? _NoResults(
+                            query: state.query, cs: cs, tt: tt)
+                        : ListView.builder(
+                            itemCount: state.posts.length,
+                            itemBuilder: (_, i) =>
+                                PostCard(post: state.posts[i]),
+                          ),
+                    // People tab
+                    state.users.isEmpty
+                        ? _NoResults(
+                            query: state.query, cs: cs, tt: tt)
+                        : ListView.builder(
+                            itemCount: state.users.length,
+                            itemBuilder: (_, i) =>
+                                UserListTile(user: state.users[i]),
+                          ),
+                  ],
+                ),
+    );
+  }
+}
+
+class _EmptyHint extends StatelessWidget {
+  final ColorScheme cs;
+  final TextTheme tt;
+  const _EmptyHint({required this.cs, required this.tt});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.search_rounded,
+                size: 36, color: cs.primary.withValues(alpha: 0.5)),
           ),
+          const SizedBox(height: 16),
+          Text('Commencez à taper...',
+              style: tt.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Text(
+            'Recherchez des posts ou des personnes',
+            style:
+                tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoResults extends StatelessWidget {
+  final String query;
+  final ColorScheme cs;
+  final TextTheme tt;
+  const _NoResults(
+      {required this.query, required this.cs, required this.tt});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded,
+              size: 48, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+          const SizedBox(height: 16),
+          Text('Aucun résultat pour "$query"',
+              style: tt.bodyMedium
+                  ?.copyWith(color: cs.onSurfaceVariant)),
         ],
       ),
     );

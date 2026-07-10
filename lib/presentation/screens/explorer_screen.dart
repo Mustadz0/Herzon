@@ -60,13 +60,9 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     }
   }
 
-  void _toggleMapStyle() {
-    setState(() => _isSatelliteMode = !_isSatelliteMode);
-  }
+  void _toggleMapStyle() => setState(() => _isSatelliteMode = !_isSatelliteMode);
 
-  void _onMapCreated(MapLibreMapController controller) {
-    _mapController = controller;
-  }
+  void _onMapCreated(MapLibreMapController controller) => _mapController = controller;
 
   Future<void> _onStyleLoaded() async {
     _styleLoaded = true;
@@ -78,44 +74,39 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     final ctrl = _mapController!;
     final loc = _userLocation!;
 
-    // Remove old radius source
-    try { await ctrl.addGeoJsonSource('radius-source', {
-      "type": "FeatureCollection",
-      "features": []
-    }); } catch (_) {}
+    try {
+      await ctrl.addGeoJsonSource('radius-source', {
+        'type': 'FeatureCollection',
+        'features': [],
+      });
+    } catch (_) {}
 
-    // Build circle polygon (500m radius)
     final pts = LocationUtils.createCirclePolygon(loc, AppConstants.proximityRadiusMeters);
     final coords = pts.map((p) => [p.longitude, p.latitude]).toList();
     coords.add(coords.first);
 
     await ctrl.setGeoJsonSource('radius-source', {
-      "type": "FeatureCollection",
-      "features": [{
-        "type": "Feature",
-        "geometry": {"type": "Polygon", "coordinates": [coords]},
-        "properties": {}
-      }]
+      'type': 'FeatureCollection',
+      'features': [{
+        'type': 'Feature',
+        'geometry': {'type': 'Polygon', 'coordinates': [coords]},
+        'properties': {},
+      }],
     });
 
-    // Add layers
     try {
       await ctrl.addFillLayer('radius-source', 'radius-fill',
         const FillLayerProperties(fillColor: '#146366F1', fillOpacity: 0.08),
-        enableInteraction: false,
-      );
+        enableInteraction: false);
     } catch (_) {}
     try {
       await ctrl.addLineLayer('radius-source', 'radius-outline',
         const LineLayerProperties(lineColor: '#4D6366F1', lineWidth: 2),
-        enableInteraction: false,
-      );
+        enableInteraction: false);
     } catch (_) {}
 
-    // Add post markers
     await _addPostMarkers();
 
-    // Register symbol tap handler (only once)
     if (!_symbolHandlerAdded) {
       _symbolHandlerAdded = true;
       ctrl.onSymbolTapped.add((Symbol symbol) {
@@ -151,13 +142,18 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final suggestions = ref.watch(suggestionProvider);
 
-    // Refresh markers when posts change
     ref.listen(postProvider, (_, next) {
       if (_styleLoaded && _userLocation != null) _addPostMarkers();
     });
+
+    final surfaceOverlay = isDark
+        ? cs.inverseSurface.withValues(alpha: 0.85)
+        : Colors.white.withValues(alpha: 0.85);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -178,47 +174,29 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             const SizedBox(width: 10),
             Text(
               'Explorer',
-              style: TextStyle(
+              style: tt.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: t.isDark ? Colors.white : AppTheme.onSurface,
+                color: cs.onSurface,
               ),
             ),
           ],
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: (t.isDark ? AppTheme.inverseSurface : Colors.white).withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: Icon(_isSatelliteMode ? Icons.map : Icons.satellite_alt, size: 20),
-              onPressed: _toggleMapStyle,
-              tooltip: _isSatelliteMode ? 'Carte' : 'Satellite',
-            ),
+          _AppBarAction(
+            icon: _isSatelliteMode ? Icons.map : Icons.satellite_alt,
+            surfaceOverlay: surfaceOverlay,
+            onPressed: _toggleMapStyle,
+            tooltip: _isSatelliteMode ? 'Carte' : 'Satellite',
           ),
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: (t.isDark ? AppTheme.inverseSurface : Colors.white).withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: Icon(_showSuggestions ? Icons.map_outlined : Icons.lightbulb_outline, size: 20),
-              onPressed: () => setState(() => _showSuggestions = !_showSuggestions),
-            ),
+          _AppBarAction(
+            icon: _showSuggestions ? Icons.map_outlined : Icons.lightbulb_outline,
+            surfaceOverlay: surfaceOverlay,
+            onPressed: () => setState(() => _showSuggestions = !_showSuggestions),
           ),
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: (t.isDark ? AppTheme.inverseSurface : Colors.white).withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.my_location, size: 20),
-              onPressed: _initLocation,
-            ),
+          _AppBarAction(
+            icon: Icons.my_location,
+            surfaceOverlay: surfaceOverlay,
+            onPressed: _initLocation,
           ),
         ],
       ),
@@ -229,19 +207,28 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                 ? 'https://basemaps.cartocdn.com/gl/imagery-gl-style/style.json'
                 : MapLibreStyles.openfreemapLiberty,
             initialCameraPosition: CameraPosition(
-              target: LatLng(_userLocation?.latitude ?? 36.7538, _userLocation?.longitude ?? 3.0588),
+              target: LatLng(
+                _userLocation?.latitude ?? 36.7538,
+                _userLocation?.longitude ?? 3.0588,
+              ),
               zoom: AppConstants.defaultZoom,
             ),
-            minMaxZoomPreference: const MinMaxZoomPreference(AppConstants.minZoom, AppConstants.maxZoom),
+            minMaxZoomPreference: const MinMaxZoomPreference(
+                AppConstants.minZoom, AppConstants.maxZoom),
             myLocationEnabled: true,
             myLocationTrackingMode: MyLocationTrackingMode.none,
             onMapCreated: _onMapCreated,
             onStyleLoadedCallback: _onStyleLoaded,
             onMapClick: (point, latLng) {
+              // People count should come from backend; using fixed seed for determinism
+              final seed = (latLng.latitude * 1000).truncate() +
+                  (latLng.longitude * 1000).truncate();
               setState(() {
-                _selectedZoneLatLng = ll.LatLng(latLng.latitude, latLng.longitude);
-                _selectedZoneName = 'Zone ${(latLng.latitude + latLng.longitude).toStringAsFixed(1)}';
-                _selectedZonePeople = Random().nextInt(20) + 3;
+                _selectedZoneLatLng =
+                    ll.LatLng(latLng.latitude, latLng.longitude);
+                _selectedZoneName =
+                    'Zone ${(latLng.latitude + latLng.longitude).toStringAsFixed(1)}';
+                _selectedZonePeople = (seed.abs() % 20) + 3;
               });
             },
             compassEnabled: false,
@@ -249,24 +236,24 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             attributionButtonPosition: AttributionButtonPosition.bottomRight,
           ),
 
-          // Glass panel search bar
+          // Glass search bar
           Positioned(
-            left: 20, right: 20, top: 16,
+            left: 20,
+            right: 20,
+            top: 16,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: (t.isDark ? AppTheme.inverseSurface : Colors.white).withValues(alpha: 0.7),
+                    color: surfaceOverlay,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
+                        color: cs.outlineVariant.withValues(alpha: 0.4)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -274,30 +261,30 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(24),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen())),
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const SearchScreen())),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, size: 22),
+                          Icon(Icons.search, size: 22, color: cs.onSurfaceVariant),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               'Explorer les zones chaudes...',
-                              style: TextStyle(
-                                color: AppTheme.outlineVariant,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: tt.bodyMedium?.copyWith(
+                                  color: cs.onSurfaceVariant),
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.1),
+                              color: cs.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.tune, size: 18),
+                            child: Icon(Icons.tune,
+                                size: 18, color: cs.primary),
                           ),
                         ],
                       ),
@@ -308,107 +295,44 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             ),
           ),
 
-          // Zone info bottom panel on map click
+          // Zone info bottom panel
           if (_selectedZoneLatLng != null)
             Positioned(
-              left: 16, right: 16, bottom: 16,
-              child: _buildZonePanel(),
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: _ZonePanel(
+                zoneName: _selectedZoneName,
+                zonePeople: _selectedZonePeople,
+                onClose: () => setState(() => _selectedZoneLatLng = null),
+              ),
             ),
 
-          // Active zones at top
+          // Active zones chips
           Positioned(
-            left: 16, right: 16, top: 80,
-            child: _buildActiveZonesRow(),
+            left: 16,
+            right: 16,
+            top: 80,
+            child: _ActiveZonesRow(
+              userLocation: _userLocation,
+              onZoneTap: (name, count, loc) => setState(() {
+                _selectedZoneName = name;
+                _selectedZonePeople = count;
+                _selectedZoneLatLng = loc;
+              }),
+            ),
           ),
+
+          // Suggestions panel
           if (_showSuggestions)
             Positioned(
-              left: 20, right: 20, bottom: 16,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Container(
-                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.45),
-                    decoration: BoxDecoration(
-                      color: (t.isDark ? AppTheme.inverseSurface : Colors.white).withValues(alpha: 0.95),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 40,
-                          offset: const Offset(0, -10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Drag handle
-                        Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          width: 48, height: 5,
-                          decoration: BoxDecoration(
-                            color: AppTheme.outlineVariant.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  gradient: AppTheme.brandGradient,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.lightbulb, color: Colors.white, size: 18),
-                              ),
-                              const SizedBox(width: 12),
-                              Text('Suggestions', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                              const Spacer(),
-                              IconButton(
-                                icon: const Icon(Icons.refresh, size: 18),
-                                onPressed: () => ref.read(suggestionProvider.notifier).loadSuggestions(),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Divider(height: 1, color: AppTheme.outlineVariant.withValues(alpha: 0.2)),
-                        Flexible(
-                          child: suggestions.isLoading
-                              ? const Center(child: Padding(
-                                  padding: EdgeInsets.all(24),
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ))
-                              : suggestions.posts.isEmpty
-                                  ? const Padding(
-                                      padding: EdgeInsets.all(24),
-                                      child: Column(
-                                        children: [
-                                          Icon(Icons.lightbulb_outline, size: 32),
-                                          SizedBox(height: 8),
-                                          Text('Aucune suggestion'),
-                                        ],
-                                      ),
-                                    )
-                                  : ListView.builder(
-                                      padding: const EdgeInsets.all(8),
-                                      shrinkWrap: true,
-                                      itemCount: min(suggestions.posts.length, 5),
-                                      itemBuilder: (_, i) => PostCard(post: suggestions.posts[i]),
-                                    ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              left: 20,
+              right: 20,
+              bottom: 16,
+              child: _SuggestionsPanel(
+                suggestions: suggestions,
+                onRefresh: () =>
+                    ref.read(suggestionProvider.notifier).loadSuggestions(),
               ),
             ),
         ],
@@ -416,8 +340,134 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     );
   }
 
-  Widget _buildZonePanel() {
-    if (_selectedZoneLatLng == null) return const SizedBox.shrink();
+  void _showPostInfo(String content, String? username) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? cs.surfaceContainer
+                  : Colors.white.withValues(alpha: 0.97),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(32)),
+              border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: cs.outlineVariant.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        gradient: AppTheme.brandGradient,
+                        shape: BoxShape.circle,
+                      ),
+                      child:
+                          const Icon(Icons.person, color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      username ?? 'Anonyme',
+                      style: tt.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color: cs.outlineVariant.withValues(alpha: 0.2)),
+                  ),
+                  child: Text(content, style: tt.bodyMedium),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Extracted Widgets ────────────────────────────────────────────────────────
+
+class _AppBarAction extends StatelessWidget {
+  final IconData icon;
+  final Color surfaceOverlay;
+  final VoidCallback onPressed;
+  final String? tooltip;
+
+  const _AppBarAction({
+    required this.icon,
+    required this.surfaceOverlay,
+    required this.onPressed,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        color: surfaceOverlay,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 20, color: cs.onSurface),
+        onPressed: onPressed,
+        tooltip: tooltip,
+      ),
+    );
+  }
+}
+
+class _ZonePanel extends StatelessWidget {
+  final String? zoneName;
+  final int zonePeople;
+  final VoidCallback onClose;
+
+  const _ZonePanel({
+    required this.zoneName,
+    required this.zonePeople,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -425,9 +475,10 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xB31E293B),
+            color: cs.surfaceContainer.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+            border:
+                Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
             boxShadow: AppTheme.glassShadowHeavy,
           ),
           child: Column(
@@ -435,40 +486,40 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.location_on, size: 20),
+                  Icon(Icons.location_on, size: 20, color: cs.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _selectedZoneName ?? 'Zone',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+                          zoneName ?? 'Zone',
+                          style: tt.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            const Icon(Icons.people, color: Colors.white54, size: 12),
+                            Icon(Icons.people,
+                                color: cs.onSurfaceVariant, size: 12),
                             const SizedBox(width: 4),
                             Text(
-                              '$_selectedZonePeople personnes ici',
-                              style: const TextStyle(color: Colors.white54, fontSize: 12),
+                              '$zonePeople personnes ici',
+                              style: tt.labelSmall
+                                  ?.copyWith(color: cs.onSurfaceVariant),
                             ),
                           ],
                         ),
                       ],
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => setState(() => _selectedZoneLatLng = null),
-                    child: Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.close, color: Colors.white54, size: 16),
-                    ),
+                  IconButton(
+                    onPressed: onClose,
+                    icon: Icon(Icons.close,
+                        color: cs.onSurfaceVariant, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
                   ),
                 ],
               ),
@@ -476,28 +527,16 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.brandGradient,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Text('Rejoindre cette zone', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                      ),
+                    child: FilledButton(
+                      onPressed: () {},
+                      child: const Text('Rejoindre cette zone'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Text('Explorer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                      ),
+                    child: OutlinedButton(
+                      onPressed: () {},
+                      child: const Text('Explorer'),
                     ),
                   ),
                 ],
@@ -506,43 +545,23 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.bookmark_border, color: Colors.white.withValues(alpha: 0.6), size: 14),
-                            const SizedBox(width: 4),
-                            Text('Enregistrer', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
-                          ],
-                        ),
-                      ),
+                    child: OutlinedButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(Icons.bookmark_border, size: 14),
+                      label: const Text('Enregistrer'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.my_location, size: 14),
-                            SizedBox(width: 4),
-                            Text('Je suis la'),
-                          ],
-                        ),
+                    child: FilledButton.tonal(
+                      onPressed: () {},
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.my_location, size: 14),
+                          const SizedBox(width: 4),
+                          const Text('Je suis là'),
+                        ],
                       ),
                     ),
                   ),
@@ -554,52 +573,77 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
       ),
     );
   }
+}
 
-  Widget _buildActiveZonesRow() {
-    final zones = [
-      {'name': 'Centre-Ville', 'icon': Icons.location_city, 'count': 24},
-      {'name': 'Plage', 'icon': Icons.beach_access, 'count': 18},
-      {'name': 'Campus', 'icon': Icons.school, 'count': 15},
-      {'name': 'Stade', 'icon': Icons.sports_soccer, 'count': 12},
-      {'name': 'Marche', 'icon': Icons.store, 'count': 9},
-    ];
+class _ActiveZonesRow extends StatelessWidget {
+  final ll.LatLng? userLocation;
+  final void Function(String name, int count, ll.LatLng? loc) onZoneTap;
+
+  const _ActiveZonesRow(
+      {required this.userLocation, required this.onZoneTap});
+
+  static const _zones = [
+    {'name': 'Centre-Ville', 'icon': Icons.location_city, 'count': 24},
+    {'name': 'Plage', 'icon': Icons.beach_access, 'count': 18},
+    {'name': 'Campus', 'icon': Icons.school, 'count': 15},
+    {'name': 'Stade', 'icon': Icons.sports_soccer, 'count': 12},
+    {'name': 'Marché', 'icon': Icons.store, 'count': 9},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
     return SizedBox(
       height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: zones.length,
+        itemCount: _zones.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
-          final z = zones[i];
+          final z = _zones[i];
           return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedZoneName = z['name'] as String;
-                _selectedZonePeople = z['count'] as int;
-                _selectedZoneLatLng = _userLocation;
-              });
-            },
+            onTap: () => onZoneTap(
+              z['name'] as String,
+              z['count'] as int,
+              userLocation,
+            ),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A).withValues(alpha: 0.9),
+                color: cs.surfaceContainerHigh.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(
+                    color: cs.outlineVariant.withValues(alpha: 0.15)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(z['icon'] as IconData, color: const Color(0xFF4F46E5), size: 14),
+                  Icon(z['icon'] as IconData,
+                      color: cs.primary, size: 14),
                   const SizedBox(width: 6),
-                  Text(z['name'] as String, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                  Text(
+                    z['name'] as String,
+                    style: tt.labelMedium
+                        ?.copyWith(fontWeight: FontWeight.w500),
+                  ),
                   const SizedBox(width: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
+                      color: cs.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text('${z['count']}', style: const TextStyle(color: Color(0xFF4F46E5), fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      '${z['count']}',
+                      style: tt.labelSmall?.copyWith(
+                        color: cs.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -609,74 +653,118 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
       ),
     );
   }
+}
 
-  void _showPostInfo(String content, String? username) {
-    final t = Theme.of(context);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-            decoration: BoxDecoration(
-              color: (t.isDark ? AppTheme.inverseSurface : Colors.white).withValues(alpha: 0.95),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.4),
-                width: 1,
+class _SuggestionsPanel extends StatelessWidget {
+  final dynamic suggestions;
+  final VoidCallback onRefresh;
+
+  const _SuggestionsPanel(
+      {required this.suggestions, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.45),
+          decoration: BoxDecoration(
+            color: isDark
+                ? cs.surfaceContainer.withValues(alpha: 0.97)
+                : Colors.white.withValues(alpha: 0.97),
+            borderRadius: BorderRadius.circular(32),
+            border: Border.all(
+                color: cs.outlineVariant.withValues(alpha: 0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 40,
+                offset: const Offset(0, -10),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 48, height: 5,
-                    decoration: BoxDecoration(
-                      color: AppTheme.outlineVariant.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                  ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: cs.outlineVariant.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(100),
                 ),
-                const SizedBox(height: 24),
-                Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
                   children: [
                     Container(
-                      width: 44, height: 44,
-                      decoration: const BoxDecoration(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
                         gradient: AppTheme.brandGradient,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.person, color: Colors.white, size: 22),
+                      child: const Icon(Icons.lightbulb,
+                          color: Colors.white, size: 18),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      username ?? 'Anonyme',
-                      style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    Text('Suggestions',
+                        style: tt.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh, size: 18),
+                      onPressed: onRefresh,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                          minWidth: 32, minHeight: 32),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceContainerLow.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppTheme.outlineVariant.withValues(alpha: 0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(content, style: t.textTheme.bodyMedium),
-                ),
-              ],
-            ),
+              ),
+              Divider(
+                  height: 1,
+                  color: cs.outlineVariant.withValues(alpha: 0.2)),
+              Flexible(
+                child: suggestions.isLoading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ))
+                    : suggestions.posts.isEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              children: [
+                                Icon(Icons.lightbulb_outline,
+                                    size: 32,
+                                    color: cs.onSurfaceVariant),
+                                const SizedBox(height: 8),
+                                Text('Aucune suggestion',
+                                    style: tt.bodySmall?.copyWith(
+                                        color: cs.onSurfaceVariant)),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(8),
+                            shrinkWrap: true,
+                            itemCount:
+                                min(suggestions.posts.length, 5),
+                            itemBuilder: (_, i) =>
+                                PostCard(post: suggestions.posts[i]),
+                          ),
+              ),
+            ],
           ),
         ),
       ),
