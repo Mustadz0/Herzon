@@ -1,11 +1,15 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/post_provider.dart';
 import '../providers/story_provider.dart';
+import '../providers/notification_provider.dart';
 import '../widgets/post_card.dart';
 import '../widgets/story_circle_row.dart';
 import 'create_post_screen.dart';
 import 'search_screen.dart';
+import 'notifications_screen.dart';
 import 'messages_screen.dart';
 import 'explorer_screen.dart';
 import '../../core/theme/app_theme.dart';
@@ -19,6 +23,7 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _scrollController = ScrollController();
+  bool _showTop = false; // Recent / Top toggle
 
   @override
   void initState() {
@@ -31,7 +36,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       ref.read(postProvider.notifier).loadMore();
     }
   }
@@ -42,313 +48,435 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     super.dispose();
   }
 
+  // ─── build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final feedState = ref.watch(postProvider);
+    final unread = ref.watch(notificationProvider).unreadCount;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(postProvider.notifier).loadFeed();
-              await ref.read(storyProvider.notifier).loadStories();
-            },
-            child: ListView(
-              controller: _scrollController,
-              children: [
-            // Herzon logo centered
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Center(
-                child: ShaderMask(
-                  shaderCallback: (bounds) => AppTheme.brandGradient.createShader(bounds),
-                  child: const Text(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: isDark
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: cs.surface,
+        body: RefreshIndicator(
+          color: cs.primary,
+          onRefresh: () async {
+            await ref.read(postProvider.notifier).loadFeed();
+            await ref.read(storyProvider.notifier).loadStories();
+          },
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // ── SliverAppBar ──────────────────────────────
+              SliverAppBar(
+                pinned: true,
+                floating: true,
+                snap: true,
+                expandedHeight: 0,
+                backgroundColor: isDark ? AppTheme.navDark : AppTheme.navLight,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0.5,
+                flexibleSpace: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+                title: ShaderMask(
+                  shaderCallback: (b) => AppTheme.brandGradient.createShader(b),
+                  child: Text(
                     'Herzon',
-                    style: TextStyle(
+                    style: tt.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
-                      fontSize: 22,
                       color: Colors.white,
                     ),
                   ),
                 ),
-              ),
-            ),
-
-            // Hot + Zone Name + Je suis la
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  // Hot button
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.brandGradient,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.whatshot, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
-                        Text('Hot', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                      ],
+                centerTitle: true,
+                actions: [
+                  // Search
+                  IconButton(
+                    icon: Icon(Icons.search_rounded, color: cs.onSurface),
+                    tooltip: 'Search',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SearchScreen()),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  // Zone name + people count
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExplorerScreen())),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(20),
+                  // Notifications with badge
+                  IconButton(
+                    icon: Badge(
+                      label: unread > 0 ? Text('$unread') : null,
+                      isLabelVisible: unread > 0,
+                      backgroundColor: cs.error,
+                      child: Icon(
+                        Icons.notifications_outlined,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    tooltip: 'Notifications',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen()),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ),
+
+              // ── Zone bar ──────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      // Hot pill
+                      _GradientPill(
+                        icon: Icons.whatshot,
+                        label: 'Hot',
+                      ),
+                      const SizedBox(width: 10),
+                      // Zone name
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const ExplorerScreen()),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: cs.outlineVariant.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.near_me,
+                                    color: cs.primary, size: 14),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'La Zone',
+                                    style: tt.labelMedium?.copyWith(
+                                      color: cs.onSurface,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: cs.primary.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '12',
+                                    style: tt.labelSmall?.copyWith(
+                                      color: cs.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.near_me, color: Color(0xFF4F46E5), size: 14),
-                            const SizedBox(width: 6),
-                            const Expanded(
-                              child: Text(
-                                'La Zone',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text('12', style: TextStyle(color: Color(0xFF4F46E5), fontSize: 11, fontWeight: FontWeight.w700)),
-                            ),
-                          ],
+                      ),
+                      const SizedBox(width: 10),
+                      // Je suis là
+                      OutlinedButton.icon(
+                        onPressed: () {},
+                        icon: Icon(Icons.my_location,
+                            size: 14, color: cs.primary),
+                        label: Text(
+                          'Je suis là',
+                          style: tt.labelSmall?.copyWith(
+                            color: cs.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          side: BorderSide(
+                              color: cs.primary.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Recent / Top toggle ───────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      _PillToggle(
+                        showTop: _showTop,
+                        onChanged: (v) => setState(() => _showTop = v),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Stories ───────────────────────────────────
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 4, bottom: 8),
+                  child: StoryCircleRow(),
+                ),
+              ),
+
+              // ── Section header ────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 3,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.brandGradient,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Ce qui se passe',
+                        style: tt.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Feed content ──────────────────────────────
+              if (feedState.isLoading)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (_, __) => _shimmerCard(cs),
+                    childCount: 3,
+                  ),
+                )
+              else if (feedState.error != null)
+                SliverToBoxAdapter(child: _errorState(feedState.error!, cs, tt))
+              else if (feedState.posts.isEmpty)
+                SliverToBoxAdapter(child: _emptyState(cs, tt))
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (_, i) => PostCard(post: feedState.posts[i]),
+                    childCount: feedState.posts.length,
+                  ),
+                ),
+
+              if (feedState.isLoadingMore)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: cs.primary,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  // Je suis la button
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.5)),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.my_location, size: 14),
-                        SizedBox(width: 4),
-                        Text('Je suis la', style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.w600, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
 
-            // Recent/Top toggle + Search + Notifications
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Row(
-                children: [
-                  // Recent/Top toggle pills
-                  _buildPillToggle(),
-                  const Spacer(),
-                  _smallActionButton(Icons.search, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SearchScreen()))),
-                  const SizedBox(width: 6),
-                  _smallActionButton(Icons.notifications_outlined, () {}),
-                ],
-              ),
-            ),
-
-            // Stories
-            const Padding(
-              padding: EdgeInsets.only(top: 4, bottom: 8),
-              child: StoryCircleRow(),
-            ),
-
-            // Section: Ce qui se passe
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 3, height: 18,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.brandGradient,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Ce qui se passe',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Feed posts
-            if (feedState.isLoading)
-              ...List.generate(3, (_) => _shimmerCard())
-            else if (feedState.error != null)
-              _errorState(feedState.error!)
-            else if (feedState.posts.isEmpty)
-              _emptyState()
-            else
-              ...feedState.posts.map((post) => PostCard(post: post)),
-
-            if (feedState.isLoadingMore)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF4F46E5)))),
-              ),
-          ],
-        ),
-      ),
-        Positioned(
-          right: 16,
-          bottom: 16,
-          child: GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConversationsListScreen())),
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: AppTheme.brandGradient,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.secondary.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 28),
-            ),
+              // Bottom padding for nav bar
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
           ),
         ),
-      ],
-    ),
-  );
-  }
-
-  Widget _buildPillToggle() {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _pillOption('Recent', true),
-          _pillOption('Top', false),
-        ],
       ),
     );
   }
 
-  Widget _pillOption(String label, bool selected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: selected ? AppTheme.brandGradient : null,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.white.withValues(alpha: 0.6),
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
+  // ─── helpers ──────────────────────────────────────────────
 
-  Widget _smallActionButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 18),
-      ),
-    );
-  }
-
-  Widget _shimmerCard() {
+  Widget _shimmerCard(ColorScheme cs) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       height: 280,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
       ),
     );
   }
 
-  Widget _errorState(String error) {
+  Widget _errorState(String error, ColorScheme cs, TextTheme tt) {
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Column(
         children: [
-          const Icon(Icons.cloud_off, size: 48, color: Color(0xFFEF4444)),
+          Icon(Icons.cloud_off, size: 48, color: cs.error),
           const SizedBox(height: 16),
-          Text('Erreur', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w600)),
+          Text('Erreur',
+              style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          Text(error, style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13), textAlign: TextAlign.center),
+          Text(error,
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              textAlign: TextAlign.center),
           const SizedBox(height: 16),
-          FilledButton.tonal(onPressed: () => ref.read(postProvider.notifier).loadFeed(), child: const Text('Réessayer')),
+          FilledButton.tonal(
+            onPressed: () => ref.read(postProvider.notifier).loadFeed(),
+            child: const Text('Réessayer'),
+          ),
         ],
       ),
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState(ColorScheme cs, TextTheme tt) {
     return Padding(
       padding: const EdgeInsets.all(40),
       child: Column(
         children: [
           Container(
-            width: 100, height: 100,
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: AppTheme.brandGradient.colors.map((c) => c.withValues(alpha: 0.15)).toList()),
+              color: cs.primary.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.near_me_disabled, size: 44, color: AppTheme.primary.withValues(alpha: 0.5)),
+            child: Icon(Icons.near_me_disabled,
+                size: 44, color: cs.primary.withValues(alpha: 0.5)),
           ),
           const SizedBox(height: 24),
-          const Text('Rien dans la zone', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
+          Text('Rien dans la zone',
+              style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text('Soyez le premier a publier !', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14)),
+          Text('Soyez le premier à publier !',
+              style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: () async {
-              final created = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const CreatePostScreen()));
+              final created = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+              );
               if (created == true) ref.read(postProvider.notifier).loadFeed();
             },
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Creer un post'),
+            label: const Text('Créer un post'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Gradient Pill ────────────────────────────────────────────
+class _GradientPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _GradientPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: AppTheme.brandGradient,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 15),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Pill Toggle (Recent / Top) ───────────────────────────────
+class _PillToggle extends StatelessWidget {
+  final bool showTop;
+  final ValueChanged<bool> onChanged;
+
+  const _PillToggle({required this.showTop, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _pill('Recent', !showTop, cs, tt, () => onChanged(false)),
+          _pill('Top', showTop, cs, tt, () => onChanged(true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _pill(String label, bool selected, ColorScheme cs, TextTheme tt,
+      VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: selected ? AppTheme.brandGradient : null,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: tt.labelMedium?.copyWith(
+            color: selected ? Colors.white : cs.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
