@@ -33,24 +33,44 @@ void main() async {
   // Initialize crash reporting FIRST (before anything else)
   await CrashlyticsService.init();
 
+  // Structured error widget — never expose stack traces in release mode
   ErrorWidget.builder = (FlutterErrorDetails details) {
     CrashlyticsService.recordError(
       details.exception,
       details.stack,
       reason: 'ErrorWidget: ${details.context}',
     );
-    final message = kDebugMode
-        ? 'RUNTIME ERROR:\n${details.exceptionAsString()}\n\n${details.stack}'
-        : 'Une erreur est survenue. Veuillez relancer l\'application.';
-
-    return Material(
-      color: Colors.red.shade900,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(
-          child: Text(
-            message,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+    if (kDebugMode) {
+      return Material(
+        color: Colors.red.shade900,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Text(
+              'DEBUG ERROR:\n${details.exceptionAsString()}',
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+        ),
+      );
+    }
+    // Release mode: generic message only — no internal details exposed
+    return const Material(
+      color: Color(0xFF1A1A2E),
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 48),
+              SizedBox(height: 16),
+              Text(
+                'Something went wrong.\nPlease restart the app.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            ],
           ),
         ),
       ),
@@ -63,6 +83,12 @@ void main() async {
       details.stack,
       reason: 'FlutterError: ${details.context}',
     );
+  };
+
+  // Catch async errors that escape the Flutter framework
+  PlatformDispatcher.instance.onError = (error, stack) {
+    CrashlyticsService.recordError(error, stack, reason: 'PlatformDispatcher');
+    return true;
   };
 
   try {
@@ -83,9 +109,21 @@ void main() async {
   final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
+  // Validate env vars before initializing — fail fast with clear message
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    debugPrint('[CRITICAL] Missing SUPABASE_URL or SUPABASE_ANON_KEY in .env');
+    assert(
+      false,
+      'SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env file',
+    );
+  }
+
   try {
-    await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
-    // Set user in crash reporter
+    // FIX: correct param is anonKey, not publishableKey
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
       await CrashlyticsService.setUser(userId);
@@ -104,20 +142,23 @@ void main() async {
     await NotificationService.instance.init();
   } catch (_) {}
 
-  // Initialize Firebase App Check (anti-abuse protection)
+  // Firebase App Check — use debug provider in debug mode
   try {
     await FirebaseAppCheck.instance.activate(
-      androidProvider: AndroidProvider.playIntegrity,
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
     );
     debugPrint('Firebase App Check activated');
   } catch (e) {
     debugPrint('App Check init failed: $e');
   }
 
-  // Initialize Firebase Performance Monitoring
+  // Firebase Performance — disable in debug mode to reduce noise
   try {
-    await FirebasePerformance.instance.setPerformanceCollectionEnabled(true);
-    debugPrint('Firebase Performance Monitoring activated');
+    await FirebasePerformance.instance
+        .setPerformanceCollectionEnabled(!kDebugMode);
+    if (!kDebugMode) debugPrint('Firebase Performance Monitoring activated');
   } catch (e) {
     debugPrint('Performance Monitoring init failed: $e');
   }
@@ -140,7 +181,10 @@ void main() async {
 class HerzonApp extends ConsumerWidget {
   const HerzonApp({super.key});
 
-  Future<bool> _checkOnboarding() async {
+  // FIX: cache future outside build() to prevent rebuild loop
+  static final Future<bool> _onboardingFuture = _checkOnboarding();
+
+  static Future<bool> _checkOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('onboarding_complete') ?? false;
   }
@@ -148,12 +192,14 @@ class HerzonApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return FutureBuilder<bool>(
-      future: _checkOnboarding(),
+      future: _onboardingFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const MaterialApp(
             debugShowCheckedModeBanner: false,
-            home: Scaffold(body: Center(child: CircularProgressIndicator())),
+            home: Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
           );
         }
 
@@ -162,11 +208,30 @@ class HerzonApp extends ConsumerWidget {
 
         Widget home;
         if (auth.isLoading) {
-          home = const Scaffold(body: Center(child: CircularProgressIndicator()));
+          home = const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         } else if (showOnboarding) {
           home = const OnboardingScreen();
         } else if (auth.error != null) {
-          home = Scaffold(body: Center(child: Text('Error: ${auth.error}')));
+          // FIX: never expose raw error string in UI
+          home = Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  const Text('Authentication error. Please try again.'),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => ref.invalidate(authProvider),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
         } else if (auth.isAuthenticated) {
           home = const NotificationTapHandler(child: HomeScreen());
         } else {
@@ -184,14 +249,16 @@ class HerzonApp extends ConsumerWidget {
             '/login': (context) => const LoginScreen(),
             '/admin': (context) => const AdminHomeScreen(),
             '/profile': (context) {
-              final userId = ModalRoute.of(context)?.settings.arguments as String?;
+              final userId =
+                  ModalRoute.of(context)?.settings.arguments as String?;
               if (userId == null || userId.isEmpty) {
                 return const LoginScreen();
               }
               return UserProfileScreen(userId: userId);
             },
             '/comments': (context) {
-              final postId = ModalRoute.of(context)?.settings.arguments as String?;
+              final postId =
+                  ModalRoute.of(context)?.settings.arguments as String?;
               return CommentsScreen(postId: postId ?? '');
             },
             '/create_story': (context) => const CreateStoryScreen(),
