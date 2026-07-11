@@ -35,6 +35,23 @@ class PrivacySettings {
     );
   }
 
+  PrivacySettings copyWith({
+    bool? showActivity, bool? allowMessages, String? showProfileTo,
+    bool? allowAddProches, bool? showZone, bool? showAge,
+    bool? showDetails, bool? invisibleMode,
+  }) {
+    return PrivacySettings(
+      showActivity: showActivity ?? this.showActivity,
+      allowMessages: allowMessages ?? this.allowMessages,
+      showProfileTo: showProfileTo ?? this.showProfileTo,
+      allowAddProches: allowAddProches ?? this.allowAddProches,
+      showZone: showZone ?? this.showZone,
+      showAge: showAge ?? this.showAge,
+      showDetails: showDetails ?? this.showDetails,
+      invisibleMode: invisibleMode ?? this.invisibleMode,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'show_activity': showActivity,
     'allow_messages': allowMessages,

@@ -25,7 +25,7 @@ class ExplorerScreen extends ConsumerStatefulWidget {
 }
 
 class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
-  MaplibreMapController? _mapController;
+  MapLibreMapController? _mapController;
 
   // Default centre: Bab Ezzouar, Alger
   double _lat = 36.7372;
@@ -116,7 +116,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   }
 
   // ── Map callbacks ────────────────────────────────────────────────────────
-  void _onMapCreated(MaplibreMapController controller) {
+  void _onMapCreated(MapLibreMapController controller) {
     _mapController = controller;
   }
 
@@ -131,7 +131,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
       body: Stack(
         children: [
           // ── MapLibre map ─────────────────────────────────────────────────
-          MaplibreMap(
+          MapLibreMap(
             styleString: _osmStyle,
             initialCameraPosition: CameraPosition(
               target: LatLng(_lat, _lng),
@@ -139,7 +139,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             ),
             onMapCreated: _onMapCreated,
             myLocationEnabled: true,
-            myLocationTrackingMode: MyLocationTrackingMode.None,
+            myLocationTrackingMode: MyLocationTrackingMode.none,
             compassEnabled: false,
           ),
 

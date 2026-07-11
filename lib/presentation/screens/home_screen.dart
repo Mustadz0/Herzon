@@ -24,6 +24,7 @@ import 'admin_feature_flags_screen.dart';
 import 'vibes/vibe_viewer_screen.dart';
 import 'messages_screen.dart';
 import '../widgets/xp_level_badge.dart';
+import '../widgets/conversations_list_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});

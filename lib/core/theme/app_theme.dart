@@ -268,7 +268,7 @@ class AppTheme {
         labelSmall:     _labelSmall,
       ),
       // FIX C: use CardTheme (not CardThemeData — that is the internal data class)
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         color: cardGlassLight,
         surfaceTintColor: Colors.transparent,
@@ -373,7 +373,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       // FIX F: use DialogTheme (not DialogThemeData)
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         elevation: 8,
         shadowColor: Colors.black.withValues(alpha: 0.15),
@@ -473,7 +473,7 @@ class AppTheme {
         labelSmall:     _labelSmall.copyWith(color: cs.onSurfaceVariant),
       ),
       // FIX C: CardTheme (not CardThemeData)
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         color: cardGlassDark,
         surfaceTintColor: Colors.transparent,
@@ -577,7 +577,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       // FIX F: DialogTheme (not DialogThemeData)
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         elevation: 8,
         shadowColor: Colors.black.withValues(alpha: 0.4),
