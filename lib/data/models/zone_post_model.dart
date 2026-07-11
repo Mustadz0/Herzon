@@ -1,48 +1,86 @@
-import 'package:herzon/data/models/post_model.dart';
+import 'post_model.dart';
 
 /// Lightweight post returned by get_zone_posts RPC.
-/// Mirrors PostModel fields needed for PostCard rendering.
+/// Column names match the updated Supabase RPC (2026-07).
 class ZonePostModel {
   final String id;
   final String userId;
-  final String displayName;
-  final String? avatarUrl;
+  final String? userDisplayName;
+  final String? userUsername;
+  final String? userAvatarUrl;
   final String? content;
-  final String? mediaUrl;
+  final List<String> mediaUrls;
   final String? mediaType;
   final String? contextTag;
-  final int reactionsCount;
-  final int commentsCount;
-  final DateTime createdAt;
-  final double distanceMeters;
+  final String? stickerId;
+  final Map<String, int> reactionCounts;
+  final int commentCount;
+  final DateTime? createdAt;
+  final String? zoneId;
 
   const ZonePostModel({
     required this.id,
     required this.userId,
-    required this.displayName,
-    this.avatarUrl,
+    this.userDisplayName,
+    this.userUsername,
+    this.userAvatarUrl,
     this.content,
-    this.mediaUrl,
+    this.mediaUrls = const [],
     this.mediaType,
     this.contextTag,
-    required this.reactionsCount,
-    required this.commentsCount,
-    required this.createdAt,
-    required this.distanceMeters,
+    this.stickerId,
+    this.reactionCounts = const {},
+    this.commentCount = 0,
+    this.createdAt,
+    this.zoneId,
   });
 
   factory ZonePostModel.fromJson(Map<String, dynamic> j) => ZonePostModel(
-        id: j['post_id'] as String,
+        id: j['id'] as String,
         userId: j['user_id'] as String,
-        displayName: j['display_name'] as String? ?? 'Utilisateur',
-        avatarUrl: j['avatar_url'] as String?,
+        // New RPC columns: user_display_name, user_username, user_avatar_url
+        userDisplayName: j['user_display_name'] as String?,
+        userUsername: j['user_username'] as String?,
+        userAvatarUrl: j['user_avatar_url'] as String?,
         content: j['content'] as String?,
-        mediaUrl: j['media_url'] as String?,
+        mediaUrls: List<String>.from(j['media_urls'] ?? []),
         mediaType: j['media_type'] as String?,
         contextTag: j['context_tag'] as String?,
-        reactionsCount: (j['reactions_count'] as num?)?.toInt() ?? 0,
-        commentsCount: (j['comments_count'] as num?)?.toInt() ?? 0,
-        createdAt: DateTime.parse(j['created_at'] as String),
-        distanceMeters: (j['distance_meters'] as num?)?.toDouble() ?? 0,
+        stickerId: j['sticker_id'] as String?,
+        reactionCounts:
+            (j['reaction_counts'] as Map<String, dynamic>? ?? {})
+                .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
+        commentCount: (j['comment_count'] as num?)?.toInt() ?? 0,
+        createdAt: j['created_at'] != null
+            ? DateTime.tryParse(j['created_at'] as String)
+            : null,
+        zoneId: j['zone_id'] as String?,
+      );
+
+  /// Convert to PostModel for use with PostCard widget.
+  PostModel toPostModel({
+    double latitude = 0.0,
+    double longitude = 0.0,
+  }) =>
+      PostModel(
+        id: id,
+        userId: userId,
+        content: content ?? '',
+        mediaUrls: mediaUrls,
+        mediaType: MediaType.values.firstWhere(
+          (e) => e.name == mediaType,
+          orElse: () => MediaType.text,
+        ),
+        latitude: latitude,
+        longitude: longitude,
+        zoneId: zoneId,
+        contextTag: contextTag,
+        stickerId: stickerId,
+        reactionCounts: reactionCounts,
+        commentCount: commentCount,
+        createdAt: createdAt,
+        userDisplayName: userDisplayName,
+        userUsername: userUsername,
+        userAvatarUrl: userAvatarUrl,
       );
 }
