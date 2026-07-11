@@ -11,13 +11,12 @@ class PollOptionData {
   factory PollOptionData.fromJson(Map<String, dynamic> json) =>
       PollOptionData(
         text: json['text'] as String? ?? '',
-        votes: json['votes'] as int? ?? 0,
+        votes: (json['votes'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {'text': text, 'votes': votes};
 
   /// Returns the percentage of this option out of [totalVotes].
-  /// Returns 0.0 if [totalVotes] is 0 to avoid division by zero.
   double percentageOf(int totalVotes) =>
       totalVotes == 0 ? 0.0 : (votes / totalVotes) * 100;
 }
@@ -31,11 +30,12 @@ class PostModel {
   final MediaType mediaType;
   final double latitude;
   final double longitude;
+  final String? zoneId;
   final String? contextTag;
   final Map<String, int> reactionCounts;
   final DateTime? createdAt;
 
-  // Denormalized user data (for feed display)
+  // Denormalized user data (returned from RPC as user_username, user_display_name, user_avatar_url)
   final String? userUsername;
   final String? userDisplayName;
   final String? userAvatarUrl;
@@ -63,6 +63,7 @@ class PostModel {
     this.mediaType = MediaType.text,
     required this.latitude,
     required this.longitude,
+    this.zoneId,
     this.contextTag,
     this.reactionCounts = const {},
     this.createdAt,
@@ -79,31 +80,63 @@ class PostModel {
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
+    // Extract lat/lng from various possible sources
+    double lat = 0.0;
+    double lng = 0.0;
+    if (json['latitude'] != null) {
+      lat = (json['latitude'] as num).toDouble();
+    } else if (json['location'] is Map) {
+      final coords = (json['location'] as Map<String, dynamic>)['coordinates'] as List?;
+      if (coords != null && coords.length >= 2) {
+        lng = (coords[0] as num).toDouble();
+        lat = (coords[1] as num).toDouble();
+      }
+    }
+    if (json['longitude'] != null) {
+      lng = (json['longitude'] as num).toDouble();
+    }
+
+    // Parse poll: RPC returns jsonb object with 'options' key,
+    // or direct list from DB insert response
+    List<PollOptionData>? pollOptions;
+    final pollRaw = json['poll'];
+    if (pollRaw is Map<String, dynamic>) {
+      final opts = pollRaw['options'];
+      if (opts is List) {
+        pollOptions = opts
+            .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    } else if (pollRaw is List) {
+      pollOptions = pollRaw
+          .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+
     return PostModel(
       id: json['id'] as String,
       userId: json['user_id'] as String,
-      content: json['content'] as String,
+      content: json['content'] as String? ?? '',
       mediaUrls: List<String>.from(json['media_urls'] ?? []),
       mediaType: _parseMediaType(json['media_type']),
-      latitude: (json['latitude'] as num?)?.toDouble() ??
-          ((json['location'] as Map<String, dynamic>?)?['coordinates'] as List?)?.last ?? 0.0,
-      longitude: (json['longitude'] as num?)?.toDouble() ??
-          ((json['location'] as Map<String, dynamic>?)?['coordinates'] as List?)?.first ?? 0.0,
+      latitude: lat,
+      longitude: lng,
+      zoneId: json['zone_id'] as String?,
       contextTag: json['context_tag'] as String?,
-      reactionCounts: Map<String, int>.from(json['reaction_counts'] ?? {}),
+      // RPC returns reaction_counts as jsonb — cast values to int
+      reactionCounts: (json['reaction_counts'] as Map<String, dynamic>? ?? {})
+          .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
+          ? DateTime.tryParse(json['created_at'] as String)
           : null,
-      userUsername: json['username'] as String?,
-      userDisplayName: json['display_name'] as String?,
-      userAvatarUrl: json['avatar_url'] as String?,
+      // RPC columns: user_username, user_display_name, user_avatar_url
+      // Fallback to legacy keys for backward compat with direct table queries
+      userUsername: (json['user_username'] ?? json['username']) as String?,
+      userDisplayName: (json['user_display_name'] ?? json['display_name']) as String?,
+      userAvatarUrl: (json['user_avatar_url'] ?? json['avatar_url']) as String?,
       distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
       commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
-      pollOptions: json['poll'] != null
-          ? (json['poll'] as List<dynamic>)
-              .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
-              .toList()
-          : null,
+      pollOptions: pollOptions,
       userPollVoteIndex: json['user_poll_vote_index'] as int?,
       pollTotalVotes: json['poll_total_votes'] as int?,
       stickerId: json['sticker_id'] as String?,
@@ -120,12 +153,15 @@ class PostModel {
       'media_type': mediaType.name,
       'latitude': latitude,
       'longitude': longitude,
+      'zone_id': zoneId,
       'context_tag': contextTag,
       'reaction_counts': reactionCounts,
       'created_at': createdAt?.toIso8601String(),
       'distance_meters': distanceMeters,
       'comment_count': commentCount,
-      'poll': pollOptions?.map((e) => e.toJson()).toList(),
+      'poll': pollOptions != null
+          ? {'options': pollOptions!.map((e) => e.toJson()).toList()}
+          : null,
       'poll_total_votes': pollTotalVotes,
       'user_poll_vote_index': userPollVoteIndex,
       'sticker_id': stickerId,
@@ -141,6 +177,7 @@ class PostModel {
     MediaType? mediaType,
     double? latitude,
     double? longitude,
+    String? zoneId,
     String? contextTag,
     Map<String, int>? reactionCounts,
     DateTime? createdAt,
@@ -163,6 +200,7 @@ class PostModel {
       mediaType: mediaType ?? this.mediaType,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      zoneId: zoneId ?? this.zoneId,
       contextTag: contextTag ?? this.contextTag,
       reactionCounts: reactionCounts ?? this.reactionCounts,
       createdAt: createdAt ?? this.createdAt,
