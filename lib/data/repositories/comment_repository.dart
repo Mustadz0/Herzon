@@ -1,17 +1,19 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/comment_model.dart';
 
 abstract class ICommentRepository {
   Future<List<CommentModel>> getComments(String postId);
-  Future<void> addComment(String postId, String userId, String content);
+  Future<void> addComment(String postId, String userId, String content,
+      {String? parentId});
   Future<void> deleteComment(String commentId);
 }
 
 class SupabaseCommentRepository implements ICommentRepository {
   final SupabaseClient _supabase;
 
-  SupabaseCommentRepository({required SupabaseClient supabase}) : _supabase = supabase;
+  SupabaseCommentRepository({required SupabaseClient supabase})
+      : _supabase = supabase;
 
   @override
   Future<List<CommentModel>> getComments(String postId) async {
@@ -31,16 +33,19 @@ class SupabaseCommentRepository implements ICommentRepository {
         username: profile?['username'] as String?,
         displayName: profile?['display_name'] as String?,
         avatarUrl: profile?['avatar_url'] as String?,
+        parentId: json['parent_id'] as String?,
       );
     }).toList();
   }
 
   @override
-  Future<void> addComment(String postId, String userId, String content) async {
+  Future<void> addComment(String postId, String userId, String content,
+      {String? parentId}) async {
     await _supabase.from('comments').insert({
       'post_id': postId,
       'user_id': userId,
       'content': content,
+      if (parentId != null) 'parent_id': parentId,
     });
   }
 
