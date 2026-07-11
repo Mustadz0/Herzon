@@ -7,15 +7,16 @@ import '../../data/models/zone_model.dart';
 import '../providers/zone_provider.dart';
 import '../widgets/zone_bottom_sheet.dart';
 import '../widgets/zone_map_marker.dart';
+import 'zone_feed_screen.dart';
 
 /// Explorer screen — full-screen MapLibre map with hot zone overlays.
 ///
-/// Rules (CLAUDE.md):
+/// Rules (CLAUDE.md §Two Modes):
 ///   • Read-only: no posting, commenting, or messaging.
-///   • Tapping a zone opens ZoneBottomSheet → then zone feed (read-only).
+///   • Tapping a zone → ZoneBottomSheet → ZoneFeedScreen (read-only).
 ///   • Recenter button top-right.
 ///   • Search bar top.
-///   • Map tiles: OpenStreetMap (free, as per CLAUDE.md).
+///   • Map tiles: OSM via demotiles (free, as per CLAUDE.md).
 class ExplorerScreen extends ConsumerStatefulWidget {
   const ExplorerScreen({super.key});
 
@@ -85,27 +86,28 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
         );
   }
 
-  // ── Zone bottom sheet ───────────────────────────────────────────────────
+  // ── Zone bottom sheet → zone feed ───────────────────────────────────────
   void _openZoneSheet(ZoneModel zone) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: false,
-      backgroundColor: Theme.of(context).isDark
-          ? const Color(0xFF121212)
-          : Colors.white,
+      backgroundColor:
+          Theme.of(context).isDark ? const Color(0xFF121212) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => ZoneBottomSheet(
         zone: zone,
         onEnterZone: () {
-          Navigator.pop(context);
-          // TODO: push ZoneFeedScreen(zone: zone, readOnly: true)
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Entrée dans ${zone.zoneName} — lecture seule'),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2),
+          Navigator.pop(context); // close sheet
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ZoneFeedScreen(
+                zone: zone,
+                userLat: _lat,
+                userLng: _lng,
+              ),
             ),
           );
         },
@@ -141,16 +143,18 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             compassEnabled: false,
           ),
 
-          // ── Zone emoji markers ───────────────────────────────────────────
-          // Positioned as overlay widgets until MapLibre symbol layers are wired.
-          // Replace with MaplibreMap symbol layer + custom marker images in prod.
+          // ── Zone emoji markers (Flutter overlay until MapLibre symbols) ──
           if (!state.isLoading)
             ...state.zones.asMap().entries.map((entry) {
               final i    = entry.key;
               final zone = entry.value;
               return Positioned(
-                left: 40.0 + (i * 80) % (MediaQuery.of(context).size.width - 80),
-                top:  180.0 + (i * 60) % (MediaQuery.of(context).size.height - 280),
+                left: 40.0 +
+                    (i * 80) %
+                        (MediaQuery.of(context).size.width - 80),
+                top: 180.0 +
+                    (i * 60) %
+                        (MediaQuery.of(context).size.height - 280),
                 child: ZoneMapMarker(
                   zone: zone,
                   onTap: () => _openZoneSheet(zone),
@@ -161,47 +165,42 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
           // ── Top bar (search + recenter) ──────────────────────────────────
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
-                  // Search bar
                   Expanded(
                     child: Material(
-                      color: t.isDark
-                          ? AppTheme.cardDark
-                          : Colors.white,
+                      color: t.isDark ? AppTheme.cardDark : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       elevation: 2,
-                      shadowColor: AppTheme.primary.withValues(alpha: 0.12),
+                      shadowColor:
+                          AppTheme.primary.withValues(alpha: 0.12),
                       child: TextField(
                         decoration: InputDecoration(
                           hintText: 'Rechercher une zone…',
-                          hintStyle: TextStyle(
-                            color: cs.onSurfaceVariant,
-                          ),
+                          hintStyle:
+                              TextStyle(color: cs.onSurfaceVariant),
                           prefixIcon: Icon(
                             Icons.search_rounded,
                             color: cs.onSurfaceVariant,
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
+                              horizontal: 16, vertical: 14),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-
-                  // Recenter button — AppTheme.brandGradient tonal
                   GestureDetector(
                     onTap: _locating ? null : _fetchLocation,
                     child: Container(
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        gradient: _locating ? null : AppTheme.brandGradient,
+                        gradient:
+                            _locating ? null : AppTheme.brandGradient,
                         color: _locating
                             ? cs.surfaceContainerHighest
                             : null,
@@ -210,7 +209,8 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                             ? null
                             : [
                                 BoxShadow(
-                                  color: AppTheme.secondary.withValues(alpha: 0.3),
+                                  color: AppTheme.secondary
+                                      .withValues(alpha: 0.3),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
@@ -220,8 +220,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                           ? const Padding(
                               padding: EdgeInsets.all(12),
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
+                                  strokeWidth: 2),
                             )
                           : const Icon(
                               Icons.my_location_rounded,
@@ -235,11 +234,11 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             ),
           ),
 
-          // ── Loading overlay ──────────────────────────────────────────────
+          // ── Loading overlay ───────────────────────────────────────────────
           if (state.isLoading)
             const Center(child: CircularProgressIndicator()),
 
-          // ── Error banner ─────────────────────────────────────────────────
+          // ── Error banner ──────────────────────────────────────────────────
           if (state.error != null)
             Positioned(
               bottom: 24,
