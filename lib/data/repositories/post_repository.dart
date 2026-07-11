@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/post_model.dart';
@@ -49,22 +49,32 @@ class SupabasePostRepository implements IPostRepository {
 
     return (response as List<dynamic>)
         .map((json) => PostModel(
-              id: json['id'],
-              userId: json['user_id'],
-              content: json['content'],
+              id: json['id'] as String,
+              userId: json['user_id'] as String,
+              content: json['content'] as String,
               mediaUrls: List<String>.from(json['media_urls'] ?? []),
               mediaType: _parseMediaType(json['media_type']),
               latitude: location.latitude,
               longitude: location.longitude,
-              contextTag: json['context_tag'],
+              contextTag: json['context_tag'] as String?,
               reactionCounts: Map<String, int>.from(json['reaction_counts'] ?? {}),
-              createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-              userUsername: json['username'],
-              userDisplayName: json['display_name'],
-              userAvatarUrl: json['avatar_url'],
+              createdAt: json['created_at'] != null
+                  ? DateTime.parse(json['created_at'] as String)
+                  : null,
+              userUsername: json['username'] as String?,
+              userDisplayName: json['display_name'] as String?,
+              userAvatarUrl: json['avatar_url'] as String?,
               distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
               commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
               stickerId: json['sticker_id'] as String?,
+              videoUrl: json['video_url'] as String?,
+              pollOptions: json['poll'] != null
+                  ? (json['poll'] as List<dynamic>)
+                      .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+                      .toList()
+                  : null,
+              pollTotalVotes: json['poll_total_votes'] as int?,
+              userPollVoteIndex: json['user_poll_vote_index'] as int?,
             ))
         .toList();
   }
