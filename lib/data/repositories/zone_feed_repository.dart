@@ -1,13 +1,13 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/zone_post_model.dart';
 
 abstract class IZoneFeedRepository {
+  /// Fetch posts for a zone by its UUID [zoneId].
   Future<List<ZonePostModel>> getZonePosts({
-    required String zoneKey,
-    required double userLat,
-    required double userLng,
-    int radiusMeters = 500,
-    int limit = 30,
+    required String zoneId,
+    int page = 1,
+    int pageSize = 20,
   });
 }
 
@@ -18,24 +18,25 @@ class SupabaseZoneFeedRepository implements IZoneFeedRepository {
 
   @override
   Future<List<ZonePostModel>> getZonePosts({
-    required String zoneKey,
-    required double userLat,
-    required double userLng,
-    int radiusMeters = 500,
-    int limit = 30,
+    required String zoneId,
+    int page = 1,
+    int pageSize = 20,
   }) async {
     final result = await _client.rpc(
       'get_zone_posts',
       params: {
-        'p_zone_key': zoneKey,
-        'p_user_lat': userLat,
-        'p_user_lng': userLng,
-        'p_radius_meters': radiusMeters,
-        'p_limit': limit,
+        'p_zone_id': zoneId,
+        'page': page,
+        'page_size': pageSize,
       },
     );
     return (result as List)
-        .map((e) => ZonePostModel.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map((e) =>
+            ZonePostModel.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 }
+
+final zoneFeedRepositoryProvider = Provider<IZoneFeedRepository>((ref) {
+  return SupabaseZoneFeedRepository(Supabase.instance.client);
+});
