@@ -100,12 +100,15 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<PostModel> createPost(PostModel post) async {
+    // Use ST_MakePoint via WKT string — correct Dart interpolation
+    final wkt = 'POINT(${post.longitude} ${post.latitude})';
+
     final response = await _supabase.from('posts').insert({
       'user_id': post.userId,
       'content': post.content,
       'media_urls': post.mediaUrls,
       'media_type': post.mediaType.name,
-      'location': 'POINT(\${post.longitude} \${post.latitude})',
+      'location': wkt,
       'context_tag': post.contextTag,
       if (post.stickerId != null) 'sticker_id': post.stickerId,
     }).select().single();
