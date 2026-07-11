@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -77,8 +77,6 @@ class PostNotifier extends StateNotifier<FeedState> {
       _currentPage++;
       final newPosts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters, page: _currentPage);
       final total = await _repo.getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
-      // When loading more, we preserve existing reactions for existing posts
-      // and fetch reactions for new posts only
       final existingReactions = state.userReactions;
       state = state.copyWith(
         posts: [...state.posts, ...newPosts],
@@ -105,7 +103,6 @@ class PostNotifier extends StateNotifier<FeedState> {
             try {
               await loadFeed();
             } catch (e) {
-              // Log using debugPrint for development; consider a proper logger for production.
               debugPrint('Realtime feed refresh error: $e');
             }
           },
@@ -123,7 +120,6 @@ class PostNotifier extends StateNotifier<FeedState> {
     String mediaType = 'text';
 
     if (mediaFiles != null && mediaFiles.isNotEmpty) {
-      // Check if first file is video
       final firstFile = mediaFiles.first.path.toLowerCase();
       if (firstFile.endsWith('.mp4') || firstFile.endsWith('.mov') || firstFile.endsWith('.avi')) {
         mediaType = 'video';
@@ -146,7 +142,7 @@ class PostNotifier extends StateNotifier<FeedState> {
     );
     await _repo.createPost(post);
     await loadFeed();
-    return 10; // matches DB `award_xp(p_user_id, 10, 'post_created', ...)` trigger
+    return 10;
   }
 
   Future<void> deletePost(String postId) async {
@@ -178,7 +174,6 @@ class PostNotifier extends StateNotifier<FeedState> {
     if (_isReacting) return 0;
     _isReacting = true;
 
-    // Optimistic: update count + userReactions
     _optimisticallyUpdateReaction(postId, reactionType, 1);
     state = state.copyWith(
       userReactions: _updateUserReaction(state.userReactions, postId, reactionType, true),
@@ -186,15 +181,15 @@ class PostNotifier extends StateNotifier<FeedState> {
 
     try {
       await _repo.reactToPost(postId, reactionType);
-      _isReacting = false;
       return 2;
     } catch (_) {
-      _isReacting = false;
       _optimisticallyUpdateReaction(postId, reactionType, -1);
       state = state.copyWith(
         userReactions: _updateUserReaction(state.userReactions, postId, reactionType, false),
       );
       return 0;
+    } finally {
+      _isReacting = false;
     }
   }
 
@@ -209,13 +204,13 @@ class PostNotifier extends StateNotifier<FeedState> {
 
     try {
       await _repo.removeReaction(postId, reactionType);
-      _isReacting = false;
     } catch (_) {
-      _isReacting = false;
       _optimisticallyUpdateReaction(postId, reactionType, 1);
       state = state.copyWith(
         userReactions: _updateUserReaction(state.userReactions, postId, reactionType, true),
       );
+    } finally {
+      _isReacting = false;
     }
   }
 
@@ -255,22 +250,24 @@ class PostNotifier extends StateNotifier<FeedState> {
   }
 
   Future<Map<String, Set<String>>> _fetchUserReactions() async {
-    final supabase = Supabase.instance.client;
-    final response = await supabase.rpc('get_user_reactions');
-    
-    // response looks like: [{post_id: "...", reaction_type: "fire"}, ...]
-    final userReactions = <String, Set<String>>{};
-    for (final row in response) {
-      final postId = row['post_id'] as String;
-      final reactionType = row['reaction_type'] as String;
-      
-      if (userReactions.containsKey(postId)) {
-        userReactions[postId]!.add(reactionType);
-      } else {
-        userReactions[postId] = {reactionType};
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase.rpc('get_user_reactions');
+      final userReactions = <String, Set<String>>{};
+      for (final row in response) {
+        final postId = row['post_id'] as String;
+        final reactionType = row['reaction_type'] as String;
+        if (userReactions.containsKey(postId)) {
+          userReactions[postId]!.add(reactionType);
+        } else {
+          userReactions[postId] = {reactionType};
+        }
       }
+      return userReactions;
+    } catch (e) {
+      debugPrint('PostProvider _fetchUserReactions error: $e');
+      return {};
     }
-    return userReactions;
   }
 
   @override
