@@ -51,7 +51,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     super.dispose();
   }
 
-  // ── Je suis là — check-in ──────────────────────────────────
+  // ── Je suis là — check-in with location ──────────────────────
   Future<void> _jesuisLa() async {
     if (_isCheckingIn) return;
     setState(() => _isCheckingIn = true);
@@ -75,13 +75,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-      await ref.read(checkinProvider.notifier).checkIn(
-        userId: user.id,
-        latitude: position.latitude,
-        longitude: position.longitude,
-      );
+      // checkinProvider uses: checkin(placeName, lat, lng)
+      await ref.read(checkinProvider.notifier).checkin(
+            'La Zone',
+            position.latitude,
+            position.longitude,
+          );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -106,7 +105,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     }
   }
 
-  // ─── build ────────────────────────────────────────────────
+  // ─── build ────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -115,17 +114,18 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     final feedState = ref.watch(postProvider);
     final unread = ref.watch(notificationProvider).unreadCount;
 
-    // Filter posts based on Recent/Top toggle
+    // Use visiblePosts (excludes hidden)
+    final rawPosts = feedState.visiblePosts;
     final posts = _showTop
-        ? [...feedState.posts]
+        ? [...rawPosts]
             ..sort((a, b) {
-              final aCount = (a.reactionCounts['herz'] ?? 0) +
-                  (a.commentCount * 2);
-              final bCount = (b.reactionCounts['herz'] ?? 0) +
-                  (b.commentCount * 2);
-              return bCount.compareTo(aCount);
+              final aScore =
+                  (a.reactionCounts['herz'] ?? 0) + (a.commentCount * 2);
+              final bScore =
+                  (b.reactionCounts['herz'] ?? 0) + (b.commentCount * 2);
+              return bScore.compareTo(aScore);
             })
-        : feedState.posts;
+        : rawPosts;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark
@@ -148,7 +148,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 floating: true,
                 snap: true,
                 expandedHeight: 0,
-                backgroundColor: isDark ? AppTheme.navDark : AppTheme.navLight,
+                backgroundColor:
+                    isDark ? AppTheme.navDark : AppTheme.navLight,
                 surfaceTintColor: Colors.transparent,
                 elevation: 0,
                 scrolledUnderElevation: 0.5,
@@ -159,7 +160,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   ),
                 ),
                 title: ShaderMask(
-                  shaderCallback: (b) => AppTheme.brandGradient.createShader(b),
+                  shaderCallback: (b) =>
+                      AppTheme.brandGradient.createShader(b),
                   child: Text(
                     'Herzon',
                     style: tt.titleLarge?.copyWith(
@@ -175,7 +177,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     tooltip: 'Search',
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const SearchScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const SearchScreen()),
                     ),
                   ),
                   IconButton(
@@ -202,14 +205,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               // ── Zone bar ──────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
-                      _GradientPill(
-                        icon: Icons.whatshot,
-                        label: 'Hot',
-                      ),
+                      _GradientPill(icon: Icons.whatshot, label: 'Hot'),
                       const SizedBox(width: 10),
                       Expanded(
                         child: GestureDetector(
@@ -225,7 +225,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                               color: cs.surfaceContainerLow,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: cs.outlineVariant.withValues(alpha: 0.5),
+                                color: cs.outlineVariant
+                                    .withValues(alpha: 0.5),
                               ),
                             ),
                             child: Row(
@@ -247,11 +248,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: cs.primary.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: cs.primary
+                                        .withValues(alpha: 0.12),
+                                    borderRadius:
+                                        BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    '${feedState.posts.length}',
+                                    '${posts.length}',
                                     style: tt.labelSmall?.copyWith(
                                       color: cs.primary,
                                       fontWeight: FontWeight.w700,
@@ -264,14 +267,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // Je suis là — now functional
                       OutlinedButton.icon(
                         onPressed: _isCheckingIn ? null : _jesuisLa,
                         icon: _isCheckingIn
                             ? const SizedBox(
                                 width: 12,
                                 height: 12,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
                               )
                             : Icon(Icons.my_location,
                                 size: 14, color: cs.primary),
@@ -286,11 +289,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 8),
                           side: BorderSide(
-                              color: cs.primary.withValues(alpha: 0.5)),
+                              color:
+                                  cs.primary.withValues(alpha: 0.5)),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20)),
                           minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          tapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
                     ],
@@ -301,8 +306,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               // ── Recent / Top toggle ───────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 4),
                   child: Row(
                     children: [
                       _PillToggle(
@@ -338,7 +343,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        _showTop ? 'Les plus populaires' : 'Ce qui se passe',
+                        _showTop
+                            ? 'Les plus populaires'
+                            : 'Ce qui se passe',
                         style: tt.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: cs.onSurface,
@@ -358,7 +365,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   ),
                 )
               else if (feedState.error != null)
-                SliverToBoxAdapter(child: _errorState(feedState.error!, cs, tt))
+                SliverToBoxAdapter(
+                    child: _errorState(feedState.error!, cs, tt))
               else if (posts.isEmpty)
                 SliverToBoxAdapter(child: _emptyState(cs, tt))
               else
@@ -454,9 +462,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             onPressed: () async {
               final created = await Navigator.push<bool>(
                 context,
-                MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const CreatePostScreen()),
               );
-              if (created == true) ref.read(postProvider.notifier).loadFeed();
+              if (created == true) {
+                ref.read(postProvider.notifier).loadFeed();
+              }
             },
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Créer un post'),
@@ -471,7 +482,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 class _GradientPill extends StatelessWidget {
   final IconData icon;
   final String label;
-
   const _GradientPill({required this.icon, required this.label});
 
   @override
@@ -500,18 +510,16 @@ class _GradientPill extends StatelessWidget {
   }
 }
 
-// ─── Pill Toggle (Recent / Top) ───────────────────────────────
+// ─── Pill Toggle (Récent / Top) ──────────────────────────────
 class _PillToggle extends StatelessWidget {
   final bool showTop;
   final ValueChanged<bool> onChanged;
-
   const _PillToggle({required this.showTop, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
@@ -534,7 +542,8 @@ class _PillToggle extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           gradient: selected ? AppTheme.brandGradient : null,
           borderRadius: BorderRadius.circular(10),

@@ -15,6 +15,7 @@ class FeedState {
   final bool hasMore;
   final String? error;
   final Map<String, Set<String>> userReactions;
+  final Set<String> hiddenPostIds;
 
   const FeedState({
     this.posts = const [],
@@ -23,6 +24,7 @@ class FeedState {
     this.hasMore = true,
     this.error,
     this.userReactions = const {},
+    this.hiddenPostIds = const {},
   });
 
   FeedState copyWith({
@@ -32,6 +34,7 @@ class FeedState {
     bool? hasMore,
     String? error,
     Map<String, Set<String>>? userReactions,
+    Set<String>? hiddenPostIds,
   }) {
     return FeedState(
       posts: posts ?? this.posts,
@@ -40,8 +43,13 @@ class FeedState {
       hasMore: hasMore ?? this.hasMore,
       error: error ?? this.error,
       userReactions: userReactions ?? this.userReactions,
+      hiddenPostIds: hiddenPostIds ?? this.hiddenPostIds,
     );
   }
+
+  /// Returns visible posts (not hidden)
+  List<PostModel> get visiblePosts =>
+      posts.where((p) => !hiddenPostIds.contains(p.id)).toList();
 }
 
 class PostNotifier extends StateNotifier<FeedState> {
@@ -52,17 +60,27 @@ class PostNotifier extends StateNotifier<FeedState> {
   int _currentPage = 1;
   bool _isReacting = false;
 
-  PostNotifier(this._repo, this._locationService, this._mediaUpload) : super(const FeedState());
+  PostNotifier(this._repo, this._locationService, this._mediaUpload)
+      : super(const FeedState());
 
   Future<void> loadFeed() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final pos = await _locationService.initializeLocation();
-      final posts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters, page: 1);
-      final total = await _repo.getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
+      final posts = await _repo.getNearbyPosts(
+          pos, AppConstants.proximityRadiusMeters,
+          page: 1);
+      final total = await _repo
+          .getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
       final userReactions = await _fetchUserReactions();
+      final hiddenIds = await _repo.getHiddenPostIds();
       _currentPage = 1;
-      state = FeedState(posts: posts, hasMore: posts.length < total, userReactions: userReactions);
+      state = FeedState(
+        posts: posts,
+        hasMore: posts.length < total,
+        userReactions: userReactions,
+        hiddenPostIds: hiddenIds,
+      );
       _subscribeRealtime();
     } catch (e) {
       state = FeedState(error: e.toString());
@@ -75,14 +93,15 @@ class PostNotifier extends StateNotifier<FeedState> {
     try {
       final pos = await _locationService.initializeLocation();
       _currentPage++;
-      final newPosts = await _repo.getNearbyPosts(pos, AppConstants.proximityRadiusMeters, page: _currentPage);
-      final total = await _repo.getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
-      final existingReactions = state.userReactions;
+      final newPosts = await _repo.getNearbyPosts(
+          pos, AppConstants.proximityRadiusMeters,
+          page: _currentPage);
+      final total = await _repo
+          .getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
       state = state.copyWith(
         posts: [...state.posts, ...newPosts],
         isLoadingMore: false,
         hasMore: state.posts.length + newPosts.length < total,
-        userReactions: existingReactions,
       );
     } catch (e, stackTrace) {
       debugPrint('PostProvider loadMore error: $e\n$stackTrace');
@@ -110,8 +129,8 @@ class PostNotifier extends StateNotifier<FeedState> {
         .subscribe();
   }
 
-  /// Returns the XP earned by the post author (+10 XP per DB trigger).
-  Future<int> createPost(String content, String? contextTag, {List<File>? mediaFiles, String? stickerId}) async {
+  Future<int> createPost(String content, String? contextTag,
+      {List<File>? mediaFiles, String? stickerId}) async {
     final pos = await _locationService.initializeLocation();
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
@@ -121,12 +140,15 @@ class PostNotifier extends StateNotifier<FeedState> {
 
     if (mediaFiles != null && mediaFiles.isNotEmpty) {
       final firstFile = mediaFiles.first.path.toLowerCase();
-      if (firstFile.endsWith('.mp4') || firstFile.endsWith('.mov') || firstFile.endsWith('.avi')) {
+      if (firstFile.endsWith('.mp4') ||
+          firstFile.endsWith('.mov') ||
+          firstFile.endsWith('.avi')) {
         mediaType = 'video';
       } else {
         mediaType = 'image';
       }
-      mediaUrls = await _mediaUpload.uploadPostMedia(files: mediaFiles, userId: user.id);
+      mediaUrls = await _mediaUpload.uploadPostMedia(
+          files: mediaFiles, userId: user.id);
     }
 
     final post = PostModel(
@@ -136,7 +158,9 @@ class PostNotifier extends StateNotifier<FeedState> {
       latitude: pos.latitude,
       longitude: pos.longitude,
       mediaUrls: mediaUrls,
-      mediaType: mediaType == 'video' ? MediaType.video : (mediaUrls.isNotEmpty ? MediaType.image : MediaType.text),
+      mediaType: mediaType == 'video'
+          ? MediaType.video
+          : (mediaUrls.isNotEmpty ? MediaType.image : MediaType.text),
       contextTag: contextTag,
       stickerId: stickerId,
     );
@@ -160,23 +184,45 @@ class PostNotifier extends StateNotifier<FeedState> {
     try {
       await _repo.updatePost(postId, content);
       state = state.copyWith(
-        posts: state.posts.map((p) =>
-          p.id == postId ? p.copyWith(content: content) : p
-        ).toList(),
+        posts: state.posts
+            .map((p) => p.id == postId ? p.copyWith(content: content) : p)
+            .toList(),
       );
     } catch (e) {
       debugPrint('PostProvider editPost error: $e');
     }
   }
 
-  /// Returns XP earned by the post owner (+2 XP per DB trigger on `reactions` insert).
+  // ── Hide / Unhide ────────────────────────────────────────────
+  void hidePost(String postId) {
+    final updated = {...state.hiddenPostIds, postId};
+    state = state.copyWith(hiddenPostIds: updated);
+    _repo.hidePost(postId).catchError((e) {
+      debugPrint('hidePost error: $e');
+      final reverted = {...state.hiddenPostIds}..remove(postId);
+      state = state.copyWith(hiddenPostIds: reverted);
+    });
+  }
+
+  void unhidePost(String postId) {
+    final updated = {...state.hiddenPostIds}..remove(postId);
+    state = state.copyWith(hiddenPostIds: updated);
+    _repo.unhidePost(postId).catchError((e) {
+      debugPrint('unhidePost error: $e');
+      final reverted = {...state.hiddenPostIds, postId};
+      state = state.copyWith(hiddenPostIds: reverted);
+    });
+  }
+
+  // ── Reactions ────────────────────────────────────────────────
   Future<int> reactToPost(String postId, String reactionType) async {
     if (_isReacting) return 0;
     _isReacting = true;
 
     _optimisticallyUpdateReaction(postId, reactionType, 1);
     state = state.copyWith(
-      userReactions: _updateUserReaction(state.userReactions, postId, reactionType, true),
+      userReactions:
+          _updateUserReaction(state.userReactions, postId, reactionType, true),
     );
 
     try {
@@ -185,7 +231,8 @@ class PostNotifier extends StateNotifier<FeedState> {
     } catch (_) {
       _optimisticallyUpdateReaction(postId, reactionType, -1);
       state = state.copyWith(
-        userReactions: _updateUserReaction(state.userReactions, postId, reactionType, false),
+        userReactions: _updateUserReaction(
+            state.userReactions, postId, reactionType, false),
       );
       return 0;
     } finally {
@@ -199,7 +246,8 @@ class PostNotifier extends StateNotifier<FeedState> {
 
     _optimisticallyUpdateReaction(postId, reactionType, -1);
     state = state.copyWith(
-      userReactions: _updateUserReaction(state.userReactions, postId, reactionType, false),
+      userReactions: _updateUserReaction(
+          state.userReactions, postId, reactionType, false),
     );
 
     try {
@@ -207,7 +255,8 @@ class PostNotifier extends StateNotifier<FeedState> {
     } catch (_) {
       _optimisticallyUpdateReaction(postId, reactionType, 1);
       state = state.copyWith(
-        userReactions: _updateUserReaction(state.userReactions, postId, reactionType, true),
+        userReactions: _updateUserReaction(
+            state.userReactions, postId, reactionType, true),
       );
     } finally {
       _isReacting = false;
@@ -215,7 +264,10 @@ class PostNotifier extends StateNotifier<FeedState> {
   }
 
   Map<String, Set<String>> _updateUserReaction(
-    Map<String, Set<String>> reactions, String postId, String reactionType, bool add,
+    Map<String, Set<String>> reactions,
+    String postId,
+    String reactionType,
+    bool add,
   ) {
     final updated = Map<String, Set<String>>.from(reactions);
     final existing = updated[postId]?.toSet() ?? <String>{};
@@ -232,7 +284,8 @@ class PostNotifier extends StateNotifier<FeedState> {
     return updated;
   }
 
-  void _optimisticallyUpdateReaction(String postId, String reactionType, int delta) {
+  void _optimisticallyUpdateReaction(
+      String postId, String reactionType, int delta) {
     state = state.copyWith(
       posts: state.posts.map((p) {
         if (p.id != postId) return p;
@@ -257,11 +310,7 @@ class PostNotifier extends StateNotifier<FeedState> {
       for (final row in response) {
         final postId = row['post_id'] as String;
         final reactionType = row['reaction_type'] as String;
-        if (userReactions.containsKey(postId)) {
-          userReactions[postId]!.add(reactionType);
-        } else {
-          userReactions[postId] = {reactionType};
-        }
+        userReactions.putIfAbsent(postId, () => <String>{}).add(reactionType);
       }
       return userReactions;
     } catch (e) {
@@ -277,7 +326,8 @@ class PostNotifier extends StateNotifier<FeedState> {
   }
 }
 
-final postProvider = StateNotifierProvider<PostNotifier, FeedState>((ref) {
+final postProvider =
+    StateNotifierProvider<PostNotifier, FeedState>((ref) {
   return PostNotifier(
     ref.watch(postRepositoryProvider),
     ref.watch(locationServiceProvider),
