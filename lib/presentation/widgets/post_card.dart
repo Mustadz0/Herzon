@@ -8,6 +8,7 @@ import '../../core/constants/sticker_constants.dart';
 import '../providers/post_provider.dart';
 import '../screens/comments_screen.dart';
 import '../screens/user_profile_screen.dart';
+import '../../core/theme/app_theme.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   final PostModel post;
@@ -106,7 +107,6 @@ class _PostCardState extends ConsumerState<PostCard> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(16),
-        // Glow subtil si nouveau post
         boxShadow: _isNewPost
             ? [
                 BoxShadow(
@@ -124,11 +124,22 @@ class _PostCardState extends ConsumerState<PostCard> {
           // Media section
           _buildMediaSection(post, isOwnPost, isHerzed),
 
-          // Action row outside media
+          // ── Action row ───────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
             child: Row(
               children: [
+                // ❤ Herz reaction (photo + sticker + text posts)
+                if (post.mediaType != MediaType.video)
+                  _HerzButton(
+                    isHerzed: isHerzed,
+                    count: _reactionCount(post, 'herz'),
+                    onTap: () => _toggleReaction('herz'),
+                  ),
+                if (post.mediaType != MediaType.video)
+                  const SizedBox(width: 12),
+
+                // 💬 Comments
                 _actionIcon(Icons.chat_bubble_outline, post.commentCount.toString(), () {
                   Navigator.push(
                     context,
@@ -138,10 +149,20 @@ class _PostCardState extends ConsumerState<PostCard> {
                   );
                 }),
                 const SizedBox(width: 16),
+
+                // ↗ Share
                 _actionIcon(Icons.send_outlined, 'Partager', () {}),
                 const Spacer(),
+
+                // ⋯ More menu
                 PopupMenuButton<String>(
-                  onSelected: (val) {},
+                  onSelected: (val) {
+                    if (val == 'delete') {
+                      _confirmDelete(context);
+                    } else if (val == 'edit') {
+                      // TODO: navigate to EditPostScreen
+                    }
+                  },
                   color: const Color(0xFF2A2A2A),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -152,13 +173,12 @@ class _PostCardState extends ConsumerState<PostCard> {
                     size: 20,
                   ),
                   itemBuilder: (_) => [
-                    _popupItem('Interesser', Icons.favorite_border),
-                    _popupItem('Masquer', Icons.visibility_off_outlined),
-                    _popupItem('Signaler', Icons.flag_outlined),
+                    _popupItem('Interesser', 'interesser', Icons.favorite_border),
+                    _popupItem('Masquer', 'masquer', Icons.visibility_off_outlined),
+                    _popupItem('Signaler', 'signaler', Icons.flag_outlined),
                     if (isOwnPost) ...[
                       const PopupMenuDivider(),
-                      _popupItem('Supprimer', Icons.delete_outline,
-                          color: Colors.red),
+                      _popupItem('Supprimer', 'delete', Icons.delete_outline, color: Colors.red),
                     ],
                   ],
                 ),
@@ -200,8 +220,38 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 
-  Widget _buildMediaSection(
-      PostModel post, bool isOwnPost, bool isHerzed) {
+  // ── Confirm delete dialog ────────────────────────────────────────────────
+  void _confirmDelete(BuildContext context) {
+    showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Supprimer le post', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Cette action est irréversible. Confirmer la suppression ?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true && mounted) {
+        ref.read(postProvider.notifier).deletePost(widget.post.id);
+      }
+    });
+  }
+
+  Widget _buildMediaSection(PostModel post, bool isOwnPost, bool isHerzed) {
     if (post.mediaType == MediaType.video && post.mediaUrls.isNotEmpty) {
       return _buildVideoCard(post, isHerzed);
     } else if (post.mediaUrls.isNotEmpty) {
@@ -284,7 +334,6 @@ class _PostCardState extends ConsumerState<PostCard> {
                                 )
                               : null,
                         ),
-                        // 🟢 Nqta khadra — seulement si < 5 min
                         if (_isNewPost)
                           Positioned(
                             bottom: 0, right: 0,
@@ -293,10 +342,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                               decoration: BoxDecoration(
                                 color: Colors.greenAccent,
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.black,
-                                  width: 1.5,
-                                ),
+                                border: Border.all(color: Colors.black, width: 1.5),
                               ),
                             ),
                           ),
@@ -307,9 +353,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          post.userDisplayName ??
-                              post.userUsername ??
-                              'Inconnu',
+                          post.userDisplayName ?? post.userUsername ?? 'Inconnu',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
@@ -322,8 +366,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                             if (_isNewPost)
                               Container(
                                 margin: const EdgeInsets.only(right: 4),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 1),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                 decoration: BoxDecoration(
                                   color: Colors.greenAccent.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(4),
@@ -353,7 +396,7 @@ class _PostCardState extends ConsumerState<PostCard> {
               ),
             ),
 
-            // Actions at top-right
+            // Actions at top-right (video)
             Positioned(
               top: 12, right: 8,
               child: Column(
@@ -362,13 +405,22 @@ class _PostCardState extends ConsumerState<PostCard> {
                       () => _toggleReaction('herz')),
                   const SizedBox(height: 4),
                   Text(
-                    getReactionCount(post, 'herz'),
+                    _reactionCount(post, 'herz'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  _overlayIcon(Icons.chat_bubble_outline, false, () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CommentsScreen(postId: post.id),
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 8),
                   _overlayIcon(Icons.send_outlined, false, () {}),
                   const SizedBox(height: 8),
@@ -403,9 +455,9 @@ class _PostCardState extends ConsumerState<PostCard> {
                   size: 18,
                 ),
                 itemBuilder: (_) => [
-                  _popupItem('Interesser', Icons.favorite_border),
-                  _popupItem('Masquer', Icons.visibility_off_outlined),
-                  _popupItem('Signaler', Icons.flag_outlined),
+                  _popupItem('Interesser', 'like', Icons.favorite_border),
+                  _popupItem('Masquer', 'masquer', Icons.visibility_off_outlined),
+                  _popupItem('Signaler', 'signaler', Icons.flag_outlined),
                 ],
               ),
             ),
@@ -471,9 +523,7 @@ class _PostCardState extends ConsumerState<PostCard> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: urls.length > 1
-                        ? () => _showVignette(urls[1])
-                        : null,
+                    onTap: urls.length > 1 ? () => _showVignette(urls[1]) : null,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: Image.network(
@@ -489,9 +539,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                 const SizedBox(height: 4),
                 Expanded(
                   child: GestureDetector(
-                    onTap: urls.length > 2
-                        ? () => _showVignette(urls[2])
-                        : null,
+                    onTap: urls.length > 2 ? () => _showVignette(urls[2]) : null,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: urls.length > 2
@@ -576,9 +624,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          post.userDisplayName ??
-                              post.userUsername ??
-                              'Inconnu',
+                          post.userDisplayName ?? post.userUsername ?? 'Inconnu',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
@@ -613,8 +659,8 @@ class _PostCardState extends ConsumerState<PostCard> {
                       size: 20,
                     ),
                     itemBuilder: (_) => [
-                      _popupItem('Ajouter a la zone', Icons.add_circle_outline),
-                      _popupItem('Rejoindre sa zone', Icons.group_add_outlined),
+                      _popupItem('Ajouter a la zone', 'add_zone', Icons.add_circle_outline),
+                      _popupItem('Rejoindre sa zone', 'join_zone', Icons.group_add_outlined),
                     ],
                     onSelected: (_) {},
                   ),
@@ -624,14 +670,12 @@ class _PostCardState extends ConsumerState<PostCard> {
               Row(
                 children: [
                   Expanded(
-                    child: _sheetButton('Visiter le profil', Icons.person_outline,
-                        () {
+                    child: _sheetButton('Visiter le profil', Icons.person_outline, () {
                       Navigator.pop(ctx);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              UserProfileScreen(userId: post.userId),
+                          builder: (_) => UserProfileScreen(userId: post.userId),
                         ),
                       );
                     }),
@@ -642,15 +686,13 @@ class _PostCardState extends ConsumerState<PostCard> {
               Row(
                 children: [
                   Expanded(
-                    child: _sheetButton(
-                        'Envoyer message', Icons.message_outlined, () {
+                    child: _sheetButton('Envoyer message', Icons.message_outlined, () {
                       Navigator.pop(ctx);
                     }),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _sheetButton(
-                        'Emplacement', Icons.location_on_outlined, () {
+                    child: _sheetButton('Emplacement', Icons.location_on_outlined, () {
                       Navigator.pop(ctx);
                     }),
                   ),
@@ -667,8 +709,7 @@ class _PostCardState extends ConsumerState<PostCard> {
   void _toggleReaction(String type) async {
     final notifier = ref.read(postProvider.notifier);
     final feed = ref.read(postProvider);
-    final isActive =
-        feed.userReactions[widget.post.id]?.contains(type) ?? false;
+    final isActive = feed.userReactions[widget.post.id]?.contains(type) ?? false;
     if (isActive) {
       await notifier.removeReaction(widget.post.id, type);
     } else {
@@ -676,7 +717,7 @@ class _PostCardState extends ConsumerState<PostCard> {
     }
   }
 
-  String getReactionCount(PostModel post, String type) {
+  String _reactionCount(PostModel post, String type) {
     final count = post.reactionCounts[type] ?? 0;
     if (count > 999) return '${(count / 1000).toStringAsFixed(1)}k';
     return count.toString();
@@ -725,10 +766,9 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 
-  PopupMenuItem<String> _popupItem(String label, IconData icon,
-      {Color? color}) {
+  PopupMenuItem<String> _popupItem(String label, String value, IconData icon, {Color? color}) {
     return PopupMenuItem(
-      value: label,
+      value: value,
       child: Row(
         children: [
           Icon(icon, color: color ?? Colors.white.withValues(alpha: 0.7), size: 18),
@@ -761,7 +801,63 @@ class _PostCardState extends ConsumerState<PostCard> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Vignette Popup — Overlay plein écran avec zoom + effet vignette
+// Herz button widget (photo / sticker / text posts)
+// ─────────────────────────────────────────────────────────────────────────────
+class _HerzButton extends StatelessWidget {
+  final bool isHerzed;
+  final String count;
+  final VoidCallback onTap;
+
+  const _HerzButton({
+    required this.isHerzed,
+    required this.count,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isHerzed
+              ? AppTheme.primary.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isHerzed
+                ? AppTheme.primary.withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isHerzed ? Icons.favorite : Icons.favorite_border,
+              color: isHerzed ? AppTheme.primary : Colors.white.withValues(alpha: 0.7),
+              size: 16,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              count,
+              style: TextStyle(
+                color: isHerzed ? AppTheme.primary : Colors.white.withValues(alpha: 0.7),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Vignette Popup
 // ─────────────────────────────────────────────────────────────────────────────
 class _VignettePopup extends StatefulWidget {
   final String imageUrl;
@@ -817,7 +913,6 @@ class _VignettePopupState extends State<_VignettePopup>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Vignette radiale sombre sur les bords
                 Positioned.fill(
                   child: IgnorePointer(
                     child: DecoratedBox(
@@ -834,12 +929,10 @@ class _VignettePopupState extends State<_VignettePopup>
                     ),
                   ),
                 ),
-
-                // Image zoomable
                 ScaleTransition(
                   scale: _scaleAnim,
                   child: GestureDetector(
-                    onTap: () {}, // empêche fermeture sur l'image
+                    onTap: () {},
                     child: InteractiveViewer(
                       minScale: 0.8,
                       maxScale: 4.0,
@@ -868,8 +961,6 @@ class _VignettePopupState extends State<_VignettePopup>
                     ),
                   ),
                 ),
-
-                // Bouton fermer
                 Positioned(
                   top: MediaQuery.of(context).padding.top + 12,
                   right: 16,
@@ -884,11 +975,7 @@ class _VignettePopupState extends State<_VignettePopup>
                           color: Colors.white.withValues(alpha: 0.2),
                         ),
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 18),
                     ),
                   ),
                 ),

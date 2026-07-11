@@ -1,4 +1,4 @@
-﻿class CommentModel {
+class CommentModel {
   final String id;
   final String postId;
   final String userId;
@@ -7,6 +7,8 @@
   final String? username;
   final String? displayName;
   final String? avatarUrl;
+  // FIX: added parentId to support replies
+  final String? parentId;
 
   const CommentModel({
     required this.id,
@@ -17,6 +19,7 @@
     this.username,
     this.displayName,
     this.avatarUrl,
+    this.parentId,
   });
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +34,7 @@
       username: json['username'] as String?,
       displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      parentId: json['parent_id'] as String?,
     );
   }
 }

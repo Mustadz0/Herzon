@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../data/models/user_model.dart';
@@ -55,6 +55,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
 
   Future<void> _loadProfile(String id) async {
     try {
+      // FIX: always fetch from DB first — never hardcode isAdmin=false
       var profile = await _repo.getUserProfile(id);
       if (profile == null) {
         final meta = _repo.currentUser?.userMetadata ?? {};
@@ -66,11 +67,20 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
           privacySettings: const {'show_activity': true, 'allow_messages': true},
         );
         await _repo.updateProfile(profile);
+        // Re-fetch after upsert so DB defaults (is_admin etc.) are loaded
+        profile = await _repo.getUserProfile(id) ?? profile;
       }
       state = AppAuthState(user: profile);
     } catch (e) {
       state = AppAuthState(error: e.toString());
     }
+  }
+
+  /// Call this after updating profile to refresh state.
+  Future<void> refreshProfile() async {
+    final id = _repo.currentUser?.id;
+    if (id == null) return;
+    await _loadProfile(id);
   }
 
   Future<void> signOut() async {
