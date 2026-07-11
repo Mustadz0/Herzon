@@ -33,7 +33,8 @@ abstract class IPostRepository {
 class SupabasePostRepository implements IPostRepository {
   final SupabaseClient _supabase;
 
-  SupabasePostRepository({required SupabaseClient supabase}) : _supabase = supabase;
+  SupabasePostRepository({required SupabaseClient supabase})
+      : _supabase = supabase;
 
   @override
   Future<List<PostModel>> getNearbyPosts(
@@ -53,40 +54,61 @@ class SupabasePostRepository implements IPostRepository {
       },
     );
 
-    return (response as List<dynamic>)
-        .map((json) => PostModel(
-              id: json['id'] as String,
-              userId: json['user_id'] as String,
-              content: json['content'] as String,
-              mediaUrls: List<String>.from(json['media_urls'] ?? []),
-              mediaType: _parseMediaType(json['media_type']),
-              latitude: location.latitude,
-              longitude: location.longitude,
-              contextTag: json['context_tag'] as String?,
-              reactionCounts: Map<String, int>.from(json['reaction_counts'] ?? {}),
-              createdAt: json['created_at'] != null
-                  ? DateTime.parse(json['created_at'] as String)
-                  : null,
-              userUsername: json['username'] as String?,
-              userDisplayName: json['display_name'] as String?,
-              userAvatarUrl: json['avatar_url'] as String?,
-              distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
-              commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
-              stickerId: json['sticker_id'] as String?,
-              videoUrl: json['video_url'] as String?,
-              pollOptions: json['poll'] != null
-                  ? (json['poll'] as List<dynamic>)
-                      .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
-                      .toList()
-                  : null,
-              pollTotalVotes: json['poll_total_votes'] as int?,
-              userPollVoteIndex: json['user_poll_vote_index'] as int?,
-            ))
-        .toList();
+    return (response as List<dynamic>).map((json) {
+      final j = json as Map<String, dynamic>;
+      // Poll: RPC returns jsonb object with 'options' key
+      List<PollOptionData>? pollOptions;
+      final pollRaw = j['poll'];
+      if (pollRaw is Map<String, dynamic>) {
+        final opts = pollRaw['options'];
+        if (opts is List) {
+          pollOptions = opts
+              .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      } else if (pollRaw is List) {
+        pollOptions = pollRaw
+            .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+
+      return PostModel(
+        id: j['id'] as String,
+        userId: j['user_id'] as String,
+        content: j['content'] as String? ?? '',
+        mediaUrls: List<String>.from(j['media_urls'] ?? []),
+        mediaType: _parseMediaType(j['media_type']),
+        latitude: location.latitude,
+        longitude: location.longitude,
+        zoneId: j['zone_id'] as String?,
+        contextTag: j['context_tag'] as String?,
+        // reaction_counts comes as jsonb — cast values safely
+        reactionCounts:
+            (j['reaction_counts'] as Map<String, dynamic>? ?? {})
+                .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
+        createdAt: j['created_at'] != null
+            ? DateTime.tryParse(j['created_at'] as String)
+            : null,
+        // RPC returns user_username / user_display_name / user_avatar_url
+        userUsername: j['user_username'] as String?,
+        userDisplayName: j['user_display_name'] as String?,
+        userAvatarUrl: j['user_avatar_url'] as String?,
+        distanceMeters:
+            (j['distance'] as num?)?.toDouble() ?? 0.0,
+        commentCount:
+            (j['comment_count'] as num?)?.toInt() ?? 0,
+        pollOptions: pollOptions,
+        pollTotalVotes: j['poll_total_votes'] as int?,
+        userPollVoteIndex: j['user_poll_vote_index'] as int?,
+        stickerId: j['sticker_id'] as String?,
+        videoUrl: j['video_url'] as String?,
+      );
+    }).toList();
   }
 
   @override
-  Future<int> getNearbyPostsCount(LatLng location, double radiusMeters) async {
+  Future<int> getNearbyPostsCount(
+      LatLng location, double radiusMeters) async {
     final response = await _supabase.rpc(
       'get_nearby_posts_count',
       params: {
@@ -100,20 +122,27 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<PostModel> createPost(PostModel post) async {
-    // Use ST_MakePoint via WKT string — correct Dart interpolation
-    final wkt = 'POINT(${post.longitude} ${post.latitude})';
-
-    final response = await _supabase.from('posts').insert({
-      'user_id': post.userId,
-      'content': post.content,
-      'media_urls': post.mediaUrls,
-      'media_type': post.mediaType.name,
-      'location': wkt,
-      'context_tag': post.contextTag,
-      if (post.stickerId != null) 'sticker_id': post.stickerId,
-    }).select().single();
-
-    return PostModel.fromJson(response);
+    // PostGIS requires WKT via ST_GeomFromText — pass as EWKT string
+    // Supabase client sends it as text; the DB column accepts WKT cast.
+    // Use ST_MakePoint RPC approach: pass lat/lng and build geometry in DB.
+    final response = await _supabase.rpc(
+      'create_post_with_location',
+      params: {
+        'p_user_id': post.userId,
+        'p_content': post.content,
+        'p_media_urls': post.mediaUrls,
+        'p_media_type': post.mediaType.name,
+        'p_lat': post.latitude,
+        'p_lng': post.longitude,
+        'p_context_tag': post.contextTag,
+        'p_sticker_id': post.stickerId,
+        'p_zone_id': post.zoneId,
+        'p_poll': post.pollOptions != null
+            ? {'options': post.pollOptions!.map((e) => e.toJson()).toList()}
+            : null,
+      },
+    );
+    return PostModel.fromJson(response as Map<String, dynamic>);
   }
 
   @override
@@ -124,7 +153,7 @@ class SupabasePostRepository implements IPostRepository {
       'post_id': postId,
       'user_id': userId,
       'reaction_type': reactionType,
-    }, onConflict: 'post_id,user_id,reaction_type');
+    }, onConflict: 'post_id,user_id');
   }
 
   @override
@@ -141,12 +170,18 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<void> deletePost(String postId) async {
-    await _supabase.from('posts').delete().eq('id', postId);
+    await _supabase
+        .from('posts')
+        .update({'deleted_at': DateTime.now().toIso8601String()})
+        .eq('id', postId);
   }
 
   @override
   Future<void> updatePost(String postId, String content) async {
-    await _supabase.from('posts').update({'content': content}).eq('id', postId);
+    await _supabase
+        .from('posts')
+        .update({'content': content})
+        .eq('id', postId);
   }
 
   @override
