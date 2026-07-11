@@ -2,15 +2,17 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/post_provider.dart';
 import '../providers/story_provider.dart';
 import '../providers/notification_provider.dart';
+import '../providers/checkin_provider.dart';
 import '../widgets/post_card.dart';
 import '../widgets/story_circle_row.dart';
 import 'create_post_screen.dart';
 import 'search_screen.dart';
 import 'notifications_screen.dart';
-import 'messages_screen.dart';
 import 'explorer_screen.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -23,7 +25,8 @@ class FeedScreen extends ConsumerStatefulWidget {
 
 class _FeedScreenState extends ConsumerState<FeedScreen> {
   final _scrollController = ScrollController();
-  bool _showTop = false; // Recent / Top toggle
+  bool _showTop = false;
+  bool _isCheckingIn = false;
 
   @override
   void initState() {
@@ -48,6 +51,61 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     super.dispose();
   }
 
+  // ── Je suis là — check-in ──────────────────────────────────
+  Future<void> _jesuisLa() async {
+    if (_isCheckingIn) return;
+    setState(() => _isCheckingIn = true);
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Permission de localisation requise'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      await ref.read(checkinProvider.notifier).checkIn(
+        userId: user.id,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Check-in réussi ! +10 XP'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        ref.read(postProvider.notifier).loadFeed();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur check-in: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCheckingIn = false);
+    }
+  }
+
   // ─── build ────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -56,6 +114,18 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final feedState = ref.watch(postProvider);
     final unread = ref.watch(notificationProvider).unreadCount;
+
+    // Filter posts based on Recent/Top toggle
+    final posts = _showTop
+        ? [...feedState.posts]
+            ..sort((a, b) {
+              final aCount = (a.reactionCounts['herz'] ?? 0) +
+                  (a.commentCount * 2);
+              final bCount = (b.reactionCounts['herz'] ?? 0) +
+                  (b.commentCount * 2);
+              return bCount.compareTo(aCount);
+            })
+        : feedState.posts;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark
@@ -100,7 +170,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 ),
                 centerTitle: true,
                 actions: [
-                  // Search
                   IconButton(
                     icon: Icon(Icons.search_rounded, color: cs.onSurface),
                     tooltip: 'Search',
@@ -109,7 +178,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       MaterialPageRoute(builder: (_) => const SearchScreen()),
                     ),
                   ),
-                  // Notifications with badge
                   IconButton(
                     icon: Badge(
                       label: unread > 0 ? Text('$unread') : null,
@@ -138,13 +206,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     children: [
-                      // Hot pill
                       _GradientPill(
                         icon: Icons.whatshot,
                         label: 'Hot',
                       ),
                       const SizedBox(width: 10),
-                      // Zone name
                       Expanded(
                         child: GestureDetector(
                           onTap: () => Navigator.push(
@@ -185,7 +251,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    '12',
+                                    '${feedState.posts.length}',
                                     style: tt.labelSmall?.copyWith(
                                       color: cs.primary,
                                       fontWeight: FontWeight.w700,
@@ -198,11 +264,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         ),
                       ),
                       const SizedBox(width: 10),
-                      // Je suis là
+                      // Je suis là — now functional
                       OutlinedButton.icon(
-                        onPressed: () {},
-                        icon: Icon(Icons.my_location,
-                            size: 14, color: cs.primary),
+                        onPressed: _isCheckingIn ? null : _jesuisLa,
+                        icon: _isCheckingIn
+                            ? const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(Icons.my_location,
+                                size: 14, color: cs.primary),
                         label: Text(
                           'Je suis là',
                           style: tt.labelSmall?.copyWith(
@@ -266,7 +338,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'Ce qui se passe',
+                        _showTop ? 'Les plus populaires' : 'Ce qui se passe',
                         style: tt.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: cs.onSurface,
@@ -287,13 +359,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 )
               else if (feedState.error != null)
                 SliverToBoxAdapter(child: _errorState(feedState.error!, cs, tt))
-              else if (feedState.posts.isEmpty)
+              else if (posts.isEmpty)
                 SliverToBoxAdapter(child: _emptyState(cs, tt))
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (_, i) => PostCard(post: feedState.posts[i]),
-                    childCount: feedState.posts.length,
+                    (_, i) => PostCard(post: posts[i]),
+                    childCount: posts.length,
                   ),
                 ),
 
@@ -314,7 +386,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   ),
                 ),
 
-              // Bottom padding for nav bar
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
@@ -322,8 +393,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       ),
     );
   }
-
-  // ─── helpers ──────────────────────────────────────────────
 
   Widget _shimmerCard(ColorScheme cs) {
     return Container(
@@ -452,7 +521,7 @@ class _PillToggle extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _pill('Recent', !showTop, cs, tt, () => onChanged(false)),
+          _pill('Récent', !showTop, cs, tt, () => onChanged(false)),
           _pill('Top', showTop, cs, tt, () => onChanged(true)),
         ],
       ),

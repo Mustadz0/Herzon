@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:chewie/chewie.dart';
@@ -8,6 +9,9 @@ import '../../core/constants/sticker_constants.dart';
 import '../providers/post_provider.dart';
 import '../screens/comments_screen.dart';
 import '../screens/user_profile_screen.dart';
+import '../screens/report_screen.dart';
+import '../screens/edit_post_screen.dart';
+import '../screens/conversation_screen.dart';
 import '../../core/theme/app_theme.dart';
 
 class PostCard extends ConsumerStatefulWidget {
@@ -93,6 +97,36 @@ class _PostCardState extends ConsumerState<PostCard> {
     return diff.inMinutes < 5;
   }
 
+  // ── Share post ──────────────────────────────
+  void _sharePost() {
+    final post = widget.post;
+    final shareText =
+        '${post.userDisplayName ?? post.userUsername ?? "Quelqu\'un"} a partagé sur Herzon:\n${post.content}\nhttps://herzon.app/post/${post.id}';
+    Clipboard.setData(ClipboardData(text: shareText));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Lien copié !'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ── Hide post ───────────────────────────────
+  void _hidePost() {
+    ref.read(postProvider.notifier).hidePost(widget.post.id);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Publication masquée'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Annuler',
+          onPressed: () => ref.read(postProvider.notifier).unhidePost(widget.post.id),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
@@ -151,7 +185,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                 const SizedBox(width: 16),
 
                 // ↗ Share
-                _actionIcon(Icons.send_outlined, 'Partager', () {}),
+                _actionIcon(Icons.send_outlined, 'Partager', _sharePost),
                 const Spacer(),
 
                 // ⋯ More menu
@@ -160,7 +194,30 @@ class _PostCardState extends ConsumerState<PostCard> {
                     if (val == 'delete') {
                       _confirmDelete(context);
                     } else if (val == 'edit') {
-                      // TODO: navigate to EditPostScreen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EditPostScreen(
+                            postId: post.id,
+                            currentContent: post.content,
+                          ),
+                        ),
+                      ).then((updated) {
+                        if (updated == true) {
+                          ref.read(postProvider.notifier).loadFeed();
+                        }
+                      });
+                    } else if (val == 'signaler') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReportScreen(postId: post.id),
+                        ),
+                      );
+                    } else if (val == 'masquer') {
+                      _hidePost();
+                    } else if (val == 'interesser') {
+                      _toggleReaction('herz');
                     }
                   },
                   color: const Color(0xFF2A2A2A),
@@ -173,11 +230,12 @@ class _PostCardState extends ConsumerState<PostCard> {
                     size: 20,
                   ),
                   itemBuilder: (_) => [
-                    _popupItem('Interesser', 'interesser', Icons.favorite_border),
+                    _popupItem('Intéresser', 'interesser', Icons.favorite_border),
                     _popupItem('Masquer', 'masquer', Icons.visibility_off_outlined),
                     _popupItem('Signaler', 'signaler', Icons.flag_outlined),
                     if (isOwnPost) ...[
                       const PopupMenuDivider(),
+                      _popupItem('Modifier', 'edit', Icons.edit_outlined),
                       _popupItem('Supprimer', 'delete', Icons.delete_outline, color: Colors.red),
                     ],
                   ],
@@ -422,9 +480,18 @@ class _PostCardState extends ConsumerState<PostCard> {
                     );
                   }),
                   const SizedBox(height: 8),
-                  _overlayIcon(Icons.send_outlined, false, () {}),
+                  _overlayIcon(Icons.send_outlined, false, _sharePost),
                   const SizedBox(height: 8),
-                  _overlayIcon(Icons.bookmark_border, false, () {}),
+                  _overlayIcon(Icons.bookmark_border, false, () {
+                    _toggleReaction('bookmark');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Publication enregistrée'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 12),
                   Container(
                     width: 24, height: 24,
@@ -444,6 +511,15 @@ class _PostCardState extends ConsumerState<PostCard> {
               child: PopupMenuButton<String>(
                 onSelected: (val) {
                   if (val == 'like') _toggleReaction('herz');
+                  if (val == 'masquer') _hidePost();
+                  if (val == 'signaler') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReportScreen(postId: post.id),
+                      ),
+                    );
+                  }
                 },
                 color: const Color(0xFF2A2A2A),
                 shape: RoundedRectangleBorder(
@@ -455,7 +531,7 @@ class _PostCardState extends ConsumerState<PostCard> {
                   size: 18,
                 ),
                 itemBuilder: (_) => [
-                  _popupItem('Interesser', 'like', Icons.favorite_border),
+                  _popupItem('Intéresser', 'like', Icons.favorite_border),
                   _popupItem('Masquer', 'masquer', Icons.visibility_off_outlined),
                   _popupItem('Signaler', 'signaler', Icons.flag_outlined),
                 ],
@@ -659,10 +735,19 @@ class _PostCardState extends ConsumerState<PostCard> {
                       size: 20,
                     ),
                     itemBuilder: (_) => [
-                      _popupItem('Ajouter a la zone', 'add_zone', Icons.add_circle_outline),
-                      _popupItem('Rejoindre sa zone', 'join_zone', Icons.group_add_outlined),
+                      _popupItem('Signaler', 'signaler', Icons.flag_outlined),
                     ],
-                    onSelected: (_) {},
+                    onSelected: (val) {
+                      Navigator.pop(ctx);
+                      if (val == 'signaler') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ReportScreen(postId: post.id),
+                          ),
+                        );
+                      }
+                    },
                   ),
                 ],
               ),
@@ -686,14 +771,44 @@ class _PostCardState extends ConsumerState<PostCard> {
               Row(
                 children: [
                   Expanded(
-                    child: _sheetButton('Envoyer message', Icons.message_outlined, () {
+                    child: _sheetButton('Envoyer message', Icons.message_outlined, () async {
                       Navigator.pop(ctx);
+                      try {
+                        final result = await Supabase.instance.client.rpc(
+                          'get_or_create_conversation',
+                          params: {'other_user_id': post.userId},
+                        );
+                        if (mounted && result != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ConversationScreen(
+                                conversationId: result as String,
+                                otherUserId: post.userId,
+                                otherUserName: post.userDisplayName ?? post.userUsername ?? 'Utilisateur',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Erreur: $e'), behavior: SnackBarBehavior.floating),
+                          );
+                        }
+                      }
                     }),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _sheetButton('Emplacement', Icons.location_on_outlined, () {
                       Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UserProfileScreen(userId: post.userId),
+                        ),
+                      );
                     }),
                   ),
                 ],
