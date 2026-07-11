@@ -22,6 +22,12 @@ abstract class IPostRepository {
   Future<void> deletePost(String postId);
 
   Future<void> updatePost(String postId, String content);
+
+  Future<void> hidePost(String postId);
+
+  Future<void> unhidePost(String postId);
+
+  Future<Set<String>> getHiddenPostIds();
 }
 
 class SupabasePostRepository implements IPostRepository {
@@ -99,7 +105,7 @@ class SupabasePostRepository implements IPostRepository {
       'content': post.content,
       'media_urls': post.mediaUrls,
       'media_type': post.mediaType.name,
-      'location': 'POINT(${post.longitude} ${post.latitude})',
+      'location': 'POINT(\${post.longitude} \${post.latitude})',
       'context_tag': post.contextTag,
       if (post.stickerId != null) 'sticker_id': post.stickerId,
     }).select().single();
@@ -138,6 +144,40 @@ class SupabasePostRepository implements IPostRepository {
   @override
   Future<void> updatePost(String postId, String content) async {
     await _supabase.from('posts').update({'content': content}).eq('id', postId);
+  }
+
+  @override
+  Future<void> hidePost(String postId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not authenticated');
+    await _supabase.from('hidden_posts').upsert({
+      'user_id': userId,
+      'post_id': postId,
+    }, onConflict: 'user_id,post_id');
+  }
+
+  @override
+  Future<void> unhidePost(String postId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not authenticated');
+    await _supabase
+        .from('hidden_posts')
+        .delete()
+        .eq('user_id', userId)
+        .eq('post_id', postId);
+  }
+
+  @override
+  Future<Set<String>> getHiddenPostIds() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return {};
+    final response = await _supabase
+        .from('hidden_posts')
+        .select('post_id')
+        .eq('user_id', userId);
+    return (response as List<dynamic>)
+        .map((e) => e['post_id'] as String)
+        .toSet();
   }
 
   MediaType _parseMediaType(String? type) {
