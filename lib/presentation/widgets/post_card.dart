@@ -87,7 +87,8 @@ class _PostCardState extends ConsumerState<PostCard> {
 
   // ── Is New (< 5 min) ────────────────────────
   bool get _isNewPost {
-    final diff = DateTime.now().difference(widget.post.createdAt);
+    final createdAt = widget.post.createdAt ?? DateTime.now();
+    final diff = DateTime.now().difference(createdAt);
     return diff.inMinutes < 5;
   }
 

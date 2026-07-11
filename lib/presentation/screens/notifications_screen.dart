@@ -62,7 +62,7 @@ class NotificationsScreen extends ConsumerWidget {
           if (state.notifications.isNotEmpty)
             TextButton(
               onPressed: () =>
-                  ref.read(notificationProvider.notifier).markAllRead(),
+                  ref.read(notificationProvider.notifier).markAllAsRead(),
               child: Text(
                 'Tout lire',
                 style: tt.labelMedium?.copyWith(color: cs.primary),
@@ -87,7 +87,7 @@ class NotificationsScreen extends ConsumerWidget {
                     notification: state.notifications[i],
                     onTap: () => ref
                         .read(notificationProvider.notifier)
-                        .markRead(state.notifications[i].id),
+                        .markAsRead(state.notifications[i].id),
                   ),
                 ),
     );
