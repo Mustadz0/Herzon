@@ -1,4 +1,4 @@
-﻿/// Post content types
+/// Post content types
 enum MediaType { text, image, video, vibe, sticker }
 
 /// Poll option data
@@ -9,11 +9,17 @@ class PollOptionData {
   const PollOptionData({required this.text, this.votes = 0});
 
   factory PollOptionData.fromJson(Map<String, dynamic> json) =>
-      PollOptionData(text: json['text'] as String? ?? '', votes: json['votes'] as int? ?? 0);
+      PollOptionData(
+        text: json['text'] as String? ?? '',
+        votes: json['votes'] as int? ?? 0,
+      );
 
   Map<String, dynamic> toJson() => {'text': text, 'votes': votes};
 
-  double get percentage => votes == 0 ? 0.0 : votes.toDouble();
+  /// Returns the percentage of this option out of [totalVotes].
+  /// Returns 0.0 if [totalVotes] is 0 to avoid division by zero.
+  double percentageOf(int totalVotes) =>
+      totalVotes == 0 ? 0.0 : (votes / totalVotes) * 100;
 }
 
 /// Post Model - represents a feed post
