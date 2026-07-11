@@ -61,24 +61,24 @@ class ZoneModel {
         'updated_at': updatedAt?.toIso8601String(),
       };
 
-  // Heat level helpers
-  bool get isCalm    => heatScore < 10;
-  bool get isActive  => heatScore >= 10 && heatScore < 25;
-  bool get isHot     => heatScore >= 25 && heatScore < 45;
-  bool get isOnFire  => heatScore >= 45;
+  bool get isCalm   => heatScore < 10;
+  bool get isActive => heatScore >= 10 && heatScore < 25;
+  bool get isHot    => heatScore >= 25 && heatScore < 45;
+  bool get isOnFire => heatScore >= 45;
 
   String get heatLabel {
-    if (isOnFire)  return 'Très active';
-    if (isHot)     return 'Active';
-    if (isActive)  return 'Calme+';
+    if (isOnFire) return 'Très active';
+    if (isHot)    return 'Active';
+    if (isActive) return 'Calme+';
     return 'Calme';
   }
 
+  // Emoji as String (no unicode escape issues)
   String get emoji {
-    if (isOnFire) return '\uD83D\uDD25'; // 🔥
-    if (isHot)    return '\u26A1';       // ⚡
-    if (isActive) return '\u2728';       // ✨
-    return '\u2022';                     // •
+    if (isOnFire) return '🔥';
+    if (isHot)    return '⚡';
+    if (isActive) return '✨';
+    return '•';
   }
 
   double get markerSize {
@@ -87,4 +87,8 @@ class ZoneModel {
     if (isActive)  return 40;
     return 28;
   }
+
+  /// LatLng as maplibre_gl LatLng — caller converts
+  double get lat => centerLat;
+  double get lng => centerLng;
 }

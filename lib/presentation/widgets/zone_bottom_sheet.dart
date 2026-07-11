@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:herzon/core/theme/app_theme.dart';
 import '../../data/models/zone_model.dart';
 
 /// Bottom sheet shown when the user taps a zone emoji on the Explorer map.
-/// Displays: name, heat label, progress bar, 3 counters, dominant activity,
-/// and an "Entrer dans la zone" CTA button.
+/// Design tokens: AppTheme.brandGradient (CTA), AppTheme.cardDark (dark bg),
+/// same shape/handle as _CheckInSheet in home_screen.dart.
 class ZoneBottomSheet extends StatelessWidget {
   final ZoneModel zone;
   final VoidCallback onEnterZone;
@@ -16,8 +17,9 @@ class ZoneBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
+    final t  = Theme.of(context);
+    final cs = t.colorScheme;
+    final tt = t.textTheme;
 
     return SafeArea(
       top: false,
@@ -27,14 +29,14 @@ class ZoneBottomSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Drag handle
+            // Drag handle — same as _CheckInSheet: 36×4, grey[300]
             Center(
               child: Container(
-                width: 42,
+                width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(100),
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
@@ -51,14 +53,16 @@ class ZoneBottomSheet extends StatelessWidget {
                     children: [
                       Text(
                         zone.zoneName,
-                        style: tt.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: tt.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         zone.heatLabel,
-                        style: tt.bodySmall
-                            ?.copyWith(color: cs.onSurfaceVariant),
+                        style: tt.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -67,54 +71,74 @@ class ZoneBottomSheet extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
-            // Heat progress bar
-            LinearProgressIndicator(
-              value: (zone.heatScore.clamp(0, 50)) / 50,
-              minHeight: 8,
+            // Heat progress bar — uses AppTheme.primary
+            ClipRRect(
               borderRadius: BorderRadius.circular(100),
-              backgroundColor: cs.surfaceContainerHighest,
-              color: cs.primary,
+              child: LinearProgressIndicator(
+                value: (zone.heatScore.clamp(0, 50)) / 50,
+                minHeight: 8,
+                backgroundColor: t.isDark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFF1F5F9),
+                color: AppTheme.primary,
+              ),
             ),
             const SizedBox(height: 14),
 
-            // 3 counters
+            // 3 counters — same card style as profile stats in home_screen
             Row(
               children: [
-                _Counter(
-                  label: 'Présents',
-                  value: zone.activeUsers.toString(),
-                ),
+                _Counter(label: 'Présents', value: zone.activeUsers.toString()),
                 const SizedBox(width: 8),
-                _Counter(
-                  label: 'Posts',
-                  value: zone.recentPosts.toString(),
-                ),
+                _Counter(label: 'Posts',    value: zone.recentPosts.toString()),
                 const SizedBox(width: 8),
-                _Counter(
-                  label: 'Vibes',
-                  value: zone.recentVibes.toString(),
-                ),
+                _Counter(label: 'Vibes',    value: zone.recentVibes.toString()),
               ],
             ),
             const SizedBox(height: 12),
 
-            // Dominant activity (optional)
-            if (zone.dominantActivity != null) ...
-              [
-                Text(
-                  'Activité dominante : \${zone.dominantActivity}',
-                  style: tt.bodyMedium
-                      ?.copyWith(color: cs.onSurfaceVariant),
-                ),
-                const SizedBox(height: 12),
-              ],
+            // Dominant activity
+            if (zone.dominantActivity != null) ...[
+              Text(
+                'Activité dominante : ${zone.dominantActivity}',
+                style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+            ],
 
-            // CTA
+            // CTA — AppTheme.brandGradient (same as _CenterFab + _MenuTile icons)
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                onPressed: onEnterZone,
-                child: const Text('Entrer dans la zone'),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: AppTheme.brandGradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.secondary.withValues(alpha: 0.35),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: FilledButton(
+                  onPressed: onEnterZone,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text(
+                    'Entrer dans la zone',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
@@ -132,18 +156,21 @@ class _Counter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
+    final t  = Theme.of(context);
+    final cs = t.colorScheme;
+    final tt = t.textTheme;
 
     return Expanded(
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerLow,
+          color: t.isDark ? AppTheme.cardDark : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.35)),
+            color: t.isDark
+                ? const Color(0xFF1E293B)
+                : const Color(0xFFF1F5F9),
+          ),
         ),
         child: Column(
           children: [
@@ -151,14 +178,13 @@ class _Counter extends StatelessWidget {
               value,
               style: tt.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: cs.primary,
+                color: AppTheme.primary,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: tt.labelSmall
-                  ?.copyWith(color: cs.onSurfaceVariant),
+              style: tt.labelSmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ],
         ),

@@ -12,7 +12,7 @@ abstract class IZoneRepository {
 class SupabaseZoneRepository implements IZoneRepository {
   final SupabaseClient _client;
 
-  SupabaseZoneRepository(this._client);
+  const SupabaseZoneRepository(this._client);
 
   @override
   Future<List<ZoneModel>> getNearbyZones({

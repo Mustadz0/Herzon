@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:herzon/core/theme/app_theme.dart';
 import '../../data/models/zone_model.dart';
 
 /// Floating emoji marker displayed on the Explorer map.
-/// Size scales with heat level: calm → 28, active → 40, hot → 48, on-fire → 56.
+/// Size scales with heat level: calm → 28 · active → 40 · hot → 48 · on-fire → 56.
+/// Uses AppTheme tokens to match the rest of the app.
 class ZoneMapMarker extends StatelessWidget {
   final ZoneModel zone;
   final VoidCallback onTap;
@@ -15,7 +17,8 @@ class ZoneMapMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs   = Theme.of(context).colorScheme;
+    final t    = Theme.of(context);
+    final cs   = t.colorScheme;
     final size = zone.markerSize;
 
     return GestureDetector(
@@ -26,15 +29,15 @@ class ZoneMapMarker extends StatelessWidget {
         height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh.withValues(alpha: 0.92),
+          color: t.isDark ? AppTheme.cardDark : Colors.white,
           shape: BoxShape.circle,
           border: Border.all(
-            color: cs.primary.withValues(alpha: 0.30),
+            color: AppTheme.primary.withValues(alpha: 0.35),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: cs.primary.withValues(alpha: 0.18),
+              color: AppTheme.primary.withValues(alpha: 0.22),
               blurRadius: 14,
               spreadRadius: 1,
             ),

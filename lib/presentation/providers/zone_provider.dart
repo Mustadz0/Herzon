@@ -3,16 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/zone_model.dart';
 import '../../data/repositories/zone_repository.dart';
 
-// ---------------------------------------------------------------------------
-// Repository provider
-// ---------------------------------------------------------------------------
+// ── Repository provider ────────────────────────────────────────────────────
 final zoneRepositoryProvider = Provider<IZoneRepository>((ref) {
   return SupabaseZoneRepository(Supabase.instance.client);
 });
 
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
+// ── State ──────────────────────────────────────────────────────────────────
 class ZoneState {
   final bool isLoading;
   final List<ZoneModel> zones;
@@ -32,14 +28,12 @@ class ZoneState {
     return ZoneState(
       isLoading: isLoading ?? this.isLoading,
       zones: zones ?? this.zones,
-      error: error,
+      error: error,  // nullable reset intentional
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Notifier
-// ---------------------------------------------------------------------------
+// ── Notifier ───────────────────────────────────────────────────────────────
 class ZoneNotifier extends StateNotifier<ZoneState> {
   final IZoneRepository _repository;
 
@@ -61,7 +55,7 @@ class ZoneNotifier extends StateNotifier<ZoneState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: 'Impossible de charger les zones.',  // never expose raw error
       );
     }
   }
@@ -69,10 +63,7 @@ class ZoneNotifier extends StateNotifier<ZoneState> {
   void clear() => state = const ZoneState();
 }
 
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
-final zoneProvider =
-    StateNotifierProvider<ZoneNotifier, ZoneState>((ref) {
+// ── Provider ───────────────────────────────────────────────────────────────
+final zoneProvider = StateNotifierProvider<ZoneNotifier, ZoneState>((ref) {
   return ZoneNotifier(ref.read(zoneRepositoryProvider));
 });

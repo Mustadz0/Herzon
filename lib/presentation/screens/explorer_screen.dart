@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:herzon/core/theme/app_theme.dart';
 import '../../data/models/zone_model.dart';
 import '../providers/zone_provider.dart';
 import '../widgets/zone_bottom_sheet.dart';
 import '../widgets/zone_map_marker.dart';
 
-/// Explorer screen — full-screen map with hot zone overlays.
+/// Explorer screen — full-screen MapLibre map with hot zone overlays.
 ///
-/// Rules (from specs):
+/// Rules (CLAUDE.md):
 ///   • Read-only: no posting, commenting, or messaging.
 ///   • Tapping a zone opens ZoneBottomSheet → then zone feed (read-only).
 ///   • Recenter button top-right.
 ///   • Search bar top.
+///   • Map tiles: OpenStreetMap (free, as per CLAUDE.md).
 class ExplorerScreen extends ConsumerStatefulWidget {
   const ExplorerScreen({super.key});
 
@@ -21,9 +24,15 @@ class ExplorerScreen extends ConsumerStatefulWidget {
 }
 
 class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
-  double _lat = 36.7372;  // Default: Bab Ezzouar, Algiers
+  MaplibreMapController? _mapController;
+
+  // Default centre: Bab Ezzouar, Alger
+  double _lat = 36.7372;
   double _lng = 3.1874;
   bool _locating = false;
+
+  static const String _osmStyle =
+      'https://demotiles.maplibre.org/style.json';
 
   @override
   void initState() {
@@ -31,27 +40,39 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     _fetchLocation();
   }
 
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  // ── Location ────────────────────────────────────────────────────────────
   Future<void> _fetchLocation() async {
     setState(() => _locating = true);
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return;
 
-      LocationPermission permission = await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return;
       }
+      if (permission == LocationPermission.deniedForever) return;
 
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      if (!mounted) return;
       setState(() {
         _lat = pos.latitude;
         _lng = pos.longitude;
       });
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(_lat, _lng), 15),
+      );
     } finally {
-      setState(() => _locating = false);
+      if (mounted) setState(() => _locating = false);
       _loadZones();
     }
   }
@@ -64,10 +85,14 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
         );
   }
 
+  // ── Zone bottom sheet ───────────────────────────────────────────────────
   void _openZoneSheet(ZoneModel zone) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: false,
+      backgroundColor: Theme.of(context).isDark
+          ? const Color(0xFF121212)
+          : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -79,6 +104,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Entrée dans ${zone.zoneName} — lecture seule'),
+              behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 2),
             ),
           );
@@ -87,31 +113,37 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     );
   }
 
+  // ── Map callbacks ────────────────────────────────────────────────────────
+  void _onMapCreated(MaplibreMapController controller) {
+    _mapController = controller;
+  }
+
+  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(zoneProvider);
-    final cs    = Theme.of(context).colorScheme;
+    final t     = Theme.of(context);
+    final cs    = t.colorScheme;
 
     return Scaffold(
       body: Stack(
         children: [
-          // ── Map layer ────────────────────────────────────────
-          // Replace the Container below with GoogleMap / MapboxMap widget.
-          // Pass markers via CustomPainter or GoogleMap markers.
-          Container(
-            color: cs.surfaceContainerLowest,
-            child: Center(
-              child: Text(
-                '🗺️  Map placeholder\n(integrate google_maps_flutter here)',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.onSurfaceVariant),
-              ),
+          // ── MapLibre map ─────────────────────────────────────────────────
+          MaplibreMap(
+            styleString: _osmStyle,
+            initialCameraPosition: CameraPosition(
+              target: LatLng(_lat, _lng),
+              zoom: 15,
             ),
+            onMapCreated: _onMapCreated,
+            myLocationEnabled: true,
+            myLocationTrackingMode: MyLocationTrackingMode.None,
+            compassEnabled: false,
           ),
 
-          // ── Zone emoji markers ───────────────────────────────
-          // In production: use GoogleMap markers / CustomPainter.
-          // Here we use Positioned stubs for layout preview.
+          // ── Zone emoji markers ───────────────────────────────────────────
+          // Positioned as overlay widgets until MapLibre symbol layers are wired.
+          // Replace with MaplibreMap symbol layer + custom marker images in prod.
           if (!state.isLoading)
             ...state.zones.asMap().entries.map((entry) {
               final i    = entry.key;
@@ -126,7 +158,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               );
             }),
 
-          // ── Top UI bar ───────────────────────────────────────
+          // ── Top bar (search + recenter) ──────────────────────────────────
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -135,15 +167,24 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                   // Search bar
                   Expanded(
                     child: Material(
-                      color: cs.surfaceContainerHigh,
+                      color: t.isDark
+                          ? AppTheme.cardDark
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       elevation: 2,
-                      child: const TextField(
+                      shadowColor: AppTheme.primary.withValues(alpha: 0.12),
+                      child: TextField(
                         decoration: InputDecoration(
                           hintText: 'Rechercher une zone…',
-                          prefixIcon: Icon(Icons.search_rounded),
+                          hintStyle: TextStyle(
+                            color: cs.onSurfaceVariant,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search_rounded,
+                            color: cs.onSurfaceVariant,
+                          ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 14,
                           ),
@@ -152,27 +193,53 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Recenter button
-                  IconButton.filledTonal(
-                    onPressed: _locating ? null : _fetchLocation,
-                    icon: _locating
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.my_location_rounded),
+
+                  // Recenter button — AppTheme.brandGradient tonal
+                  GestureDetector(
+                    onTap: _locating ? null : _fetchLocation,
+                    child: Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        gradient: _locating ? null : AppTheme.brandGradient,
+                        color: _locating
+                            ? cs.surfaceContainerHighest
+                            : null,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: _locating
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: AppTheme.secondary.withValues(alpha: 0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                      ),
+                      child: _locating
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.my_location_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
 
-          // ── Loading spinner ──────────────────────────────────
+          // ── Loading overlay ──────────────────────────────────────────────
           if (state.isLoading)
             const Center(child: CircularProgressIndicator()),
 
-          // ── Error banner ─────────────────────────────────────
+          // ── Error banner ─────────────────────────────────────────────────
           if (state.error != null)
             Positioned(
               bottom: 24,
