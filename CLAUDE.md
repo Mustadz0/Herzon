@@ -20,8 +20,8 @@ Users open the app and see real-time profiles and content from people within a *
 | Language | Dart | Null-safe, modern syntax |
 | Backend | Supabase | Auth, PostgreSQL, Realtime, Storage |
 | Geospatial | PostGIS | `ST_DWithin` for 500m queries |
-| Maps | flutter_map + OpenStreetMap | Free, open-source, self-hosted tiles if needed |
-| State Management | Riverpod / BLoC | Complex state (TBD with team) |
+| Maps | **MapLibre GL** (`maplibre_gl`) + OpenStreetMap tiles | Single map library — `latlong2` removed, use `maplibre_gl`'s own `LatLng` |
+| State Management | **Riverpod** | `flutter_riverpod` + `riverpod_generator` — BLoC NOT used |
 | Architecture | Clean Architecture | Presentation / Domain / Data layers |
 
 ---
@@ -32,12 +32,14 @@ Users open the app and see real-time profiles and content from people within a *
 lib/
 ├── main.dart              # Entry point
 ├── app.dart               # MaterialApp setup
-├── core/                  # Shared utilities
+├── core/
+│   ├── config/
+│   │   └── app_config.dart   # Compile-time secrets via --dart-define
 │   ├── constants/
 │   ├── theme/
 │   ├── errors/
 │   └── utils/
-├── features/              # One folder per feature
+├── features/              # One folder per feature (target architecture)
 │   ├── auth/
 │   ├── feed/
 │   ├── explorer/
@@ -47,12 +49,26 @@ lib/
 │   ├── models/
 │   ├── repositories/
 │   └── datasources/
-└── presentation/          # UI & State (Riverpod/BLoC)
+└── presentation/          # UI & State
     ├── providers/
-    ├── blocs/
     ├── screens/
     └── widgets/
 ```
+
+---
+
+## Environment Variables — IMPORTANT
+
+Secrets are **NOT** stored in `.env` files bundled as assets.
+They are injected at compile time via `--dart-define` and read via `AppConfig`:
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://xxx.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=eyJ...
+```
+
+For CI/CD use GitHub Actions secrets. Never commit real keys.
 
 ---
 
@@ -93,18 +109,24 @@ lib/
 
 ---
 
+## Map Usage Rules
+
+- **ONLY** use `maplibre_gl` for maps — no `flutter_map`, no `latlong2`.
+- Use `maplibre_gl`'s own `LatLng(lat, lng)` type everywhere.
+- OSM tiles via `https://demotiles.maplibre.org/style.json` (free).
+- For production: self-host tiles or use a paid tile provider (Maptiler, etc.).
+- Cluster markers when > 10 points visible (performance rule).
+- Never load all DB posts as markers — always limit to viewport bbox.
+
+---
+
 ## Rules For AI
 - Do NOT start from scratch if a file can be reused.
 - ALWAYS write `const` constructors for widgets.
 - Use `async/await` with `Result<T, E>` for error handling in the domain layer.
 - Prioritize performance for the map (clustering, limiting markers).
 - Ensure all geospatial queries use PostGIS indexes.
-- Keep UI reactive with Riverpod/BLoC, avoid setState for shared state.
+- Keep UI reactive with Riverpod, avoid setState for shared state.
 - Follow Clean Architecture: Domain -> Data -> Presentation.
-
----
-
-## Environment Variables
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `GOOGLE_MAPS_API_KEY` (if switching to Google Maps later, for now use OSM)
+- Use `AppConfig.supabaseUrl` / `AppConfig.supabaseAnonKey` — never dotenv.
+- State management: **Riverpod only** (no BLoC).

@@ -22,9 +22,10 @@ dependencies:
   shimmer: ^3.0.0
 
   # Maps & Location
-  latlong2: ^0.9.0
+  # latlong2 REMOVED: maplibre_gl has its own LatLng — using both causes type conflicts
   geolocator: ^10.1.0
   geocoding: ^2.1.1
+  maplibre_gl: ^0.26.2  # Single map library — MapLibre + OSM tiles
 
   # Backend & Auth
   supabase_flutter: ^2.0.0
@@ -42,7 +43,7 @@ dependencies:
   # Storage
   shared_preferences: ^2.2.0
 
-  # Push Notifications & Crash Reporting & App Check & Performance
+  # Push Notifications, Crash Reporting, App Check, Performance
   firebase_core: ^3.12.0
   firebase_messaging: ^15.2.0
   firebase_crashlytics: ^4.3.0
@@ -58,7 +59,7 @@ dependencies:
   uuid: ^4.2.0
   intl: ^0.18.1
 
-  maplibre_gl: ^0.26.2
+  # flutter_dotenv REMOVED: secrets now passed via --dart-define (see AppConfig)
 
 dev_dependencies:
   flutter_test:
@@ -77,5 +78,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    # NOTE: .env intentionally removed — secrets are passed via --dart-define
-    # See README section "Environment Variables" for build instructions
+    # .env intentionally absent — secrets are compile-time via --dart-define
