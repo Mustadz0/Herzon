@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:herzon/core/config/app_config.dart';
 import 'package:herzon/core/theme/app_theme.dart';
 import 'package:herzon/data/repositories/auth_repository.dart';
 import 'package:herzon/data/repositories/post_repository.dart';
@@ -54,7 +54,6 @@ void main() async {
         ),
       );
     }
-    // Release mode: generic message only — no internal details exposed
     return const Material(
       color: Color(0xFF1A1A2E),
       child: Center(
@@ -85,11 +84,14 @@ void main() async {
     );
   };
 
-  // Catch async errors that escape the Flutter framework
   PlatformDispatcher.instance.onError = (error, stack) {
     CrashlyticsService.recordError(error, stack, reason: 'PlatformDispatcher');
     return true;
   };
+
+  // Validate secrets are present before proceeding
+  // Throws a clear error at startup rather than a cryptic runtime failure
+  AppConfig.validate();
 
   try {
     await Hive.initFlutter();
@@ -103,26 +105,10 @@ void main() async {
     debugPrint('CacheService.init failed: $e');
   }
 
-  // Load environment variables from .env
-  await dotenv.load(fileName: '.env');
-
-  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
-
-  // Validate env vars before initializing — fail fast with clear message
-  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
-    debugPrint('[CRITICAL] Missing SUPABASE_URL or SUPABASE_ANON_KEY in .env');
-    assert(
-      false,
-      'SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env file',
-    );
-  }
-
   try {
-    // FIX: correct param is anonKey, not publishableKey
     await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
     );
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
@@ -142,7 +128,6 @@ void main() async {
     await NotificationService.instance.init();
   } catch (_) {}
 
-  // Firebase App Check — use debug provider in debug mode
   try {
     await FirebaseAppCheck.instance.activate(
       androidProvider: kDebugMode
@@ -154,7 +139,6 @@ void main() async {
     debugPrint('App Check init failed: $e');
   }
 
-  // Firebase Performance — disable in debug mode to reduce noise
   try {
     await FirebasePerformance.instance
         .setPerformanceCollectionEnabled(!kDebugMode);
@@ -181,7 +165,6 @@ void main() async {
 class HerzonApp extends ConsumerWidget {
   const HerzonApp({super.key});
 
-  // FIX: cache future outside build() to prevent rebuild loop
   static final Future<bool> _onboardingFuture = _checkOnboarding();
 
   static Future<bool> _checkOnboarding() async {
@@ -214,7 +197,6 @@ class HerzonApp extends ConsumerWidget {
         } else if (showOnboarding) {
           home = const OnboardingScreen();
         } else if (auth.error != null) {
-          // FIX: never expose raw error string in UI
           home = Scaffold(
             body: Center(
               child: Column(
