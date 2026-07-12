@@ -36,20 +36,16 @@ class ZoneFeedState {
 // ── Notifier ───────────────────────────────────────────────────────────────
 class ZoneFeedNotifier extends StateNotifier<ZoneFeedState> {
   final IZoneFeedRepository _repository;
+  final String _zoneKey;
 
-  ZoneFeedNotifier(this._repository) : super(const ZoneFeedState());
+  ZoneFeedNotifier(this._repository, this._zoneKey)
+      : super(const ZoneFeedState());
 
-  Future<void> load({
-    required String zoneKey,
-    required double lat,
-    required double lng,
-  }) async {
+  Future<void> load() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final posts = await _repository.getZonePosts(
-        zoneKey: zoneKey,
-        userLat: lat,
-        userLng: lng,
+        zoneId: _zoneKey,
       );
       state = state.copyWith(isLoading: false, posts: posts);
     } catch (_) {
@@ -66,5 +62,6 @@ class ZoneFeedNotifier extends StateNotifier<ZoneFeedState> {
 // ── Provider (family: one instance per zone) ───────────────────────────────
 final zoneFeedProvider =
     StateNotifierProvider.family<ZoneFeedNotifier, ZoneFeedState, String>(
-  (ref, zoneKey) => ZoneFeedNotifier(ref.read(zoneFeedRepositoryProvider)),
+  (ref, zoneKey) =>
+      ZoneFeedNotifier(ref.read(zoneFeedRepositoryProvider), zoneKey),
 );

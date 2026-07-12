@@ -29,11 +29,7 @@ class _ZoneFeedScreenState extends ConsumerState<ZoneFeedScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load(
-            zoneKey: widget.zone.zoneKey,
-            lat: widget.userLat,
-            lng: widget.userLng,
-          );
+      ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load();
     });
   }
 
@@ -87,11 +83,7 @@ class _ZoneFeedScreenState extends ConsumerState<ZoneFeedScreen> {
       // No FAB — read-only
       body: RefreshIndicator(
         onRefresh: () async =>
-            ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load(
-                  zoneKey: widget.zone.zoneKey,
-                  lat: widget.userLat,
-                  lng: widget.userLng,
-                ),
+            ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load(),
         child: _buildBody(state, t, cs),
       ),
     );
@@ -121,11 +113,7 @@ class _ZoneFeedScreenState extends ConsumerState<ZoneFeedScreen> {
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: () =>
-                    ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load(
-                          zoneKey: widget.zone.zoneKey,
-                          lat: widget.userLat,
-                          lng: widget.userLng,
-                        ),
+                    ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load(),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Réessayer'),
               ),
@@ -205,11 +193,11 @@ class _ZonePostCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: AppTheme.brandGradient,
                 ),
-                child: post.avatarUrl != null
+                child: post.userAvatarUrl != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(19),
                         child: CachedNetworkImage(
-                          imageUrl: post.avatarUrl!,
+                          imageUrl: post.userAvatarUrl!,
                           fit: BoxFit.cover,
                         ),
                       )
@@ -222,27 +210,22 @@ class _ZonePostCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      post.displayName,
+                      post.userDisplayName ?? post.userUsername ?? 'Anonyme',
                       style: tt.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      _formatDistance(post.distanceMeters),
-                      style: tt.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
               // Timestamp
-              Text(
-                _formatTime(post.createdAt),
-                style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
+              post.createdAt != null
+                  ? Text(
+                      _formatTime(post.createdAt!),
+                      style: tt.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant),
+                    )
+                  : const SizedBox.shrink(),
             ],
           ),
 
@@ -253,12 +236,12 @@ class _ZonePostCard extends StatelessWidget {
           ],
 
           // ── Media ───────────────────────────────────────────────
-          if (post.mediaUrl != null) ...[
+          if (post.mediaUrls.isNotEmpty) ...[
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: CachedNetworkImage(
-                imageUrl: post.mediaUrl!,
+                imageUrl: post.mediaUrls.first,
                 width: double.infinity,
                 height: 200,
                 fit: BoxFit.cover,
@@ -274,7 +257,7 @@ class _ZonePostCard extends StatelessWidget {
                   size: 16, color: cs.onSurfaceVariant),
               const SizedBox(width: 4),
               Text(
-                '${post.reactionsCount}',
+                '${post.reactionCounts.values.fold(0, (a, b) => a + b)}',
                 style: tt.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
                 ),
@@ -284,7 +267,7 @@ class _ZonePostCard extends StatelessWidget {
                   size: 16, color: cs.onSurfaceVariant),
               const SizedBox(width: 4),
               Text(
-                '${post.commentsCount}',
+                '${post.commentCount}',
                 style: tt.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
                 ),
@@ -298,11 +281,6 @@ class _ZonePostCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDistance(double meters) {
-    if (meters < 1000) return '${meters.round()} m';
-    return '${(meters / 1000).toStringAsFixed(1)} km';
   }
 
   String _formatTime(DateTime dt) {
