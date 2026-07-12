@@ -7,16 +7,18 @@ import '../../data/models/zone_model.dart';
 import '../providers/zone_provider.dart';
 import '../widgets/zone_bottom_sheet.dart';
 import '../widgets/zone_map_marker.dart';
+import '../widgets/suggestion_panel.dart';
 import 'zone_feed_screen.dart';
 
-/// Explorer screen — full-screen MapLibre map with hot zone overlays.
+/// Explorer screen — full-screen MapLibre map with hot zone overlays
+/// and an interest-based suggestion panel.
 ///
 /// Rules (CLAUDE.md §Two Modes):
 ///   • Read-only: no posting, commenting, or messaging.
 ///   • Tapping a zone → ZoneBottomSheet → ZoneFeedScreen (read-only).
+///   • ✨ Toggle button bottom-right → SuggestionPanel slide-up.
 ///   • Recenter button top-right.
 ///   • Search bar top.
-///   • Map tiles: OSM via demotiles (free, as per CLAUDE.md).
 class ExplorerScreen extends ConsumerStatefulWidget {
   const ExplorerScreen({super.key});
 
@@ -31,6 +33,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   double _lat = 36.7372;
   double _lng = 3.1874;
   bool _locating = false;
+  bool _showSuggestions = false;
 
   static const String _osmStyle =
       'https://demotiles.maplibre.org/style.json';
@@ -99,7 +102,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
       builder: (_) => ZoneBottomSheet(
         zone: zone,
         onEnterZone: () {
-          Navigator.pop(context); // close sheet
+          Navigator.pop(context);
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -143,7 +146,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             compassEnabled: false,
           ),
 
-          // ── Zone emoji markers (Flutter overlay until MapLibre symbols) ──
+          // ── Zone emoji markers ───────────────────────────────────────────
           if (!state.isLoading)
             ...state.zones.asMap().entries.map((entry) {
               final i    = entry.key;
@@ -193,6 +196,7 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  // Recenter button
                   GestureDetector(
                     onTap: _locating ? null : _fetchLocation,
                     child: Container(
@@ -239,9 +243,9 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             const Center(child: CircularProgressIndicator()),
 
           // ── Error banner ──────────────────────────────────────────────────
-          if (state.error != null)
+          if (state.error != null && !_showSuggestions)
             Positioned(
-              bottom: 24,
+              bottom: 88,
               left: 16,
               right: 16,
               child: Material(
@@ -254,6 +258,60 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                     style: TextStyle(color: cs.onErrorContainer),
                   ),
                 ),
+              ),
+            ),
+
+          // ── Suggestion toggle FAB ────────────────────────────────────────
+          if (!_showSuggestions)
+            Positioned(
+              bottom: 24,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => setState(() => _showSuggestions = true),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.brandGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primary.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome_rounded,
+                          color: Colors.white, size: 18),
+                      SizedBox(width: 6),
+                      Text(
+                        'Suggestions',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Suggestion panel (slide up from bottom) ──────────────────────
+          if (_showSuggestions)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: SuggestionPanel(
+                userLat: _lat,
+                userLng: _lng,
+                onClose: () => setState(() => _showSuggestions = false),
               ),
             ),
         ],
