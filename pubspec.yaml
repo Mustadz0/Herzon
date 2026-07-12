@@ -38,7 +38,7 @@ dependencies:
 
   # Charts
   fl_chart: ^0.68.0
-  
+
   # Storage
   shared_preferences: ^2.2.0
 
@@ -53,18 +53,11 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
-  # Contacts (alternative implementation using platform method channels)
-  # contacts_service: ^0.6.3
-
-  # Crash Reporting (requires newer Kotlin; keeping stub-only for now)
-  # sentry_flutter: ^7.12.0
   freezed_annotation: ^2.4.1
   json_annotation: ^4.8.1
   uuid: ^4.2.0
   intl: ^0.18.1
 
-  # Env
-  flutter_dotenv: ^5.1.0
   maplibre_gl: ^0.26.2
 
 dev_dependencies:
@@ -84,4 +77,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - .env
+    # NOTE: .env intentionally removed — secrets are passed via --dart-define
+    # See README section "Environment Variables" for build instructions
