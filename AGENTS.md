@@ -8,7 +8,7 @@ Users open the app and see real-time profiles and content from people within a *
 
 ### Two Modes
 - **"Je suis là" (Active)**: User is physically in the zone. Can post, react, message, follow, go live, and rate the vibe.
-- **"Explorer" (Passive)**: User browses the city map. Read-only for non-premium users. Limited to 3 zones/day without Premium. The main engine of addiction.
+- **"Explorer" (Passive)**: User browses the city map. Read-only for non-premium users. Limited to 3 zones/day without Premium.
 
 ---
 
@@ -20,39 +20,45 @@ Users open the app and see real-time profiles and content from people within a *
 | Language | Dart | Null-safe, modern syntax |
 | Backend | Supabase | Auth, PostgreSQL, Realtime, Storage |
 | Geospatial | PostGIS | `ST_DWithin` for 500m queries |
-| Maps | flutter_map + OpenStreetMap | Free, open-source, self-hosted tiles if needed |
-| State Management | Riverpod / BLoC | Complex state (TBD with team) |
-| Architecture | Clean Architecture | Presentation / Domain / Data layers |
+| Maps | **MapLibre GL** (`maplibre_gl`) + OpenStreetMap | `latlong2` REMOVED — use `maplibre_gl`'s own `LatLng` |
+| State Management | **Riverpod** (`flutter_riverpod`) | BLoC NOT used |
+| Architecture | Clean Architecture | Presentation / Data / Core / Services |
 
 ---
 
-## Architecture (Clean Architecture)
+## Architecture
 
 ```
 lib/
-├── main.dart              # Entry point
-├── app.dart               # MaterialApp setup
-├── core/                  # Shared utilities
+├── main.dart
+├── core/
+│   ├── config/         # AppConfig — --dart-define secrets
 │   ├── constants/
 │   ├── theme/
-│   ├── errors/
 │   └── utils/
-├── features/              # One folder per feature
-│   ├── auth/
-│   ├── feed/
-│   ├── explorer/
-│   ├── profile/
-│   └── messaging/
-├── data/                  # Repositories & data sources
+├── data/
 │   ├── models/
-│   ├── repositories/
-│   └── datasources/
-└── presentation/          # UI & State (Riverpod/BLoC)
+│   └── repositories/
+├── services/           # Cache, Crashlytics, Notifications, FeatureFlags…
+└── presentation/
     ├── providers/
-    ├── blocs/
     ├── screens/
     └── widgets/
 ```
+
+---
+
+## Environment Variables — CRITICAL
+
+Secrets are injected at **compile time** via `--dart-define`. **No `.env` files.**
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://xxx.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=eyJ...
+```
+
+Read values via `AppConfig.supabaseUrl` / `AppConfig.supabaseAnonKey`.
 
 ---
 
@@ -60,51 +66,31 @@ lib/
 
 ### Tables
 - `profiles` (extends auth.users)
-- `posts` (content, media, geolocation, context_tag)
+- `posts` (content, media, geolocation, context_tag, poll_options jsonb)
+- `poll_votes` (post_id, option_index, user_id — unique per post/user)
 - `reactions` (🔥, ⚡, 👀, ⏳)
-- `messages` (DMs, only in Active mode or Premium)
+- `messages` (DMs — Active mode or Premium only)
 - `follows` (self-referencing)
-- `zones` (for atmosphere scoring)
+- `zones` (atmosphere scoring)
 - `reports` (content moderation)
-
-### Key Geospatial Queries
-- `ST_DWithin(location, current_location, 500)` for the 500m radius feed.
-- `ST_SetSRID(ST_MakePoint(long, lat), 4326)` for point creation.
-
----
-
-## Features (MVP)
-
-### V1
-- Google Auth + Anonymous mode
-- Real-time 500m geofencing feed
-- Text/Photo posts
-- Basic Explorer map (read-only, 3 zones/day limit)
-- Reactions (🔥, ⚡, 👀, ⏳)
-- Basic user profiles & follow system
-- Content reporting
-
-### V2+
-- Vibes (short videos)
-- Live streaming + virtual gifts
-- Premium subscription (unlimited explorer, profile views, etc.)
-- Advanced notifications
-- Pro accounts for businesses
+- `blocks` (blocked users)
+- `check_ins`, `badges`, `user_badges`
+- `user_levels`, `xp_transactions`
+- `ride_shares`, `ride_passengers`
+- `pages`, `page_members`
+- `experiments`, `experiment_assignments`, `feature_config`
 
 ---
 
 ## Rules For AI
+
 - Do NOT start from scratch if a file can be reused.
 - ALWAYS write `const` constructors for widgets.
-- Use `async/await` with `Result<T, E>` for error handling in the domain layer.
-- Prioritize performance for the map (clustering, limiting markers).
-- Ensure all geospatial queries use PostGIS indexes.
-- Keep UI reactive with Riverpod/BLoC, avoid setState for shared state.
-- Follow Clean Architecture: Domain -> Data -> Presentation.
-
----
-
-## Environment Variables
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `GOOGLE_MAPS_API_KEY` (if switching to Google Maps later, for now use OSM)
+- Use `async/await`; handle errors gracefully with try/catch.
+- Prioritize map performance: cluster markers, limit to viewport bbox.
+- Ensure geospatial queries use PostGIS indexes.
+- Keep UI reactive with **Riverpod** — avoid `setState` for shared state.
+- Use `AppConfig.supabaseUrl` / `AppConfig.supabaseAnonKey` — never dotenv.
+- **Maps: `maplibre_gl` only** — never `flutter_map` or `latlong2`.
+- **State: Riverpod only** — never BLoC.
+- `SentryService` is a shim over Crashlytics — no `sentry_flutter` package needed.
