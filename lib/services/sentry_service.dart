@@ -1,11 +1,14 @@
-﻿import 'crashlytics_service.dart';
+import 'crashlytics_service.dart';
 
-/// Legacy Sentry API — now delegates to CrashlyticsService.
-/// Kept for backward compatibility with existing call sites.
+/// Thin compatibility shim — no sentry_flutter dependency needed.
+/// All error reporting is delegated to Firebase Crashlytics.
+/// Kept so existing call-sites (if any) compile without changes.
 class SentryService {
-  static Future<void> init(String dsn) async {
-    // CrashlyticsService is initialized in main(). No DSN needed.
-  }
+  // Private constructor — static-only class.
+  SentryService._();
+
+  /// No-op: Crashlytics is initialised in main() via CrashlyticsService.init().
+  static Future<void> init(String dsn) async {}
 
   static void captureException(dynamic exception, {dynamic stackTrace}) {
     CrashlyticsService.recordError(
