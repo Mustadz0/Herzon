@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
+  // ━━━ Animation Tokens (Emil Kowalski) ━━━
+  static const Curve easeOutStrong = Cubic(0.23, 1, 0.32, 1);
+  static const Curve easeInOutStrong = Cubic(0.77, 0, 0.175, 1);
+
+  static const Duration durButtonPress = Duration(milliseconds: 160);
+  static const Duration durUi = Duration(milliseconds: 200);
+  static const Duration durPage = Duration(milliseconds: 300);
+
   // ━━━ Brand Palette (Kinetic Proximity) ━━━
 
   // Primary
@@ -313,6 +321,9 @@ class AppTheme {
           textStyle: GoogleFonts.plusJakartaSans(
             fontSize: 15, fontWeight: FontWeight.w600,
           ),
+        ).copyWith(
+          elevation: WidgetStateProperty.resolveWith((s) =>
+              s.contains(WidgetState.pressed) ? 4.0 : 0.0),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -325,6 +336,9 @@ class AppTheme {
           textStyle: GoogleFonts.plusJakartaSans(
             fontSize: 14, fontWeight: FontWeight.w600,
           ),
+        ).copyWith(
+          elevation: WidgetStateProperty.resolveWith((s) =>
+              s.contains(WidgetState.pressed) ? 2.0 : 0.0),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -335,6 +349,9 @@ class AppTheme {
           textStyle: GoogleFonts.plusJakartaSans(
             fontSize: 14, fontWeight: FontWeight.w600,
           ),
+        ).copyWith(
+          elevation: WidgetStateProperty.resolveWith((s) =>
+              s.contains(WidgetState.pressed) ? 2.0 : 0.0),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -377,6 +394,12 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         elevation: 8,
         shadowColor: Colors.black.withValues(alpha: 0.15),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
       ),
       // FIX G: added backgroundColor so chips are visible on any surface
       chipTheme: ChipThemeData(
@@ -518,6 +541,9 @@ class AppTheme {
           textStyle: GoogleFonts.plusJakartaSans(
             fontSize: 15, fontWeight: FontWeight.w600,
           ),
+        ).copyWith(
+          elevation: WidgetStateProperty.resolveWith(
+              (s) => s.contains(WidgetState.pressed) ? 4.0 : 0.0),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -531,6 +557,9 @@ class AppTheme {
           textStyle: GoogleFonts.plusJakartaSans(
             fontSize: 14, fontWeight: FontWeight.w600,
           ),
+        ).copyWith(
+          elevation: WidgetStateProperty.resolveWith(
+              (s) => s.contains(WidgetState.pressed) ? 2.0 : 0.0),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -541,6 +570,9 @@ class AppTheme {
           textStyle: GoogleFonts.plusJakartaSans(
             fontSize: 14, fontWeight: FontWeight.w600,
           ),
+        ).copyWith(
+          elevation: WidgetStateProperty.resolveWith(
+              (s) => s.contains(WidgetState.pressed) ? 2.0 : 0.0),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -581,6 +613,12 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         elevation: 8,
         shadowColor: Colors.black.withValues(alpha: 0.4),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
       ),
       // FIX G: backgroundColor for chips in dark mode
       chipTheme: ChipThemeData(

@@ -68,9 +68,61 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             const SnackBar(
               content: Text('Permission de localisation requise'),
               behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+      ),
+    );
+  }
+}
+
+class _StaggerEntry extends StatefulWidget {
+  final int index;
+  final Widget child;
+  const _StaggerEntry({required this.index, required this.child});
+
+  @override
+  State<_StaggerEntry> createState() => _StaggerEntryState();
+}
+
+class _StaggerEntryState extends State<_StaggerEntry>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _opacity;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween(begin: 0.95, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
+    Future.delayed(Duration(milliseconds: (widget.index * 60).clamp(0, 600)),
+        () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) => Opacity(
+        opacity: _opacity.value,
+        child: Transform.scale(scale: _scale.value, child: child),
+      ),
+      child: widget.child,
+    );
+  }
+}
         return;
       }
       final position = await Geolocator.getCurrentPosition(
@@ -376,7 +428,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               else
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
-                    (_, i) => PostCard(post: posts[i]),
+                    (_, i) => _StaggerEntry(
+                      index: i,
+                      child: PostCard(post: posts[i]),
+                    ),
                     childCount: posts.length,
                   ),
                 ),
