@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/models/post_model.dart';
 import '../providers/post_provider.dart';
 import '../providers/story_provider.dart';
 import '../providers/notification_provider.dart';
@@ -116,16 +117,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
     // Use visiblePosts (excludes hidden)
     final rawPosts = feedState.visiblePosts;
-    final posts = _showTop
-        ? [...rawPosts]
-            ..sort((a, b) {
-              final aScore =
-                  (a.reactionCounts['herz'] ?? 0) + (a.commentCount * 2);
-              final bScore =
-                  (b.reactionCounts['herz'] ?? 0) + (b.commentCount * 2);
-              return bScore.compareTo(aScore);
-            })
-        : rawPosts;
+    final List<PostModel> posts;
+    if (_showTop) {
+      posts = List<PostModel>.of(rawPosts);
+      posts.sort((a, b) {
+        final aScore =
+            (a.reactionCounts['herz'] ?? 0) + (a.commentCount * 2);
+        final bScore =
+            (b.reactionCounts['herz'] ?? 0) + (b.commentCount * 2);
+        return bScore.compareTo(aScore);
+      });
+    } else {
+      posts = rawPosts;
+    }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: isDark
