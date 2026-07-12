@@ -100,7 +100,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     if (_currentPage == _pages.length) {
                       _onDone();
                     } else {
-                      _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                      _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
                     }
                   },
                   child: Text(_currentPage == _pages.length ? 'Commencer' : 'Suivant'),
@@ -111,7 +111,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             if (_currentPage < _pages.length)
               TextButton(
                 onPressed: () => _controller.animateToPage(
-                  _pages.length, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
+                  _pages.length, duration: const Duration(milliseconds: 300), curve: Curves.easeOut),
                 child: const Text('Passer'),
               ),
             const SizedBox(height: 32),
