@@ -1,0 +1,34 @@
+{
+  "project_info": {
+    "project_number": "730774455461",
+    "project_id": "hoyzen-7fad5",
+    "storage_bucket": "hoyzen-7fad5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:730774455461:android:04b948eb31955b9f1d394c",
+        "android_client_info": {
+          "package_name": "com.heron.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "730774455461-9m0ki1ustkrcpj521qrcnqgk3dvs6984.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzjrRZnuiP0jRpvsA8dTA-E4FQ7SInLXA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
