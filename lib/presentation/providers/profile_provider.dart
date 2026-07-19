@@ -1,7 +1,7 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import 'auth_provider.dart' show authRepositoryProvider;
 
 class ProfileState {
   final UserModel? profile;
@@ -61,10 +61,6 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     state = const ProfileState();
   }
 }
-
-final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  return SupabaseAuthRepository(supabase: Supabase.instance.client);
-});
 
 final profileProvider =
     StateNotifierProvider.family<ProfileNotifier, ProfileState, String>(

@@ -19,6 +19,23 @@ class PollOptionData {
   /// Returns the percentage of this option out of [totalVotes].
   double percentageOf(int totalVotes) =>
       totalVotes == 0 ? 0.0 : (votes / totalVotes) * 100;
+
+  /// Parses poll data from either a jsonb object `{"options": [...]}` or a raw list.
+  static List<PollOptionData>? parseList(dynamic pollRaw) {
+    if (pollRaw is Map<String, dynamic>) {
+      final opts = pollRaw['options'];
+      if (opts is List) {
+        return opts
+            .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    } else if (pollRaw is List) {
+      return pollRaw
+          .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return null;
+  }
 }
 
 /// Post Model - represents a feed post
@@ -96,22 +113,7 @@ class PostModel {
       lng = (json['longitude'] as num).toDouble();
     }
 
-    // Parse poll: RPC returns jsonb object with 'options' key,
-    // or direct list from DB insert response
-    List<PollOptionData>? pollOptions;
-    final pollRaw = json['poll'];
-    if (pollRaw is Map<String, dynamic>) {
-      final opts = pollRaw['options'];
-      if (opts is List) {
-        pollOptions = opts
-            .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-    } else if (pollRaw is List) {
-      pollOptions = pollRaw
-          .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
+    final pollOptions = PollOptionData.parseList(json['poll']);
 
     return PostModel(
       id: json['id'] as String,

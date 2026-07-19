@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import '../models/post_model.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IPostRepository {
   Future<List<PostModel>> getNearbyPosts(
@@ -28,6 +30,12 @@ abstract class IPostRepository {
   Future<void> unhidePost(String postId);
 
   Future<Set<String>> getHiddenPostIds();
+
+  Future<List<PostModel>> getTrendingPosts(
+    LatLng location,
+    double radiusMeters, {
+    int resultLimit = 20,
+  });
 }
 
 class SupabasePostRepository implements IPostRepository {
@@ -56,21 +64,7 @@ class SupabasePostRepository implements IPostRepository {
 
     return (response as List<dynamic>).map((json) {
       final j = json as Map<String, dynamic>;
-      // Poll: RPC returns jsonb object with 'options' key
-      List<PollOptionData>? pollOptions;
-      final pollRaw = j['poll'];
-      if (pollRaw is Map<String, dynamic>) {
-        final opts = pollRaw['options'];
-        if (opts is List) {
-          pollOptions = opts
-              .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
-      } else if (pollRaw is List) {
-        pollOptions = pollRaw
-            .map((e) => PollOptionData.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
+      final pollOptions = PollOptionData.parseList(j['poll']);
 
       return PostModel(
         id: j['id'] as String,
@@ -147,25 +141,27 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<void> reactToPost(String postId, String reactionType) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
     await _supabase.from('reactions').upsert({
       'post_id': postId,
-      'user_id': userId,
+      'user_id': uuid,
       'reaction_type': reactionType,
     }, onConflict: 'post_id,user_id');
   }
 
   @override
   Future<void> removeReaction(String postId, String reactionType) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
     await _supabase
         .from('reactions')
         .delete()
         .eq('post_id', postId)
         .eq('reaction_type', reactionType)
-        .eq('user_id', userId);
+        .eq('user_id', uuid);
   }
 
   @override
@@ -186,36 +182,59 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<void> hidePost(String postId) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
     await _supabase.from('hidden_posts').upsert({
-      'user_id': userId,
+      'user_id': uuid,
       'post_id': postId,
     }, onConflict: 'user_id,post_id');
   }
 
   @override
   Future<void> unhidePost(String postId) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
     await _supabase
         .from('hidden_posts')
         .delete()
-        .eq('user_id', userId)
+        .eq('user_id', uuid)
         .eq('post_id', postId);
   }
 
   @override
   Future<Set<String>> getHiddenPostIds() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return {};
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) return {};
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
     final response = await _supabase
         .from('hidden_posts')
         .select('post_id')
-        .eq('user_id', userId);
+        .eq('user_id', uuid);
     return (response as List<dynamic>)
         .map((e) => e['post_id'] as String)
         .toSet();
+  }
+
+  @override
+  Future<List<PostModel>> getTrendingPosts(
+    LatLng location,
+    double radiusMeters, {
+    int resultLimit = 20,
+  }) async {
+    final response = await _supabase.rpc(
+      'get_trending_posts',
+      params: {
+        'user_lat': location.latitude,
+        'user_lng': location.longitude,
+        'radius_meters': radiusMeters,
+        'result_limit': resultLimit,
+      },
+    );
+    return (response as List<dynamic>)
+        .map((json) => PostModel.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   MediaType _parseMediaType(String? type) {

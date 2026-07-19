@@ -1,5 +1,6 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
+﻿import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/marketplace_item_model.dart';
 import '../../services/media_upload_service.dart';
@@ -19,7 +20,7 @@ abstract class IMarketplaceRepository {
     double? price,
     String currency = 'DZD',
     required String category,
-    required List<dynamic> mediaFiles,
+    required List<File> mediaFiles,
     required LatLng location,
   });
   Future<void> markAsSold(String itemId, String userId);
@@ -67,11 +68,11 @@ class SupabaseMarketplaceRepository implements IMarketplaceRepository {
     double? price,
     String currency = 'DZD',
     required String category,
-    required List<dynamic> mediaFiles,
+    required List<File> mediaFiles,
     required LatLng location,
   }) async {
     final urls = await _mediaUpload.uploadPostMedia(
-      files: mediaFiles.cast(),
+      files: mediaFiles,
       userId: userId,
     );
     await _supabase.from('marketplace_items').insert({

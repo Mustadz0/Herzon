@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../providers/follow_provider.dart';
 import '../providers/gamification_provider.dart';
 import '../providers/block_provider.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/repositories/follow_repository.dart';
 import '../widgets/post_card.dart';
 import '../widgets/xp_level_badge.dart';
@@ -27,13 +29,14 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   int _postCount = 0;
   int _followerCount = 0;
   int _followingCount = 0;
+  late final String _uuid = widget.userId;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(gamificationProvider.notifier).loadUserStats(widget.userId);
+      ref.read(gamificationProvider.notifier).loadUserStats(_uuid);
     });
   }
 
@@ -43,12 +46,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       final profile = await Supabase.instance.client
           .from('profiles')
           .select()
-          .eq('id', widget.userId)
+          .eq('id', _uuid)
           .single();
       final posts = await Supabase.instance.client.rpc(
         'get_user_posts',
         params: {
-          'target_user_id': widget.userId,
+          'target_user_id': _uuid,
           'page': 1,
           'page_size': 50,
         },
@@ -56,7 +59,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       await _refreshCounts();
       await ref
           .read(gamificationProvider.notifier)
-          .loadUserStats(widget.userId);
+          .loadUserStats(_uuid);
 
       if (mounted) {
         setState(() {
@@ -98,8 +101,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   Future<void> _refreshCounts() async {
     final followRepo = ref.read(followRepositoryProvider);
-    final fc = await followRepo.getFollowerCount(widget.userId);
-    final fwc = await followRepo.getFollowingCount(widget.userId);
+    final fc = await followRepo.getFollowerCount(_uuid);
+    final fwc = await followRepo.getFollowingCount(_uuid);
     if (mounted) {
       setState(() {
         _followerCount = fc;
@@ -112,11 +115,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    final followState = ref.watch(followProvider(widget.userId));
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    final isOwnProfile = currentUser?.id == widget.userId;
+    final followState = ref.watch(followProvider(_uuid));
+    final fbUser = FirebaseAuth.instance.currentUser;
+    final isOwnProfile = fbUser != null && FirebaseUuid.toUuid(fbUser.uid) == widget.userId;
 
-    ref.listen<FollowState>(followProvider(widget.userId), (prev, next) {
+    ref.listen<FollowState>(followProvider(_uuid), (prev, next) {
       if (prev?.isFollowing != next.isFollowing && !next.isLoading) {
         _refreshCounts();
       }
@@ -306,17 +309,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                               width: double.infinity,
                               child: OutlinedButton.icon(
                                 onPressed: () async {
-                                  final userId = widget.userId;
-                                  final userName =
-                                      _profile?['display_name'] ??
-                                          'Utilisateur';
-                                  try {
-                                    final convId = await Supabase
-                                        .instance.client
-                                        .rpc(
-                                      'get_or_create_conversation',
-                                      params: {
-                                        'other_user_id': userId
+                                   final userId = widget.userId;
+                                   final userName =
+                                       _profile?['display_name'] ??
+                                           'Utilisateur';
+                                   try {
+                                     final convId = await Supabase
+                                         .instance.client
+                                         .rpc(
+                                       'get_or_create_conversation',
+                                       params: {
+                                          'other_user_id': userId
                                       },
                                     );
                                     if (!context.mounted) return;

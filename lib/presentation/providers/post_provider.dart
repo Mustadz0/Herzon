@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,6 +8,7 @@ import '../../data/repositories/post_repository.dart';
 import '../../services/location_service.dart';
 import '../../services/media_upload_service.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class FeedState {
   final List<PostModel> posts;
@@ -130,10 +132,11 @@ class PostNotifier extends StateNotifier<FeedState> {
   }
 
   Future<int> createPost(String content, String? contextTag,
-      {List<File>? mediaFiles, String? stickerId}) async {
+      {List<File>? mediaFiles, String? stickerId, List<String>? pollOptions}) async {
     final pos = await _locationService.initializeLocation();
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) throw Exception('Not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final uid = FirebaseUuid.toUuid(fbUser.uid);
 
     List<String> mediaUrls = [];
     String mediaType = 'text';
@@ -148,12 +151,12 @@ class PostNotifier extends StateNotifier<FeedState> {
         mediaType = 'image';
       }
       mediaUrls = await _mediaUpload.uploadPostMedia(
-          files: mediaFiles, userId: user.id);
+          files: mediaFiles, userId: uid);
     }
 
     final post = PostModel(
       id: '',
-      userId: user.id,
+      userId: uid,
       content: content,
       latitude: pos.latitude,
       longitude: pos.longitude,
@@ -163,6 +166,9 @@ class PostNotifier extends StateNotifier<FeedState> {
           : (mediaUrls.isNotEmpty ? MediaType.image : MediaType.text),
       contextTag: contextTag,
       stickerId: stickerId,
+      pollOptions: pollOptions
+          ?.map((e) => PollOptionData(text: e))
+          .toList(),
     );
     await _repo.createPost(post);
     await loadFeed();

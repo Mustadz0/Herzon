@@ -1,79 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:chewie/chewie.dart';
-import 'package:video_player/video_player.dart';
 import '../../data/models/post_model.dart';
 import '../../core/constants/sticker_constants.dart';
 import '../providers/post_provider.dart';
+import '../providers/auth_provider.dart';
 import '../screens/comments_screen.dart';
 import '../screens/user_profile_screen.dart';
 import '../screens/report_screen.dart';
 import '../screens/edit_post_screen.dart';
 import '../screens/conversation_screen.dart';
 import '../../core/theme/app_theme.dart';
+import 'post_video_player.dart';
+import 'post_photo_view.dart';
 
 class PostCard extends ConsumerStatefulWidget {
   final PostModel post;
-  const PostCard({super.key, required this.post});
+  final bool isExplorerMode;
+  const PostCard({super.key, required this.post, this.isExplorerMode = false});
 
   @override
   ConsumerState<PostCard> createState() => _PostCardState();
 }
 
 class _PostCardState extends ConsumerState<PostCard> {
-  VideoPlayerController? _videoController;
-  ChewieController? _chewieController;
-  bool _isVideoInit = false;
-
-  // ── Vignette state ──────────────────────────
   OverlayEntry? _vignetteOverlay;
-
-  @override
-  void initState() {
-    super.initState();
-    _initVideo();
-  }
-
-  void _initVideo() {
-    final mediaUrls = widget.post.mediaUrls;
-    if (widget.post.mediaType == MediaType.video &&
-        mediaUrls.isNotEmpty &&
-        !_isVideoInit) {
-      _isVideoInit = true;
-      _videoController =
-          VideoPlayerController.networkUrl(Uri.parse(mediaUrls.first));
-      _videoController!.initialize().then((_) {
-        if (mounted) {
-          _chewieController = ChewieController(
-            videoPlayerController: _videoController!,
-            autoPlay: false,
-            looping: true,
-            aspectRatio: 16 / 9,
-            showControls: true,
-            materialProgressColors: ChewieProgressColors(
-              playedColor: const Color(0xFF4F46E5),
-              handleColor: const Color(0xFF4F46E5),
-              backgroundColor: Colors.white24,
-              bufferedColor: Colors.white12,
-            ),
-          );
-          setState(() {});
-        }
-      });
-    }
-  }
 
   @override
   void dispose() {
     _removeVignette();
-    _chewieController?.dispose();
-    _videoController?.dispose();
     super.dispose();
   }
 
-  // ── Vignette popup ───────────────────────────
+  bool get _isNewPost {
+    final createdAt = widget.post.createdAt ?? DateTime.now();
+    final diff = DateTime.now().difference(createdAt);
+    return diff.inMinutes < 5;
+  }
+
+  void _sharePost() {
+    final post = widget.post;
+    final shareText =
+        '${post.userDisplayName ?? post.userUsername ?? "Quelqu\'un"} a partagé sur Herzon:\n${post.content}\nhttps://herzon.app/post/${post.id}';
+    Clipboard.setData(ClipboardData(text: shareText));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Lien copié !'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _hidePost() {
+    ref.read(postProvider.notifier).hidePost(widget.post.id);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Publication masquée'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Annuler',
+          onPressed: () => ref.read(postProvider.notifier).unhidePost(widget.post.id),
+        ),
+      ),
+    );
+  }
+
   void _showVignette(String imageUrl) {
     _removeVignette();
     _vignetteOverlay = OverlayEntry(
@@ -90,48 +82,22 @@ class _PostCardState extends ConsumerState<PostCard> {
     _vignetteOverlay = null;
   }
 
-  // ── Is New (< 5 min) ────────────────────────
-  bool get _isNewPost {
-    final createdAt = widget.post.createdAt ?? DateTime.now();
-    final diff = DateTime.now().difference(createdAt);
-    return diff.inMinutes < 5;
-  }
-
-  // ── Share post ──────────────────────────────
-  void _sharePost() {
-    final post = widget.post;
-    final shareText =
-        '${post.userDisplayName ?? post.userUsername ?? "Quelqu\'un"} a partagé sur Herzon:\n${post.content}\nhttps://herzon.app/post/${post.id}';
-    Clipboard.setData(ClipboardData(text: shareText));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Lien copié !'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  // ── Hide post ───────────────────────────────
-  void _hidePost() {
-    ref.read(postProvider.notifier).hidePost(widget.post.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Publication masquée'),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'Annuler',
-          onPressed: () => ref.read(postProvider.notifier).unhidePost(widget.post.id),
-        ),
-      ),
-    );
+  void _toggleReaction(String type) async {
+    final notifier = ref.read(postProvider.notifier);
+    final feed = ref.read(postProvider);
+    final isActive = feed.userReactions[widget.post.id]?.contains(type) ?? false;
+    if (isActive) {
+      await notifier.removeReaction(widget.post.id, type);
+    } else {
+      await notifier.reactToPost(widget.post.id, type);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
-    final user = Supabase.instance.client.auth.currentUser;
-    final isOwnPost = user != null && post.userId == user.id;
+    final currentUserId = ref.watch(currentUserIdProvider);
+    final isOwnPost = currentUserId != null && post.userId == currentUserId;
     final feed = ref.watch(postProvider);
     final userReactions = feed.userReactions;
     final isHerzed = userReactions[post.id]?.contains('herz') ?? false;
@@ -155,96 +121,9 @@ class _PostCardState extends ConsumerState<PostCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Media section
-          _buildMediaSection(post, isOwnPost, isHerzed),
-
-          // ── Action row ───────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-            child: Row(
-              children: [
-                // ❤ Herz reaction (photo + sticker + text posts)
-                if (post.mediaType != MediaType.video)
-                  _HerzButton(
-                    isHerzed: isHerzed,
-                    count: _reactionCount(post, 'herz'),
-                    onTap: () => _toggleReaction('herz'),
-                  ),
-                if (post.mediaType != MediaType.video)
-                  const SizedBox(width: 12),
-
-                // 💬 Comments
-                _actionIcon(Icons.chat_bubble_outline, post.commentCount.toString(), () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CommentsScreen(postId: post.id),
-                    ),
-                  );
-                }),
-                const SizedBox(width: 16),
-
-                // ↗ Share
-                _actionIcon(Icons.send_outlined, 'Partager', _sharePost),
-                const Spacer(),
-
-                // ⋯ More menu
-                PopupMenuButton<String>(
-                  onSelected: (val) {
-                    if (val == 'delete') {
-                      _confirmDelete(context);
-                    } else if (val == 'edit') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => EditPostScreen(
-                            postId: post.id,
-                            currentContent: post.content,
-                          ),
-                        ),
-                      ).then((updated) {
-                        if (updated == true) {
-                          ref.read(postProvider.notifier).loadFeed();
-                        }
-                      });
-                    } else if (val == 'signaler') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReportScreen(postId: post.id),
-                        ),
-                      );
-                    } else if (val == 'masquer') {
-                      _hidePost();
-                    } else if (val == 'interesser') {
-                      _toggleReaction('herz');
-                    }
-                  },
-                  color: const Color(0xFF2A2A2A),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  icon: Icon(
-                    Icons.more_horiz,
-                    color: Colors.white.withValues(alpha: 0.6),
-                    size: 20,
-                  ),
-                  itemBuilder: (_) => [
-                    _popupItem('Intéresser', 'interesser', Icons.favorite_border),
-                    _popupItem('Masquer', 'masquer', Icons.visibility_off_outlined),
-                    _popupItem('Signaler', 'signaler', Icons.flag_outlined),
-                    if (isOwnPost) ...[
-                      const PopupMenuDivider(),
-                      _popupItem('Modifier', 'edit', Icons.edit_outlined),
-                      _popupItem('Supprimer', 'delete', Icons.delete_outline, color: Colors.red),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Description
+          _buildMediaSection(post, isHerzed),
+          if (!widget.isExplorerMode)
+            _buildActionRow(post, isOwnPost, isHerzed),
           if (post.content.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -278,7 +157,101 @@ class _PostCardState extends ConsumerState<PostCard> {
     );
   }
 
-  // ── Confirm delete dialog ────────────────────────────────────────────────
+  Widget _buildMediaSection(PostModel post, bool isHerzed) {
+    if (post.mediaType == MediaType.video && post.mediaUrls.isNotEmpty) {
+      return PostVideoPlayer(
+        post: post,
+        isHerzed: isHerzed,
+        isNewPost: _isNewPost,
+        onToggleReaction: () => _toggleReaction('herz'),
+      );
+    } else if (post.mediaUrls.isNotEmpty) {
+      return PostPhotoView(post: post);
+    } else if (post.stickerId != null) {
+      return _buildStickerCard(post);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildStickerCard(PostModel post) {
+    final sticker = AppStickers.getStickerById(post.stickerId!);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      color: Colors.grey[900],
+      child: Center(
+        child: Text(sticker?.emoji ?? '😀',
+            style: const TextStyle(fontSize: 64)),
+      ),
+    );
+  }
+
+  Widget _buildActionRow(PostModel post, bool isOwnPost, bool isHerzed) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: Row(
+        children: [
+          if (post.mediaType != MediaType.video)
+            _HerzButton(
+              isHerzed: isHerzed,
+              count: _reactionCount(post, 'herz'),
+              onTap: () => _toggleReaction('herz'),
+            ),
+          if (post.mediaType != MediaType.video)
+            const SizedBox(width: 12),
+          _actionIcon(Icons.chat_bubble_outline, post.commentCount.toString(), () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CommentsScreen(postId: post.id),
+              ),
+            );
+          }),
+          const SizedBox(width: 16),
+          _actionIcon(Icons.send_outlined, 'Partager', _sharePost),
+          const Spacer(),
+          PopupMenuButton<String>(
+            onSelected: (val) {
+              if (val == 'delete') _confirmDelete(context);
+              else if (val == 'edit') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EditPostScreen(
+                      postId: post.id,
+                      currentContent: post.content,
+                    ),
+                  ),
+                ).then((updated) {
+                  if (updated == true) ref.read(postProvider.notifier).loadFeed();
+                });
+              } else if (val == 'signaler') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ReportScreen(postId: post.id)),
+                );
+              } else if (val == 'masquer') _hidePost();
+              else if (val == 'interesser') _toggleReaction('herz');
+            },
+            color: const Color(0xFF2A2A2A),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            icon: Icon(Icons.more_horiz, color: Colors.white.withValues(alpha: 0.6), size: 20),
+            itemBuilder: (_) => [
+              _popupItem('Intéresser', 'interesser', Icons.favorite_border),
+              _popupItem('Masquer', 'masquer', Icons.visibility_off_outlined),
+              _popupItem('Signaler', 'signaler', Icons.flag_outlined),
+              if (isOwnPost) ...[
+                const PopupMenuDivider(),
+                _popupItem('Modifier', 'edit', Icons.edit_outlined),
+                _popupItem('Supprimer', 'delete', Icons.delete_outline, color: Colors.red),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   void _confirmDelete(BuildContext context) {
     showDialog<bool>(
       context: context,
@@ -309,555 +282,10 @@ class _PostCardState extends ConsumerState<PostCard> {
     });
   }
 
-  Widget _buildMediaSection(PostModel post, bool isOwnPost, bool isHerzed) {
-    if (post.mediaType == MediaType.video && post.mediaUrls.isNotEmpty) {
-      return _buildVideoCard(post, isHerzed);
-    } else if (post.mediaUrls.isNotEmpty) {
-      return _buildPhotoMosaic(post);
-    } else if (post.stickerId != null) {
-      return _buildStickerCard(post);
-    } else {
-      return const SizedBox.shrink();
-    }
-  }
-
-  // ── Video card ───────────────────────────────
-  Widget _buildVideoCard(PostModel post, bool isHerzed) {
-    return SizedBox(
-      width: double.infinity,
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: Stack(
-          children: [
-            _chewieController != null &&
-                    _chewieController!
-                        .videoPlayerController.value.isInitialized
-                ? Chewie(controller: _chewieController!)
-                : Container(
-                    color: Colors.black,
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF4F46E5),
-                      ),
-                    ),
-                  ),
-
-            // Dark gradient top
-            Positioned(
-              top: 0, left: 0, right: 0,
-              height: 120,
-              child: IgnorePointer(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.6),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // Profile at top-left
-            Positioned(
-              top: 12, left: 12,
-              child: GestureDetector(
-                onTap: () => _showProfilePopup(post),
-                child: Row(
-                  children: [
-                    Stack(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundImage: post.userAvatarUrl != null
-                              ? NetworkImage(post.userAvatarUrl!)
-                              : null,
-                          backgroundColor:
-                              const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                          child: post.userAvatarUrl == null
-                              ? Text(
-                                  post.userDisplayName?.isNotEmpty == true
-                                      ? post.userDisplayName![0].toUpperCase()
-                                      : '?',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        if (_isNewPost)
-                          Positioned(
-                            bottom: 0, right: 0,
-                            child: Container(
-                              width: 10, height: 10,
-                              decoration: BoxDecoration(
-                                color: Colors.greenAccent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.black, width: 1.5),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.userDisplayName ?? post.userUsername ?? 'Inconnu',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            if (_isNewPost)
-                              Container(
-                                margin: const EdgeInsets.only(right: 4),
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.greenAccent.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Nouveau',
-                                  style: TextStyle(
-                                    color: Colors.greenAccent,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            Text(
-                              'La Zone',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Actions at top-right (video)
-            Positioned(
-              top: 12, right: 8,
-              child: Column(
-                children: [
-                  _overlayIcon(Icons.favorite, isHerzed,
-                      () => _toggleReaction('herz')),
-                  const SizedBox(height: 4),
-                  Text(
-                    _reactionCount(post, 'herz'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _overlayIcon(Icons.chat_bubble_outline, false, () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CommentsScreen(postId: post.id),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 8),
-                  _overlayIcon(Icons.send_outlined, false, _sharePost),
-                  const SizedBox(height: 8),
-                  _overlayIcon(Icons.bookmark_border, false, () {
-                    _toggleReaction('bookmark');
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Publication enregistrée'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: 24, height: 24,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(Icons.music_note,
-                        color: Colors.white, size: 14),
-                  ),
-                ],
-              ),
-            ),
-
-            Positioned(
-              bottom: 12, right: 8,
-              child: PopupMenuButton<String>(
-                onSelected: (val) {
-                  if (val == 'like') _toggleReaction('herz');
-                  if (val == 'masquer') _hidePost();
-                  if (val == 'signaler') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ReportScreen(postId: post.id),
-                      ),
-                    );
-                  }
-                },
-                color: const Color(0xFF2A2A2A),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                icon: Icon(
-                  Icons.more_vert,
-                  color: Colors.white.withValues(alpha: 0.7),
-                  size: 18,
-                ),
-                itemBuilder: (_) => [
-                  _popupItem('Intéresser', 'like', Icons.favorite_border),
-                  _popupItem('Masquer', 'masquer', Icons.visibility_off_outlined),
-                  _popupItem('Signaler', 'signaler', Icons.flag_outlined),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Photo mosaic ────────────────────────────
-  Widget _buildPhotoMosaic(PostModel post) {
-    final urls = post.mediaUrls;
-    if (urls.length == 1) {
-      return GestureDetector(
-        onTap: () => _showVignette(urls[0]),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            urls[0],
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: 300,
-            errorBuilder: (_, __, ___) => Container(
-              height: 300,
-              color: Colors.grey[900],
-              child: const Center(
-                child: Icon(Icons.broken_image, color: Colors.white24),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 300,
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: GestureDetector(
-              onTap: () => _showVignette(urls[0]),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  urls[0],
-                  fit: BoxFit.cover,
-                  height: 300,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.grey[900],
-                    child: const Center(
-                      child: Icon(Icons.broken_image, color: Colors.white24),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            flex: 2,
-            child: Column(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: urls.length > 1 ? () => _showVignette(urls[1]) : null,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        urls.length > 1 ? urls[1] : '',
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (_, __, ___) =>
-                            Container(color: Colors.grey[900]),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: urls.length > 2 ? () => _showVignette(urls[2]) : null,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: urls.length > 2
-                          ? Image.network(
-                              urls[2],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, __, ___) =>
-                                  Container(color: Colors.grey[900]),
-                            )
-                          : Container(color: Colors.grey[900]),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStickerCard(PostModel post) {
-    final sticker = AppStickers.getStickerById(post.stickerId!);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(32),
-      color: Colors.grey[900],
-      child: Center(
-        child: Text(sticker?.emoji ?? '😀',
-            style: const TextStyle(fontSize: 64)),
-      ),
-    );
-  }
-
-  void _showProfilePopup(PostModel post) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1A1A1A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundImage: post.userAvatarUrl != null
-                        ? NetworkImage(post.userAvatarUrl!)
-                        : null,
-                    backgroundColor:
-                        const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                    child: post.userAvatarUrl == null
-                        ? Text(
-                            post.userDisplayName?.isNotEmpty == true
-                                ? post.userDisplayName![0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.userDisplayName ?? post.userUsername ?? 'Inconnu',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.near_me,
-                                color: Color(0xFF4F46E5), size: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              'La Zone',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    color: const Color(0xFF2A2A2A),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: Colors.white.withValues(alpha: 0.6),
-                      size: 20,
-                    ),
-                    itemBuilder: (_) => [
-                      _popupItem('Signaler', 'signaler', Icons.flag_outlined),
-                    ],
-                    onSelected: (val) {
-                      Navigator.pop(ctx);
-                      if (val == 'signaler') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ReportScreen(postId: post.id),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _sheetButton('Visiter le profil', Icons.person_outline, () {
-                      Navigator.pop(ctx);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => UserProfileScreen(userId: post.userId),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _sheetButton('Envoyer message', Icons.message_outlined, () async {
-                      Navigator.pop(ctx);
-                      try {
-                        final result = await Supabase.instance.client.rpc(
-                          'get_or_create_conversation',
-                          params: {'other_user_id': post.userId},
-                        );
-                        if (mounted && result != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ConversationScreen(
-                                conversationId: result as String,
-                                otherUserId: post.userId,
-                                otherUserName: post.userDisplayName ?? post.userUsername ?? 'Utilisateur',
-                              ),
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Erreur: $e'), behavior: SnackBarBehavior.floating),
-                          );
-                        }
-                      }
-                    }),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _sheetButton('Emplacement', Icons.location_on_outlined, () {
-                      Navigator.pop(ctx);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => UserProfileScreen(userId: post.userId),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _toggleReaction(String type) async {
-    final notifier = ref.read(postProvider.notifier);
-    final feed = ref.read(postProvider);
-    final isActive = feed.userReactions[widget.post.id]?.contains(type) ?? false;
-    if (isActive) {
-      await notifier.removeReaction(widget.post.id, type);
-    } else {
-      await notifier.reactToPost(widget.post.id, type);
-    }
-  }
-
   String _reactionCount(PostModel post, String type) {
     final count = post.reactionCounts[type] ?? 0;
     if (count > 999) return '${(count / 1000).toStringAsFixed(1)}k';
     return count.toString();
-  }
-
-  Widget _overlayIcon(IconData icon, bool active, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32, height: 32,
-        decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFF4F46E5).withValues(alpha: 0.3)
-              : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: active
-              ? const Color(0xFF4F46E5)
-              : Colors.white.withValues(alpha: 0.8),
-          size: 20,
-        ),
-      ),
-    );
   }
 
   Widget _actionIcon(IconData icon, String label, VoidCallback onTap) {
@@ -888,36 +316,13 @@ class _PostCardState extends ConsumerState<PostCard> {
         children: [
           Icon(icon, color: color ?? Colors.white.withValues(alpha: 0.7), size: 18),
           const SizedBox(width: 10),
-          Text(
-            label,
-            style: TextStyle(
-              color: color ?? Colors.white.withValues(alpha: 0.8),
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: TextStyle(color: color ?? Colors.white.withValues(alpha: 0.8), fontSize: 13)),
         ],
-      ),
-    );
-  }
-
-  Widget _sheetButton(String label, IconData icon, VoidCallback onTap) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white.withValues(alpha: 0.8),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.symmetric(vertical: 12),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Herz button widget (photo / sticker / text posts)
-// ─────────────────────────────────────────────────────────────────────────────
 class _HerzButton extends StatelessWidget {
   final bool isHerzed;
   final String count;
@@ -971,9 +376,6 @@ class _HerzButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Vignette Popup
-// ─────────────────────────────────────────────────────────────────────────────
 class _VignettePopup extends StatefulWidget {
   final String imageUrl;
   final VoidCallback onClose;
@@ -1064,11 +466,7 @@ class _VignettePopupState extends State<_VignettePopup>
                             errorBuilder: (_, __, ___) => Container(
                               width: 200, height: 200,
                               color: Colors.grey[900],
-                              child: const Icon(
-                                Icons.broken_image,
-                                color: Colors.white24,
-                                size: 48,
-                              ),
+                              child: const Icon(Icons.broken_image, color: Colors.white24, size: 48),
                             ),
                           ),
                         ),
@@ -1086,9 +484,7 @@ class _VignettePopupState extends State<_VignettePopup>
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
-                        ),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                       ),
                       child: const Icon(Icons.close, color: Colors.white, size: 18),
                     ),

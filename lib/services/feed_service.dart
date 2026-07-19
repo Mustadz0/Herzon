@@ -1,5 +1,5 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../data/models/post_model.dart';
 import '../data/repositories/post_repository.dart';

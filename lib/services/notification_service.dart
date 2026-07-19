@@ -4,7 +4,9 @@ import 'dart:io' show Platform;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('Background FCM: ${message.messageId} ${message.notification?.title}');
+}
 
 class NotificationService {
   static NotificationService? _instance;
@@ -39,7 +41,7 @@ class NotificationService {
         'fcm_token': token,
         'platform': platform,
       });
-    } catch (_) {}
+    } catch (e) { debugPrint('NotificationService: $e'); }
   }
 
   Future<void> deleteToken() async {
@@ -51,7 +53,7 @@ class NotificationService {
             .delete()
             .eq('user_id', user.id);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('NotificationService: $e'); }
   }
 }
 

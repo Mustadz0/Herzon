@@ -1,5 +1,7 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IPollRepository {
   /// Cast a vote on a poll post
@@ -19,8 +21,9 @@ class SupabasePollRepository implements IPollRepository {
 
   @override
   Future<void> votePoll(String postId, int optionIndex) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     await _supabase.rpc('vote_poll', params: {
       'post_id': postId,
@@ -41,7 +44,7 @@ class SupabasePollRepository implements IPollRepository {
         .from('poll_votes')
         .select('id')
         .eq('post_id', postId)
-        .eq('user_id', userId)
+        .eq('user_id', FirebaseUuid.toUuid(userId))
         .maybeSingle();
     return result != null;
   }

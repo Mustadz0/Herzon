@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/story_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/story_model.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../screens/story_viewer_screen.dart';
 
 class StoryCircleRow extends ConsumerStatefulWidget {
@@ -23,25 +25,27 @@ class _StoryCircleRowState extends ConsumerState<StoryCircleRow> {
   }
 
   Future<void> _checkVibesPermission() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) return;
     try {
       final profile = await Supabase.instance.client
           .from('profiles')
           .select('can_use_vibes, is_admin')
-          .eq('id', user.id)
+          .eq('id', FirebaseUuid.toUuid(fbUser.uid))
           .single();
       if (mounted) {
         setState(() {
           _canUseVibes = profile['can_use_vibes'] == true || profile['is_admin'] == true;
         });
       }
-    } catch (_) {}
+        } catch (e) { debugPrint('StoryCircleRow: $e'); }
   }
 
   @override
   Widget build(BuildContext context) {
     final storyState = ref.watch(storyProvider);
+
+
     final stories = storyState.stories;
 
     if (storyState.isLoading) {

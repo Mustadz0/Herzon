@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/post_model.dart';
 import '../../data/models/comment_model.dart';
 import '../../data/repositories/comment_repository.dart';
@@ -38,9 +40,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     if (content.isEmpty) return;
     setState(() => _isSending = true);
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-      await ref.read(commentRepositoryProvider).addComment(widget.post.id, user.id, content);
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser == null) return;
+      await ref.read(commentRepositoryProvider).addComment(widget.post.id, FirebaseUuid.toUuid(fbUser.uid), content);
       _commentController.clear();
       ref.invalidate(_detailCommentsProvider(widget.post.id));
       ref.read(postProvider.notifier).loadFeed();
@@ -55,8 +57,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final post = widget.post;
-    final user = Supabase.instance.client.auth.currentUser;
-    final isOwnPost = user != null && user.id == post.userId;
+    final fbUser = FirebaseAuth.instance.currentUser;
+    final isOwnPost = fbUser != null && FirebaseUuid.toUuid(fbUser.uid) == post.userId;
     final followState = ref.watch(followProvider(post.userId));
     final commentsAsync = ref.watch(_detailCommentsProvider(post.id));
 

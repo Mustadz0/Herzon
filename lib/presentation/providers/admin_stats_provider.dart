@@ -1,23 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-class DashboardStats {
-  final int totalUsers;
-  final int totalPosts;
-  final int pendingReports;
-  final int activeUsersToday;
-  final List<Map<String, dynamic>> postsLast7Days;
-  final List<Map<String, dynamic>> topZones;
-
-  DashboardStats({
-    this.totalUsers = 0,
-    this.totalPosts = 0,
-    this.pendingReports = 0,
-    this.activeUsersToday = 0,
-    this.postsLast7Days = const [],
-    this.topZones = const [],
-  });
-}
+import '../../data/repositories/admin_repository.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class AdminStatsNotifier extends StateNotifier<AsyncValue<DashboardStats>> {
   final SupabaseClient _supabase;
@@ -30,8 +15,9 @@ class AdminStatsNotifier extends StateNotifier<AsyncValue<DashboardStats>> {
     state = const AsyncValue.loading();
     try {
       // Verify admin
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw Exception('Not authenticated');
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser == null) throw Exception('Not authenticated');
+      final currentUserId = FirebaseUuid.toUuid(fbUser.uid);
       final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
       if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
 

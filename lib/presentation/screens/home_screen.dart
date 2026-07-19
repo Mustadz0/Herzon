@@ -1,7 +1,10 @@
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/models/user_model.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/gamification_provider.dart';
@@ -312,7 +315,7 @@ class _CenterFab extends StatelessWidget {
 // Profile Tab
 // ─────────────────────────────────────────────
 class _ProfileTab extends ConsumerStatefulWidget {
-  final dynamic user;
+  final UserModel? user;
   final int unreadCount;
   const _ProfileTab({this.user, this.unreadCount = 0});
 
@@ -441,7 +444,7 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
             const SizedBox(height: 6),
             Center(
               child: Text(
-                widget.user!.bio,
+                widget.user!.bio ?? '',
                 style: t.textTheme.bodyMedium?.copyWith(
                   color: t.colorScheme.onSurfaceVariant,
                 ),
@@ -633,8 +636,9 @@ class _CheckInSheet extends ConsumerWidget {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: () async {
-                final uid = Supabase.instance.client.auth.currentUser?.id;
-                if (uid == null) return;
+                final fbUser = FirebaseAuth.instance.currentUser;
+                if (fbUser == null) return;
+                final uid = FirebaseUuid.toUuid(fbUser.uid);
                 final loc =
                     await ref.read(locationServiceProvider).initializeLocation();
                 await ref

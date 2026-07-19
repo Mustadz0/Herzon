@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:geolocator/geolocator.dart';
 
 /// Geolocation utilities for Proximité
@@ -7,10 +7,17 @@ class LocationUtils {
   /// Earth's radius in meters
   static const double earthRadius = 6371000;
 
-  /// Calculate distance between two points in meters
+  /// Calculate distance between two points in meters using the Haversine formula.
   static double distanceInMeters(LatLng from, LatLng to) {
-    const Distance distance = Distance();
-    return distance.as(LengthUnit.Meter, from, to);
+    final double lat1 = from.latitude * pi / 180;
+    final double lat2 = to.latitude * pi / 180;
+    final double dLat = (to.latitude - from.latitude) * pi / 180;
+    final double dLng = (to.longitude - from.longitude) * pi / 180;
+
+    final double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1) * cos(lat2) * sin(dLng / 2) * sin(dLng / 2);
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadius * c;
   }
 
   /// Check if a point is within a given radius from a center point
@@ -18,7 +25,7 @@ class LocationUtils {
     return distanceInMeters(center, point) <= radiusMeters;
   }
 
-  /// Convert Position (from geolocator) to LatLng (for flutter_map)
+  /// Convert Position (from geolocator) to MapLibre LatLng
   static LatLng positionToLatLng(Position position) {
     return LatLng(position.latitude, position.longitude);
   }

@@ -1,6 +1,8 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/story_model.dart';
 import '../providers/story_provider.dart';
 
@@ -158,7 +160,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                     ],
                   ),
                   const Spacer(),
-                  if (story.userId == Supabase.instance.client.auth.currentUser?.id)
+                  if (story.userId == FirebaseUuid.toUuid(FirebaseAuth.instance.currentUser?.uid ?? ''))
                     IconButton(
                       icon: const Icon(Icons.visibility, color: Colors.white70),
                       onPressed: _showViewers,

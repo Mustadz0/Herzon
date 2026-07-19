@@ -31,8 +31,8 @@ android {
         versionName = flutter.versionName
 
         ndk {
-            // Only ship arm64-v8a (covers 95%+ of modern devices, halves native lib size)
-            abiFilters += listOf("arm64-v8a")
+            abiFilters.clear()
+            abiFilters.add("arm64-v8a")
         }
     }
 
@@ -51,8 +51,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs["release"]
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

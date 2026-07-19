@@ -14,8 +14,20 @@
       },
       "oauth_client": [
         {
-          "client_id": "730774455461-9m0ki1ustkrcpj521qrcnqgk3dvs6984.apps.googleusercontent.com",
-          "client_type": 3
+          "client_id": "730774455461-0eh0oprrqts5kv7e37u8s8da9rbc2pbm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.heron.app",
+            "certificate_hash": "1eb78af9a01d1d938995c9326f441eee57b87909"
+          }
+        },
+        {
+          "client_id": "730774455461-rkcs6gaq8gjinp9q74m264efnjqhsu4r.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.heron.app",
+            "certificate_hash": "fea764fe3f550863f40163f727e7dbb3991b64a5"
+          }
         }
       ],
       "api_key": [
@@ -25,7 +37,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "730774455461-9m0ki1ustkrcpj521qrcnqgk3dvs6984.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

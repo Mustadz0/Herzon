@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,14 +25,28 @@ import 'package:herzon/services/cache_service.dart';
 import 'package:herzon/services/feature_flag_service.dart';
 import 'package:herzon/services/notification_service.dart';
 import 'package:herzon/services/crashlytics_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize crash reporting FIRST (before anything else)
-  await CrashlyticsService.init();
+  // Initialize Firebase FIRST (before any Firebase service)
+  try {
+    await Firebase.initializeApp().timeout(const Duration(seconds: 10));
+    debugPrint('Firebase initialized');
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
+
+  // Initialize crash reporting — non-blocking, don't stall the app
+  try {
+    await CrashlyticsService.init().timeout(const Duration(seconds: 5));
+  } catch (e) {
+    debugPrint('CrashlyticsService.init failed: $e');
+  }
 
   // Structured error widget — never expose stack traces in release mode
   ErrorWidget.builder = (FlutterErrorDetails details) {
@@ -90,72 +105,98 @@ void main() async {
   };
 
   // Validate secrets are present before proceeding
-  // Throws a clear error at startup rather than a cryptic runtime failure
-  AppConfig.validate();
+  try {
+    AppConfig.validate();
+  } catch (e) {
+    debugPrint('AppConfig validation failed: $e');
+  }
 
   try {
-    await Hive.initFlutter();
+    await Hive.initFlutter().timeout(const Duration(seconds: 10));
   } catch (e) {
     debugPrint('Hive init failed: $e');
   }
 
   try {
-    await CacheService.init();
+    await CacheService.init().timeout(const Duration(seconds: 10));
   } catch (e) {
     debugPrint('CacheService.init failed: $e');
   }
 
+  bool supabaseReady = false;
   try {
     await Supabase.initialize(
       url: AppConfig.supabaseUrl,
-      anonKey: AppConfig.supabaseAnonKey,
-    );
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+      publishableKey: AppConfig.supabaseAnonKey,
+      accessToken: () async => FirebaseAuth.instance.currentUser?.getIdToken(),
+    ).timeout(const Duration(seconds: 10));
+    supabaseReady = true;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId != null) {
-      await CrashlyticsService.setUser(userId);
+      try {
+        await CrashlyticsService.setUser(userId).timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint('CrashlyticsService.setUser failed: $e');
+      }
     }
   } catch (e) {
     debugPrint('Supabase init failed: $e');
   }
 
-  try {
-    await FeatureFlagService.init();
-  } catch (e) {
-    debugPrint('FeatureFlagService.init failed: $e');
-  }
+  // Fire-and-forget: non-critical services — don't block runApp
+  unawaited(() async {
+    try {
+      await FeatureFlagService.init().timeout(const Duration(seconds: 8), onTimeout: () {
+        debugPrint('FeatureFlagService.init timed out');
+      });
+    } catch (e) {
+      debugPrint('FeatureFlagService.init failed: $e');
+    }
 
-  try {
-    await NotificationService.instance.init();
-  } catch (_) {}
+    try {
+      await NotificationService.instance.init().timeout(const Duration(seconds: 8), onTimeout: () {
+        debugPrint('NotificationService.init timed out');
+      });
+    } catch (e) {
+      debugPrint('NotificationService.init failed: $e');
+    }
 
-  try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode
-          ? AndroidProvider.debug
-          : AndroidProvider.playIntegrity,
-    );
-    debugPrint('Firebase App Check activated');
-  } catch (e) {
-    debugPrint('App Check init failed: $e');
-  }
+    try {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: kDebugMode
+            ? AndroidProvider.debug
+            : AndroidProvider.playIntegrity,
+      ).timeout(const Duration(seconds: 10), onTimeout: () {
+        debugPrint('App Check activation timed out');
+      });
+      debugPrint('Firebase App Check activated');
+    } catch (e) {
+      debugPrint('App Check init failed: $e');
+    }
 
-  try {
-    await FirebasePerformance.instance
-        .setPerformanceCollectionEnabled(!kDebugMode);
-    if (!kDebugMode) debugPrint('Firebase Performance Monitoring activated');
-  } catch (e) {
-    debugPrint('Performance Monitoring init failed: $e');
-  }
+    try {
+      await FirebasePerformance.instance
+          .setPerformanceCollectionEnabled(!kDebugMode)
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        debugPrint('Performance Monitoring timed out');
+      });
+      if (!kDebugMode) debugPrint('Firebase Performance Monitoring activated');
+    } catch (e) {
+      debugPrint('Performance Monitoring init failed: $e');
+    }
+  }());
 
   runApp(
     ProviderScope(
       overrides: [
-        authRepositoryProvider.overrideWithValue(
-          SupabaseAuthRepository(supabase: Supabase.instance.client),
-        ),
-        postRepositoryProvider.overrideWithValue(
-          SupabasePostRepository(supabase: Supabase.instance.client),
-        ),
+        if (supabaseReady) ...[
+          authRepositoryProvider.overrideWithValue(
+            SupabaseAuthRepository(supabase: Supabase.instance.client),
+          ),
+          postRepositoryProvider.overrideWithValue(
+            SupabasePostRepository(supabase: Supabase.instance.client),
+          ),
+        ],
       ],
       child: const HerzonApp(),
     ),

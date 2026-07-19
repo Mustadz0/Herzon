@@ -10,13 +10,9 @@ import 'suggestion_card.dart';
 class SuggestionPanel extends ConsumerStatefulWidget {
   const SuggestionPanel({
     super.key,
-    required this.userLat,
-    required this.userLng,
     required this.onClose,
   });
 
-  final double userLat;
-  final double userLng;
   final VoidCallback onClose;
 
   @override
@@ -51,10 +47,7 @@ class _SuggestionPanelState extends ConsumerState<SuggestionPanel>
   }
 
   void _loadSuggestions() {
-    ref.read(suggestionProvider.notifier).loadSuggestions(
-          lat: widget.userLat,
-          lng: widget.userLng,
-        );
+    ref.read(suggestionProvider.notifier).loadSuggestions();
   }
 
   Future<void> _close() async {
@@ -202,7 +195,7 @@ class _SuggestionPanelState extends ConsumerState<SuggestionPanel>
       );
     }
 
-    if (state.suggestions.isEmpty) {
+    if (state.posts.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -222,9 +215,9 @@ class _SuggestionPanelState extends ConsumerState<SuggestionPanel>
 
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 24),
-      itemCount: state.suggestions.length,
+      itemCount: state.posts.length,
       itemBuilder: (_, i) => SuggestionCard(
-        post: state.suggestions[i],
+        post: state.posts[i],
         rank: i + 1,
       ),
     );

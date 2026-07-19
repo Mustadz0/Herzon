@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import '../../providers/admin_reports_provider.dart';
+import '../../../data/repositories/admin_repository.dart';
 
 class AdminReportCard extends StatelessWidget {
   final ReportItem report;

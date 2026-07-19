@@ -1,10 +1,13 @@
 ﻿import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/marketplace_item_model.dart';
 import '../../data/repositories/marketplace_repository.dart';
 import '../../services/location_service.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class MarketplaceState {
   final List<MarketplaceItemModel> items;
@@ -62,11 +65,12 @@ class MarketplaceNotifier extends StateNotifier<MarketplaceState> {
     required List<File> mediaFiles,
   }) async {
     final pos = await _locationService.initializeLocation();
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) throw Exception('Not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     await _repo.createItem(
-      userId: user.id,
+      userId: userId,
       title: title,
       description: description,
       price: price,
@@ -79,12 +83,12 @@ class MarketplaceNotifier extends StateNotifier<MarketplaceState> {
   }
 
   Future<void> markAsSold(String itemId) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) return;
     try {
-      await _repo.markAsSold(itemId, user.id);
+      await _repo.markAsSold(itemId, FirebaseUuid.toUuid(fbUser.uid));
       await loadItems(category: state.selectedCategory);
-    } catch (_) {}
+    } catch (e) { debugPrint('MarketplaceProvider.markAsSold: $e'); }
   }
 }
 

@@ -181,8 +181,8 @@ class _PageListScreenState extends ConsumerState<PageListScreen> {
                     }
 
                     // Get GPS coordinates
-                    double? lat;
-                    double? lng;
+                    double lat = 0;
+                    double lng = 0;
                     bool locationFailed = false;
                     try {
                       final locationService = ref.read(locationServiceProvider);
@@ -198,8 +198,8 @@ class _PageListScreenState extends ConsumerState<PageListScreen> {
                           behavior: SnackBarBehavior.floating,
                           backgroundColor: Colors.orange,
                         ));
-                        lat = null;
-                        lng = null;
+                        lat = pos.latitude;
+                        lng = pos.longitude;
                       }
                     } catch (_) {
                       locationFailed = true;

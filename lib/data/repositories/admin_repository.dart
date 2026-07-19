@@ -1,6 +1,8 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class ReportItem {
   final String id;
@@ -45,12 +47,16 @@ class DashboardStats {
   final int totalPosts;
   final int pendingReports;
   final int activeUsersToday;
+  final List<Map<String, dynamic>> postsLast7Days;
+  final List<Map<String, dynamic>> topZones;
 
   const DashboardStats({
     required this.totalUsers,
     required this.totalPosts,
     required this.pendingReports,
     required this.activeUsersToday,
+    this.postsLast7Days = const [],
+    this.topZones = const [],
   });
 }
 
@@ -60,8 +66,9 @@ class AdminRepository {
   AdminRepository({required SupabaseClient supabase}) : _supabase = supabase;
 
   Future<void> _verifyAdmin() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
     final profile = await _supabase.from('profiles').select('is_admin').eq('id', userId).single();
     if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
   }
@@ -84,6 +91,7 @@ class AdminRepository {
   }
 
   Future<List<UserModel>> getAllUsers({String? search}) async {
+    await _verifyAdmin();
     var query = _supabase.from('profiles').select();
     if (search != null && search.isNotEmpty) {
       final sanitized = _sanitizeSearch(search);
@@ -94,6 +102,7 @@ class AdminRepository {
   }
 
   Future<List<PostModel>> getAllPosts({String? search}) async {
+    await _verifyAdmin();
     var query = _supabase.from('posts').select('*, profiles!inner(username, display_name, avatar_url)');
     if (search != null && search.isNotEmpty) {
       final sanitized = _sanitizeSearch(search);

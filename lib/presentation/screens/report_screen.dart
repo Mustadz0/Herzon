@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class ReportScreen extends StatefulWidget {
   final String postId;
@@ -31,10 +33,10 @@ class _ReportScreenState extends State<ReportScreen> {
     }
     setState(() => _isSubmitting = true);
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) throw Exception('Not authenticated');
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser == null) throw Exception('Not authenticated');
       await Supabase.instance.client.from('reports').insert({
-        'reporter_id': user.id,
+        'reporter_id': FirebaseUuid.toUuid(fbUser.uid),
         'post_id': widget.postId,
         'reason': _selectedReason,
         'description': _reasonController.text.trim(),

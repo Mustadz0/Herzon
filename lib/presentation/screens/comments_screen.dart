@@ -1,9 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/comment_model.dart';
 import '../../data/repositories/comment_repository.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 // ── StateNotifier-based provider with Realtime support ───────────────────────
 class _CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
@@ -101,11 +103,11 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
     if (content.isEmpty) return;
     setState(() => _isSending = true);
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser == null) return;
       await ref
           .read(commentsNotifierProvider(widget.postId).notifier)
-          .addComment(user.id, content, parentId: _replyingTo?.id);
+          .addComment(FirebaseUuid.toUuid(fbUser.uid), content, parentId: _replyingTo?.id);
       _controller.clear();
       setState(() => _replyingTo = null);
       if (mounted) {
@@ -143,7 +145,7 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
     final commentsAsync =
         ref.watch(commentsNotifierProvider(widget.postId));
     final currentUserId =
-        Supabase.instance.client.auth.currentUser?.id;
+        FirebaseUuid.toUuid(FirebaseAuth.instance.currentUser?.uid ?? '');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Commentaires')),

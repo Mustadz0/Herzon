@@ -113,6 +113,6 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
       await Supabase.instance.client
           .from('feature_config')
           .upsert({ 'flag_key': key, 'is_enabled': value, 'updated_at': DateTime.now().toIso8601String() });
-    } catch (_) {}
+    } catch (e) { debugPrint('AdminFeatureFlags: $e'); }
   }
 }

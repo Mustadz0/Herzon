@@ -309,8 +309,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               left: 0,
               right: 0,
               child: SuggestionPanel(
-                userLat: _lat,
-                userLng: _lng,
                 onClose: () => setState(() => _showSuggestions = false),
               ),
             ),

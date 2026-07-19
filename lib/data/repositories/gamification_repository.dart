@@ -18,8 +18,9 @@ class SupabaseGamificationRepository implements IGamificationRepository {
   Future<Map<String, dynamic>> getUserGamification(String userId) async {
     final response = await _supabase.rpc('get_user_gamification', params: {
       'p_user_id': userId,
-    }).maybeSingle();
-    return response ?? <String, dynamic>{};
+    });
+    if (response == null) return <String, dynamic>{};
+    return response as Map<String, dynamic>;
   }
 
   @override

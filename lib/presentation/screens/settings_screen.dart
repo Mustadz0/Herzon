@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../providers/block_provider.dart';
 import '../providers/privacy_provider.dart';
+import '../../core/utils/firebase_uuid.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
 
@@ -282,9 +284,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
-              final uid =
-                  Supabase.instance.client.auth.currentUser?.id;
-              if (uid != null) {
+              final fbUser = FirebaseAuth.instance.currentUser;
+              if (fbUser != null) {
                 await Supabase.instance.client.functions
                     .invoke('delete-account');
                 await Supabase.instance.client.auth.signOut();
@@ -481,7 +482,7 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
       final data = await Supabase.instance.client
           .from('profiles')
           .select('display_name, username, avatar_url')
-          .eq('id', widget.userId)
+          .eq('id', FirebaseUuid.toUuid(widget.userId))
           .maybeSingle();
       if (mounted) setState(() => _profile = data);
     } catch (e) {
@@ -515,7 +516,7 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              _profile?['display_name'] ??
+                  _profile?['display_name'] ??
                   _profile?['username'] ??
                   widget.userId,
               style: tt.bodyMedium
@@ -525,7 +526,7 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
           ),
           TextButton(
             onPressed: () =>
-                ref.read(blockProvider.notifier).unblockUser(widget.userId),
+                ref.read(blockProvider.notifier).unblockUser(FirebaseUuid.toUuid(widget.userId)),
             child: Text('Débloquer',
                 style: TextStyle(color: cs.primary)),
           ),

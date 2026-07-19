@@ -39,7 +39,7 @@ class CrashlyticsService {
     if (_crashlytics != null) {
       try {
         await _crashlytics!.recordError(exception, stackTrace, reason: reason);
-      } catch (_) {}
+      } catch (e) { developer.log('Firebase Crashlytics record: $e'); }
     }
 
     // Always log to Supabase as backup/searchable history
@@ -61,7 +61,7 @@ class CrashlyticsService {
     if (_crashlytics != null) {
       try {
         await _crashlytics!.recordError(exception, stackTrace, reason: reason, fatal: true);
-      } catch (_) {}
+      } catch (e) { developer.log('Crashlytics fatal record: $e'); }
     }
 
     await _logToSupabase(
@@ -78,7 +78,7 @@ class CrashlyticsService {
     if (_crashlytics != null) {
       try {
         await _crashlytics!.log(message);
-      } catch (_) {}
+      } catch (e) { developer.log('Crashlytics log: $e'); }
     }
 
     // Only persist warnings and above to Supabase
@@ -92,7 +92,7 @@ class CrashlyticsService {
     if (_crashlytics != null) {
       try {
         await _crashlytics!.setUserIdentifier(userId);
-      } catch (_) {}
+      } catch (e) { developer.log('Crashlytics setUser: $e'); }
     }
   }
 
@@ -101,7 +101,7 @@ class CrashlyticsService {
     if (_crashlytics != null) {
       try {
         await _crashlytics!.setCustomKey(key, value);
-      } catch (_) {}
+      } catch (e) { developer.log('Crashlytics setCustomKey: $e'); }
     }
   }
 

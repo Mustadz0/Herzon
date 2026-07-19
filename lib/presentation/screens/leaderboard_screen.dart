@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:herzon/core/theme/app_theme.dart';
@@ -6,6 +7,7 @@ import 'package:herzon/data/models/gamification_model.dart';
 import 'package:herzon/presentation/widgets/leaderboard_card.dart';
 import 'package:herzon/presentation/providers/gamification_provider.dart';
 import 'package:herzon/presentation/screens/user_profile_screen.dart';
+import 'package:herzon/core/utils/firebase_uuid.dart';
 
 class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
@@ -30,12 +32,11 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(gamificationProvider.notifier).loadLeaderboard();
-      final userId =
-          Supabase.instance.client.auth.currentUser?.id ?? '';
-      if (userId.isNotEmpty) {
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser != null) {
         ref
             .read(gamificationProvider.notifier)
-            .loadUserStats(userId);
+            .loadUserStats(FirebaseUuid.toUuid(fbUser.uid));
       }
     });
   }

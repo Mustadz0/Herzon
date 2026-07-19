@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -12,22 +14,20 @@ class AppAuthState {
   const AppAuthState({this.user, this.isLoading = false, this.error});
 
   bool get isAuthenticated => user != null;
-  bool get isAnonymous => user?.privacySettings['is_anonymous'] == true;
 }
 
 class AuthNotifier extends StateNotifier<AppAuthState> {
   final IAuthRepository _repo;
-  StreamSubscription<sb.AuthState>? _sub;
+  StreamSubscription<fb.User?>? _sub;
 
   AuthNotifier(this._repo) : super(const AppAuthState(isLoading: true)) {
     _init();
   }
 
   void _init() {
-    _sub = _repo.onAuthStateChange.listen((sb.AuthState event) {
-      final u = event.session?.user;
-      if (u != null) {
-        _loadProfile(u.id);
+    _sub = _repo.authStateChanges.listen((fb.User? firebaseUser) {
+      if (firebaseUser != null) {
+        _loadProfile(firebaseUser.uid);
       } else {
         state = const AppAuthState();
       }
@@ -41,13 +41,15 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     } catch (e) {
       state = AppAuthState(error: e.toString());
     }
+    if (state.isLoading) {
+      state = const AppAuthState();
+    }
   }
 
   Future<void> signInAnonymously() async {
     state = const AppAuthState(isLoading: true);
     try {
-      final res = await _repo.signInAnonymously();
-      if (res.user != null) await _loadProfile(res.user!.id);
+      await _repo.signInAnonymously();
     } catch (e) {
       state = AppAuthState(error: e.toString());
     }
@@ -55,10 +57,12 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
 
   Future<void> _loadProfile(String id) async {
     try {
-      // FIX: always fetch from DB first — never hardcode isAdmin=false
       var profile = await _repo.getUserProfile(id);
       if (profile == null) {
-        final meta = _repo.currentUser?.userMetadata ?? {};
+        final fbUser = _repo.currentUser;
+        final meta = fbUser?.displayName != null
+            ? {'full_name': fbUser!.displayName, 'avatar_url': fbUser.photoURL}
+            : <String, dynamic>{};
         profile = UserModel(
           id: id,
           username: 'user_${id.substring(0, 8)}',
@@ -67,20 +71,18 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
           privacySettings: const {'show_activity': true, 'allow_messages': true},
         );
         await _repo.updateProfile(profile);
-        // Re-fetch after upsert so DB defaults (is_admin etc.) are loaded
         profile = await _repo.getUserProfile(id) ?? profile;
       }
       state = AppAuthState(user: profile);
     } catch (e) {
+      debugPrint('[Auth] _loadProfile error: $e');
       state = AppAuthState(error: e.toString());
     }
   }
 
-  /// Call this after updating profile to refresh state.
   Future<void> refreshProfile() async {
-    final id = _repo.currentUser?.id;
-    if (id == null) return;
-    await _loadProfile(id);
+    final id = _repo.currentUser?.uid;
+    if (id != null) await _loadProfile(id);
   }
 
   Future<void> signOut() async {
@@ -96,10 +98,13 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
 }
 
 final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  final supabase = sb.Supabase.instance.client;
+  final supabase = Supabase.instance.client;
   return SupabaseAuthRepository(supabase: supabase);
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AppAuthState>((ref) {
   return AuthNotifier(ref.watch(authRepositoryProvider));
 });
+
+final currentUserIdProvider = Provider<String?>((ref) =>
+    fb.FirebaseAuth.instance.currentUser?.uid);

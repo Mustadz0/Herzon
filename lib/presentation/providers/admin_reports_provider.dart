@@ -1,44 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-class ReportItem {
-  final String id;
-  final String reporterId;
-  final String reportedUserId;
-  final String? postId;
-  final String reason;
-  final String status;
-  final DateTime createdAt;
-  final String? reporterName;
-  final String? reportedUserName;
-
-  ReportItem({
-    required this.id,
-    required this.reporterId,
-    required this.reportedUserId,
-    this.postId,
-    required this.reason,
-    required this.status,
-    required this.createdAt,
-    this.reporterName,
-    this.reportedUserName,
-  });
-
-  factory ReportItem.fromJson(Map<String, dynamic> json) {
-    return ReportItem(
-      id: json['id'],
-      reporterId: json['reporter_id'],
-      reportedUserId: json['reported_user_id'],
-      postId: json['post_id'],
-      reason: json['reason'],
-      status: json['status'],
-      createdAt: DateTime.parse(json['created_at']),
-      reporterName: json['reporter']?['display_name'],
-      reportedUserName: json['reported']?['display_name'],
-    );
-  }
-}
-
+import '../../data/repositories/admin_repository.dart';
 class AdminReportsState {
   final List<ReportItem> reports;
   final bool isLoading;

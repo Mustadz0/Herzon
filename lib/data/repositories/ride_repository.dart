@@ -1,5 +1,7 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IRideRepository {
   /// Get nearby available rides
@@ -33,8 +35,9 @@ class SupabaseRideRepository implements IRideRepository {
 
   @override
   Future<Map<String, dynamic>> createRide(Map<String, dynamic> params) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     final response = await _supabase.from('rides').insert({
       'driver_id': userId,
@@ -46,8 +49,9 @@ class SupabaseRideRepository implements IRideRepository {
 
   @override
   Future<void> bookRide(String rideId, int seats) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     await _supabase.rpc('book_ride', params: {
       'ride_id': rideId,

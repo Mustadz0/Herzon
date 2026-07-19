@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   final dynamic user;
@@ -36,7 +37,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await Supabase.instance.client.from('profiles').update({
         'display_name': _nameCtrl.text.trim(),
         'bio': _bioCtrl.text.trim(),
-      }).eq('id', widget.user.id);
+      }).eq('id', FirebaseUuid.toUuid(widget.user.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Profil mis Ã  jour'), behavior: SnackBarBehavior.floating));

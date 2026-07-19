@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/marketplace_item_model.dart';
 import '../providers/marketplace_provider.dart';
+import '../../core/utils/firebase_uuid.dart';
 import 'user_profile_screen.dart';
 
 class MarketplaceDetailScreen extends ConsumerWidget {
@@ -13,8 +15,8 @@ class MarketplaceDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = Supabase.instance.client.auth.currentUser;
-    final isOwnItem = user != null && user.id == item.userId;
+    final fbUser = FirebaseAuth.instance.currentUser;
+    final isOwnItem = fbUser != null && FirebaseUuid.toUuid(fbUser.uid) == item.userId;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Annonce')),

@@ -1,5 +1,7 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IFeatureFlagRepository {
   /// Get all enabled feature flags
@@ -27,8 +29,9 @@ class SupabaseFeatureFlagRepository implements IFeatureFlagRepository {
 
   @override
   Future<List<Map<String, dynamic>>> getUserExperiments() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     return await _supabase
         .from('user_experiments')
@@ -38,8 +41,9 @@ class SupabaseFeatureFlagRepository implements IFeatureFlagRepository {
 
   @override
   Future<void> assignExperiment(String experimentId) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     await _supabase.from('user_experiments').insert({
       'user_id': userId,

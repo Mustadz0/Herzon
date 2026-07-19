@@ -1,5 +1,7 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class ICheckinRepository {
   /// Check in at a place
@@ -19,11 +21,12 @@ class SupabaseCheckinRepository implements ICheckinRepository {
 
   @override
   Future<Map<String, dynamic>> checkinPlace(String placeName, double placeLat, double placeLng) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
 
     final response = await _supabase.rpc('checkin_place', params: {
-      'user_id': userId,
+      'user_id': uuid,
       'place_name': placeName,
       'place_lat': placeLat,
       'place_lng': placeLng,
@@ -34,25 +37,27 @@ class SupabaseCheckinRepository implements ICheckinRepository {
 
   @override
   Future<List<Map<String, dynamic>>> getUserCheckins() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
 
     return await _supabase
         .from('checkins')
         .select()
-        .eq('user_id', userId)
+        .eq('user_id', uuid)
         .order('created_at', ascending: false);
   }
 
   @override
   Future<List<Map<String, dynamic>>> getUserBadges() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
 
     return await _supabase
         .from('user_badges')
         .select('*, badges(*)')
-        .eq('user_id', userId)
+        .eq('user_id', uuid)
         .order('awarded_at', ascending: false);
   }
 }

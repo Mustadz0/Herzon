@@ -1,8 +1,10 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../providers/messenger_provider.dart';
 import '../../data/models/message_model.dart';
 import '../widgets/sticker_picker.dart';
@@ -149,7 +151,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
-                    final isMe = msg.senderId == Supabase.instance.client.auth.currentUser?.id;
+                    final isMe = msg.senderId == FirebaseUuid.toUuid(FirebaseAuth.instance.currentUser?.uid ?? '');
                     final showTime = index == 0 ||
                         (messages[index].createdAt != null &&
                             messages[index - 1].createdAt != null &&

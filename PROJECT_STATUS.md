@@ -104,7 +104,7 @@
 - **State Management**: Riverpod (StateNotifierProvider, FutureProvider, family)
 - **Database**: Supabase + PostgreSQL 17 + PostGIS (extensions schema)
 - **Auth**: Supabase Auth (Google OAuth + Anonymous)
-- **Maps**: flutter_map + OpenStreetMap (no API key needed)
+- **Maps**: MapLibre GL (`maplibre_gl`) + OpenStreetMap (no API key needed)
 - **Models**: Freezed (immutable + JSON serializable)
 - **Pattern**: Clean Architecture — Model → Repository → Provider → Screen
 

@@ -1,5 +1,7 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IBlockRepository {
   /// Block a user
@@ -25,32 +27,35 @@ class SupabaseBlockRepository implements IBlockRepository {
 
   @override
   Future<void> blockUser(String blockedId, String? reason) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     await _supabase.from('blocks').insert({
       'blocker_id': userId,
-      'blocked_id': blockedId,
+      'blocked_id': FirebaseUuid.toUuid(blockedId),
       'reason': reason,
     });
   }
 
   @override
   Future<void> unblockUser(String blockedId) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     await _supabase
         .from('blocks')
         .delete()
         .eq('blocker_id', userId)
-        .eq('blocked_id', blockedId);
+        .eq('blocked_id', FirebaseUuid.toUuid(blockedId));
   }
 
   @override
   Future<List<Map<String, dynamic>>> getBlockedUsers() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     return await _supabase
         .from('blocks')
@@ -61,22 +66,24 @@ class SupabaseBlockRepository implements IBlockRepository {
 
   @override
   Future<bool> isBlocked(String userId) async {
-    final currentUserId = _supabase.auth.currentUser?.id;
-    if (currentUserId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final currentUserId = FirebaseUuid.toUuid(fbUser.uid);
 
     final result = await _supabase
         .from('blocks')
         .select('id')
         .eq('blocker_id', currentUserId)
-        .eq('blocked_id', userId)
+        .eq('blocked_id', FirebaseUuid.toUuid(userId))
         .maybeSingle();
     return result != null;
   }
 
   @override
   Future<List<String>> getBlockedUserIds() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('User not authenticated');
+    final userId = FirebaseUuid.toUuid(fbUser.uid);
 
     final data = await _supabase
         .from('blocks')

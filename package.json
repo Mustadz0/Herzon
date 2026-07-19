@@ -1,0 +1,28 @@
+{
+  "name": "fbt",
+  "version": "1.0.0",
+  "description": "A real-time proximity-based social network mobile application built with Flutter and Supabase.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mustadz0/Herzon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Mustadz0/Herzon/issues"
+  },
+  "homepage": "https://github.com/Mustadz0/Herzon#readme",
+  "dependencies": {
+    "pg": "^8.22.0"
+  }
+}
