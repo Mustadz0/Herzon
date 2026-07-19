@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/post_model.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IPostRepository {
   Future<List<PostModel>> getNearbyPosts(
@@ -36,6 +38,14 @@ class SupabasePostRepository implements IPostRepository {
   SupabasePostRepository({required SupabaseClient supabase})
       : _supabase = supabase;
 
+  /// Returns the current user's UUID v5 (converted from Firebase UID).
+  /// Throws if not authenticated.
+  String _currentUuid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('Not authenticated');
+    return FirebaseUuid.toUuid(uid);
+  }
+
   @override
   Future<List<PostModel>> getNearbyPosts(
     LatLng location,
@@ -56,7 +66,6 @@ class SupabasePostRepository implements IPostRepository {
 
     return (response as List<dynamic>).map((json) {
       final j = json as Map<String, dynamic>;
-      // Poll: RPC returns jsonb object with 'options' key
       List<PollOptionData>? pollOptions;
       final pollRaw = j['poll'];
       if (pollRaw is Map<String, dynamic>) {
@@ -82,21 +91,17 @@ class SupabasePostRepository implements IPostRepository {
         longitude: location.longitude,
         zoneId: j['zone_id'] as String?,
         contextTag: j['context_tag'] as String?,
-        // reaction_counts comes as jsonb — cast values safely
         reactionCounts:
             (j['reaction_counts'] as Map<String, dynamic>? ?? {})
                 .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
         createdAt: j['created_at'] != null
             ? DateTime.tryParse(j['created_at'] as String)
             : null,
-        // RPC returns user_username / user_display_name / user_avatar_url
         userUsername: j['user_username'] as String?,
         userDisplayName: j['user_display_name'] as String?,
         userAvatarUrl: j['user_avatar_url'] as String?,
-        distanceMeters:
-            (j['distance'] as num?)?.toDouble() ?? 0.0,
-        commentCount:
-            (j['comment_count'] as num?)?.toInt() ?? 0,
+        distanceMeters: (j['distance'] as num?)?.toDouble() ?? 0.0,
+        commentCount: (j['comment_count'] as num?)?.toInt() ?? 0,
         pollOptions: pollOptions,
         pollTotalVotes: j['poll_total_votes'] as int?,
         userPollVoteIndex: j['user_poll_vote_index'] as int?,
@@ -122,9 +127,6 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<PostModel> createPost(PostModel post) async {
-    // PostGIS requires WKT via ST_GeomFromText — pass as EWKT string
-    // Supabase client sends it as text; the DB column accepts WKT cast.
-    // Use ST_MakePoint RPC approach: pass lat/lng and build geometry in DB.
     final response = await _supabase.rpc(
       'create_post_with_location',
       params: {
@@ -147,25 +149,23 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<void> reactToPost(String postId, String reactionType) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final uuid = _currentUuid();
     await _supabase.from('reactions').upsert({
       'post_id': postId,
-      'user_id': userId,
+      'user_id': uuid,
       'reaction_type': reactionType,
     }, onConflict: 'post_id,user_id');
   }
 
   @override
   Future<void> removeReaction(String postId, String reactionType) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final uuid = _currentUuid();
     await _supabase
         .from('reactions')
         .delete()
         .eq('post_id', postId)
         .eq('reaction_type', reactionType)
-        .eq('user_id', userId);
+        .eq('user_id', uuid);
   }
 
   @override
@@ -186,33 +186,30 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<void> hidePost(String postId) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final uuid = _currentUuid();
     await _supabase.from('hidden_posts').upsert({
-      'user_id': userId,
+      'user_id': uuid,
       'post_id': postId,
     }, onConflict: 'user_id,post_id');
   }
 
   @override
   Future<void> unhidePost(String postId) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+    final uuid = _currentUuid();
     await _supabase
         .from('hidden_posts')
         .delete()
-        .eq('user_id', userId)
+        .eq('user_id', uuid)
         .eq('post_id', postId);
   }
 
   @override
   Future<Set<String>> getHiddenPostIds() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) return {};
+    final uuid = _currentUuid();
     final response = await _supabase
         .from('hidden_posts')
         .select('post_id')
-        .eq('user_id', userId);
+        .eq('user_id', uuid);
     return (response as List<dynamic>)
         .map((e) => e['post_id'] as String)
         .toSet();
