@@ -1,5 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/repositories/follow_repository.dart';
 
 class FollowState {
@@ -19,10 +20,11 @@ class FollowNotifier extends StateNotifier<FollowState> {
   }
 
   Future<void> _check() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     try {
-      final following = await _repo.isFollowing(user.id, _targetUserId);
+      final following = await _repo.isFollowing(userId, _targetUserId);
       state = FollowState(isFollowing: following);
     } catch (e) {
       state = FollowState(isFollowing: false, error: e.toString());
@@ -30,11 +32,12 @@ class FollowNotifier extends StateNotifier<FollowState> {
   }
 
   Future<void> follow() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     state = const FollowState(isFollowing: true, isLoading: true);
     try {
-      await _repo.follow(user.id, _targetUserId);
+      await _repo.follow(userId, _targetUserId);
       state = const FollowState(isFollowing: true);
     } catch (e) {
       state = FollowState(isFollowing: false, error: e.toString());
@@ -42,11 +45,12 @@ class FollowNotifier extends StateNotifier<FollowState> {
   }
 
   Future<void> unfollow() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     state = const FollowState(isFollowing: false, isLoading: true);
     try {
-      await _repo.unfollow(user.id, _targetUserId);
+      await _repo.unfollow(userId, _targetUserId);
       state = const FollowState(isFollowing: false);
     } catch (e) {
       state = FollowState(isFollowing: true, error: e.toString());
