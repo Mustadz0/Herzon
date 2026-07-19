@@ -1,6 +1,8 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class ReportItem {
   final String id;
@@ -59,21 +61,46 @@ class AdminRepository {
 
   AdminRepository({required SupabaseClient supabase}) : _supabase = supabase;
 
+  /// Returns the current user's UUID v5 (converted from Firebase UID).
+  String _currentUuid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('Not authenticated');
+    return FirebaseUuid.toUuid(uid);
+  }
+
   Future<void> _verifyAdmin() async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
-    final profile = await _supabase.from('profiles').select('is_admin').eq('id', userId).single();
+    final uuid = _currentUuid();
+    final profile = await _supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', uuid)
+        .single();
     if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
   }
 
-  String _sanitizeSearch(String query) => query.replaceAll(RegExp(r'[%_]'), r'\\$&');
+  String _sanitizeSearch(String query) =>
+      query.replaceAll(RegExp(r'[%_]'), r'\\$&');
 
   Future<DashboardStats> getStats() async {
     await _verifyAdmin();
-    final usersCountResp = await _supabase.from('profiles').select('id').count();
+    final usersCountResp =
+        await _supabase.from('profiles').select('id').count();
     final postsCountResp = await _supabase.from('posts').select('id').count();
-    final reportsCountResp = await _supabase.from('reports').select('id').eq('status', 'pending').count();
-    final activeCountResp = await _supabase.from('profiles').select('id').gte('last_active_at', DateTime.now().subtract(const Duration(hours: 24)).toIso8601String()).count();
+    final reportsCountResp = await _supabase
+        .from('reports')
+        .select('id')
+        .eq('status', 'pending')
+        .count();
+    final activeCountResp = await _supabase
+        .from('profiles')
+        .select('id')
+        .gte(
+          'last_active_at',
+          DateTime.now()
+              .subtract(const Duration(hours: 24))
+              .toIso8601String(),
+        )
+        .count();
 
     return DashboardStats(
       totalUsers: usersCountResp.count,
@@ -87,14 +114,16 @@ class AdminRepository {
     var query = _supabase.from('profiles').select();
     if (search != null && search.isNotEmpty) {
       final sanitized = _sanitizeSearch(search);
-      query = query.or('display_name.ilike.%$sanitized%,username.ilike.%$sanitized%');
+      query = query.or(
+          'display_name.ilike.%$sanitized%,username.ilike.%$sanitized%');
     }
     final data = await query.order('created_at', ascending: false);
     return data.map((json) => UserModel.fromJson(json)).toList();
   }
 
   Future<List<PostModel>> getAllPosts({String? search}) async {
-    var query = _supabase.from('posts').select('*, profiles!inner(username, display_name, avatar_url)');
+    var query = _supabase.from('posts').select(
+        '*, profiles!inner(username, display_name, avatar_url)');
     if (search != null && search.isNotEmpty) {
       final sanitized = _sanitizeSearch(search);
       query = query.ilike('content', '%$sanitized%');
@@ -106,10 +135,20 @@ class AdminRepository {
         id: json['id'] as String,
         userId: json['user_id'] as String,
         content: json['content'] as String,
-        latitude: ((json['location'] as Map<String, dynamic>?)?['coordinates'] as List?)?.last ?? 0.0,
-        longitude: ((json['location'] as Map<String, dynamic>?)?['coordinates'] as List?)?.first ?? 0.0,
+        latitude:
+            ((json['location'] as Map<String, dynamic>?)?['coordinates']
+                    as List?)
+                ?.last ??
+                0.0,
+        longitude:
+            ((json['location'] as Map<String, dynamic>?)?['coordinates']
+                    as List?)
+                ?.first ??
+                0.0,
         contextTag: json['context_tag'] as String?,
-        reactionCounts: json['reaction_counts'] != null ? Map<String, int>.from(json['reaction_counts'] as Map) : const {},
+        reactionCounts: json['reaction_counts'] != null
+            ? Map<String, int>.from(json['reaction_counts'] as Map)
+            : const {},
         userUsername: profile?['username'] as String?,
         userDisplayName: profile?['display_name'] as String?,
         userAvatarUrl: profile?['avatar_url'] as String?,
@@ -121,10 +160,8 @@ class AdminRepository {
 
   Future<List<ReportItem>> getReports() async {
     await _verifyAdmin();
-    final data = await _supabase
-        .from('reports')
-        .select('*, reporter:profiles!reporter_id(display_name), reported:profiles!reported_user_id(display_name)')
-        .order('created_at', ascending: false);
+    final data = await _supabase.from('reports').select(
+        '*, reporter:profiles!reporter_id(display_name), reported:profiles!reported_user_id(display_name)').order('created_at', ascending: false);
     return data.map((json) {
       return ReportItem(
         id: json['id'] as String,
@@ -134,8 +171,12 @@ class AdminRepository {
         reason: json['reason'] as String,
         status: json['status'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
-        reporterName: (json['reporter'] as Map<String, dynamic>?)?['display_name'] as String?,
-        reportedUserName: (json['reported'] as Map<String, dynamic>?)?['display_name'] as String?,
+        reporterName:
+            (json['reporter'] as Map<String, dynamic>?)?['display_name']
+                as String?,
+        reportedUserName:
+            (json['reported'] as Map<String, dynamic>?)?['display_name']
+                as String?,
       );
     }).toList();
   }
@@ -148,6 +189,7 @@ class AdminRepository {
   }
 
   Future<void> deletePost(String postId) async {
-    await _supabase.rpc('admin_delete_post', params: {'target_post_id': postId});
+    await _supabase
+        .rpc('admin_delete_post', params: {'target_post_id': postId});
   }
 }
