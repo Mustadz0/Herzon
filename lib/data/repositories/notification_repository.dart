@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/notification_model.dart';
 
@@ -94,14 +94,16 @@ class SupabaseNotificationRepository implements INotificationRepository {
   }
 
   @override
+  // FIX: استخدام .count() بدل .length لتجنب جلب كل السجلات
   Future<int> getUnreadAdminCount(String adminId) async {
-    final data = await _supabase
+    final response = await _supabase
         .from('notifications')
         .select('id')
         .eq('admin_id', adminId)
         .eq('recipient_type', 'admin')
-        .eq('is_read', false);
-    return (data as List).length;
+        .eq('is_read', false)
+        .count();
+    return response.count;
   }
 }
 

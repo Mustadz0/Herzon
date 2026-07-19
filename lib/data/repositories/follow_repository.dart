@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 abstract class IFollowRepository {
@@ -43,21 +43,25 @@ class SupabaseFollowRepository implements IFollowRepository {
   }
 
   @override
+  // FIX: استخدام .count() بدل .length لتجنب جلب كل السجلات
   Future<int> getFollowerCount(String userId) async {
-    final data = await _supabase
+    final response = await _supabase
         .from('follows')
         .select('id')
-        .eq('following_id', userId);
-    return data.length;
+        .eq('following_id', userId)
+        .count();
+    return response.count;
   }
 
   @override
+  // FIX: استخدام .count() بدل .length لتجنب جلب كل السجلات
   Future<int> getFollowingCount(String userId) async {
-    final data = await _supabase
+    final response = await _supabase
         .from('follows')
         .select('id')
-        .eq('follower_id', userId);
-    return data.length;
+        .eq('follower_id', userId)
+        .count();
+    return response.count;
   }
 }
 

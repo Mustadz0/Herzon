@@ -1,5 +1,7 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IPollRepository {
   /// Cast a vote on a poll post
@@ -17,14 +19,21 @@ class SupabasePollRepository implements IPollRepository {
 
   SupabasePollRepository({required SupabaseClient supabase}) : _supabase = supabase;
 
+  /// Returns the current user's UUID v5 (converted from Firebase UID).
+  String _currentUuid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('User not authenticated');
+    return FirebaseUuid.toUuid(uid);
+  }
+
   @override
   Future<void> votePoll(String postId, int optionIndex) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('User not authenticated');
-
+    // FIX: كان يستخدم _supabase.auth.currentUser (Supabase Auth)
+    // المشروع يعتمد Firebase Auth — يجب استخدام Firebase UUID
+    final uuid = _currentUuid();
     await _supabase.rpc('vote_poll', params: {
       'post_id': postId,
-      'user_id': userId,
+      'user_id': uuid,
       'option_index': optionIndex,
     });
   }

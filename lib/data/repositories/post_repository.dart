@@ -87,8 +87,10 @@ class SupabasePostRepository implements IPostRepository {
         content: j['content'] as String? ?? '',
         mediaUrls: List<String>.from(j['media_urls'] ?? []),
         mediaType: _parseMediaType(j['media_type']),
-        latitude: location.latitude,
-        longitude: location.longitude,
+        // FIX: كان يستخدم location.latitude/longitude الثابتة من المستخدم
+        // الصحيح: استخدام الإحداثيات الفعلية لكل منشور من الـ response
+        latitude: (j['post_lat'] as num?)?.toDouble() ?? location.latitude,
+        longitude: (j['post_lng'] as num?)?.toDouble() ?? location.longitude,
         zoneId: j['zone_id'] as String?,
         contextTag: j['context_tag'] as String?,
         reactionCounts:

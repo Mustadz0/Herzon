@@ -1,11 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/comment_model.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class ICommentRepository {
   Future<List<CommentModel>> getComments(String postId);
-  Future<void> addComment(String postId, String userId, String content,
-      {String? parentId});
+  // FIX: حذف userId من المعاملات — يُستخرج داخلياً من Firebase
+  Future<void> addComment(String postId, String content, {String? parentId});
   Future<void> deleteComment(String commentId);
 }
 
@@ -14,6 +16,13 @@ class SupabaseCommentRepository implements ICommentRepository {
 
   SupabaseCommentRepository({required SupabaseClient supabase})
       : _supabase = supabase;
+
+  /// Returns the current user's UUID v5 (converted from Firebase UID).
+  String _currentUuid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('User not authenticated');
+    return FirebaseUuid.toUuid(uid);
+  }
 
   @override
   Future<List<CommentModel>> getComments(String postId) async {
@@ -39,11 +48,13 @@ class SupabaseCommentRepository implements ICommentRepository {
   }
 
   @override
-  Future<void> addComment(String postId, String userId, String content,
+  // FIX: userId لم يعد معاملاً خارجياً — يُستخرج من Firebase داخلياً
+  Future<void> addComment(String postId, String content,
       {String? parentId}) async {
+    final uuid = _currentUuid();
     await _supabase.from('comments').insert({
       'post_id': postId,
-      'user_id': userId,
+      'user_id': uuid,
       'content': content,
       if (parentId != null) 'parent_id': parentId,
     });
