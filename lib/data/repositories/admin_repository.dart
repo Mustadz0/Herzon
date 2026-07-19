@@ -78,8 +78,9 @@ class AdminRepository {
     if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
   }
 
+  // FIX: كان r'\\\\$&' (escape مضاعف خاطئ) — الصحيح r'\$&'
   String _sanitizeSearch(String query) =>
-      query.replaceAll(RegExp(r'[%_]'), r'\\$&');
+      query.replaceAll(RegExp(r'[%_]'), r'\$&');
 
   Future<DashboardStats> getStats() async {
     await _verifyAdmin();
@@ -131,20 +132,19 @@ class AdminRepository {
     final data = await query.order('created_at', ascending: false);
     return data.map((json) {
       final profile = json['profiles'] as Map<String, dynamic>?;
+      // FIX: PostGIS GeoJSON coordinates هي [longitude, latitude]
+      // أي coordinates[0] = longitude، coordinates[1] = latitude
+      final coords = (json['location'] as Map<String, dynamic>?)?['coordinates'] as List?;
       return PostModel(
         id: json['id'] as String,
         userId: json['user_id'] as String,
         content: json['content'] as String,
-        latitude:
-            ((json['location'] as Map<String, dynamic>?)?['coordinates']
-                    as List?)
-                ?.last ??
-                0.0,
-        longitude:
-            ((json['location'] as Map<String, dynamic>?)?['coordinates']
-                    as List?)
-                ?.first ??
-                0.0,
+        latitude: (coords != null && coords.length >= 2)
+            ? (coords[1] as num).toDouble()
+            : 0.0,
+        longitude: (coords != null && coords.length >= 2)
+            ? (coords[0] as num).toDouble()
+            : 0.0,
         contextTag: json['context_tag'] as String?,
         reactionCounts: json['reaction_counts'] != null
             ? Map<String, int>.from(json['reaction_counts'] as Map)

@@ -1,4 +1,4 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/message_model.dart';
 
 /// Message Repository Interface
@@ -92,14 +92,13 @@ class SupabaseMessageRepository implements IMessageRepository {
 
   @override
   Stream<MessageModel> subscribeToMessages(String conversationId) {
+    // FIX: كان يرمي StateError عند stream فارغ — الآن يتجاهل الحدث الفارغ
     return _supabase
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
         .order('created_at')
-        .map((events) {
-          if (events.isEmpty) throw StateError('No messages in stream');
-          return MessageModel.fromJson(events.last);
-        });
+        .where((events) => events.isNotEmpty)
+        .map((events) => MessageModel.fromJson(events.last));
   }
 }
