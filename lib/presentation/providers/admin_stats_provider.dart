@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class DashboardStats {
   final int totalUsers;
@@ -29,9 +31,10 @@ class AdminStatsNotifier extends StateNotifier<AsyncValue<DashboardStats>> {
   Future<void> loadStats() async {
     state = const AsyncValue.loading();
     try {
-      // Verify admin
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw Exception('Not authenticated');
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) throw Exception('Not authenticated');
+      final currentUserId = FirebaseUuid.toUuid(firebaseUser.uid);
+
       final profile = await _supabase.from('profiles').select('is_admin').eq('id', currentUserId).single();
       if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
 
