@@ -1,5 +1,7 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class PrivacySettings {
   final bool showActivity;
@@ -68,13 +70,14 @@ class PrivacyNotifier extends StateNotifier<PrivacySettings> {
   PrivacyNotifier() : super(const PrivacySettings());
 
   Future<void> load() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     try {
       final data = await Supabase.instance.client
           .from('profiles')
           .select('privacy_settings')
-          .eq('id', user.id)
+          .eq('id', userId)
           .maybeSingle();
       if (data != null && data['privacy_settings'] != null) {
         state = PrivacySettings.fromJson(data['privacy_settings'] as Map<String, dynamic>);
@@ -83,13 +86,14 @@ class PrivacyNotifier extends StateNotifier<PrivacySettings> {
   }
 
   Future<void> update(PrivacySettings updated) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     state = updated;
     await Supabase.instance.client
         .from('profiles')
         .update({'privacy_settings': updated.toJson()})
-        .eq('id', user.id);
+        .eq('id', userId);
   }
 }
 
