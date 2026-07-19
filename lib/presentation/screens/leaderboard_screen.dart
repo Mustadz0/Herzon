@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:herzon/core/theme/app_theme.dart';
+import 'package:herzon/core/utils/firebase_uuid.dart';
 import 'package:herzon/data/models/gamification_model.dart';
 import 'package:herzon/presentation/widgets/leaderboard_card.dart';
 import 'package:herzon/presentation/providers/gamification_provider.dart';
@@ -30,9 +31,9 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(gamificationProvider.notifier).loadLeaderboard();
-      final userId =
-          Supabase.instance.client.auth.currentUser?.id ?? '';
-      if (userId.isNotEmpty) {
+      final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+      if (firebaseUid != null) {
+        final userId = FirebaseUuid.toUuid(firebaseUid);
         ref
             .read(gamificationProvider.notifier)
             .loadUserStats(userId);
@@ -139,7 +140,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
           ),
           const SizedBox(height: 24),
           Center(
-            child: Text('Devenez le premier !',
+            child: Text('Devenez le premier !',
                 style: tt.headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w800)),
           ),
@@ -189,7 +190,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Soyez le prochain challenger !',
+                      'Soyez le prochain challenger !',
                       style: tt.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600),
                     ),
@@ -271,7 +272,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                           ),
                         ),
                         Text(
-                          '${myLevel.level}',
+                          '\${myLevel.level}',
                           style: tt.displaySmall?.copyWith(
                             color: cs.onPrimary,
                             fontWeight: FontWeight.w800,
@@ -288,13 +289,13 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
           const SizedBox(height: 32),
 
           Text(
-            '${myLevel.xp} XP',
+            '\${myLevel.xp} XP',
             style: tt.displaySmall?.copyWith(
                 fontWeight: FontWeight.w800, color: cs.primary),
           ),
           const SizedBox(height: 4),
           Text(
-            '$xpIntoLevel / 100 XP vers le niveau ${myLevel.level + 1}',
+            '\$xpIntoLevel / 100 XP vers le niveau \${myLevel.level + 1}',
             style:
                 tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
           ),
@@ -320,17 +321,17 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _Stat(
-                    value: '${myLevel.totalPosts}',
+                    value: '\${myLevel.totalPosts}',
                     label: 'Posts'),
                 Container(
                     width: 1, height: 32, color: cs.outlineVariant),
                 _Stat(
-                    value: '${myLevel.totalReactionsReceived}',
+                    value: '\${myLevel.totalReactionsReceived}',
                     label: 'Réactions'),
                 Container(
                     width: 1, height: 32, color: cs.outlineVariant),
                 _Stat(
-                    value: '${myLevel.totalCommentsReceived}',
+                    value: '\${myLevel.totalCommentsReceived}',
                     label: 'Commentaires'),
               ],
             ),
@@ -467,7 +468,7 @@ class _PodiumUser extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              '${entry.xp} XP',
+              '\${entry.xp} XP',
               style: tt.labelSmall?.copyWith(
                   color: color, fontWeight: FontWeight.w700),
             ),
@@ -489,7 +490,7 @@ class _PodiumUser extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Text(
-                '${entry.rank}',
+                '\${entry.rank}',
                 style: tt.headlineMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w900),

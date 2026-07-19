@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../providers/block_provider.dart';
@@ -58,7 +59,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               style: tt.titleMedium
                                   ?.copyWith(fontWeight: FontWeight.w700)),
                           Text(
-                            '${blockState.blockedUsers.length} utilisateur(s)',
+                            '\${blockState.blockedUsers.length} utilisateur(s)',
                             style: tt.bodySmall
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),
@@ -282,12 +283,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: const Text('Annuler')),
           FilledButton(
             onPressed: () async {
-              final uid =
-                  Supabase.instance.client.auth.currentUser?.id;
-              if (uid != null) {
+              // ✅ Use FirebaseAuth instead of Supabase.auth
+              final firebaseUser = FirebaseAuth.instance.currentUser;
+              if (firebaseUser != null) {
                 await Supabase.instance.client.functions
                     .invoke('delete-account');
-                await Supabase.instance.client.auth.signOut();
+                await FirebaseAuth.instance.signOut();
               }
               if (context.mounted) {
                 Navigator.pushNamedAndRemoveUntil(
@@ -478,6 +479,7 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
 
   Future<void> _load() async {
     try {
+      // widget.userId is already a Supabase UUID (from block_provider)
       final data = await Supabase.instance.client
           .from('profiles')
           .select('display_name, username, avatar_url')
@@ -485,7 +487,7 @@ class _BlockedUserTileState extends ConsumerState<_BlockedUserTile> {
           .maybeSingle();
       if (mounted) setState(() => _profile = data);
     } catch (e) {
-      debugPrint('Failed to load profile: $e');
+      debugPrint('Failed to load profile: \$e');
     }
   }
 
