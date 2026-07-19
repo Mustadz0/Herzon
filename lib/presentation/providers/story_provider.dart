@@ -1,6 +1,8 @@
-﻿import 'dart:io';
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/story_model.dart';
 import '../../data/repositories/story_repository.dart';
 import '../../services/location_service.dart';
@@ -45,10 +47,11 @@ class StoryNotifier extends StateNotifier<StoriesState> {
     try {
       final pos = await _locationService.initializeLocation();
       final stories = await _repo.getActiveStories(pos, AppConstants.proximityRadiusMeters);
-      final user = Supabase.instance.client.auth.currentUser;
+      final firebaseUser = FirebaseAuth.instance.currentUser;
       List<String> viewedIds = [];
-      if (user != null) {
-        viewedIds = await _repo.getViewedStories(user.id);
+      if (firebaseUser != null) {
+        final userId = FirebaseUuid.toUuid(firebaseUser.uid);
+        viewedIds = await _repo.getViewedStories(userId);
       }
       state = StoriesState(stories: stories, viewedStoryIds: viewedIds);
     } catch (e) {
@@ -62,22 +65,22 @@ class StoryNotifier extends StateNotifier<StoriesState> {
     String? textOverlay,
     bool showInZone = true,
   }) async {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) throw Exception('Not authenticated');
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     final pos = await _locationService.initializeLocation();
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) throw Exception('Not authenticated');
 
-    // Check if user has permission to use vibes
     final profile = await Supabase.instance.client
         .from('profiles')
         .select('can_use_vibes, is_admin')
-        .eq('id', user.id)
+        .eq('id', userId)
         .single();
     if (profile['can_use_vibes'] != true && profile['is_admin'] != true) {
       throw Exception('Vous n\'etes pas autorise a utiliser les Vibes. Contactez l\'administrateur.');
     }
 
     await _repo.createStory(
-      userId: user.id,
+      userId: userId,
       mediaFile: mediaFile,
       mediaType: mediaType,
       textOverlay: textOverlay,
@@ -88,10 +91,11 @@ class StoryNotifier extends StateNotifier<StoriesState> {
   }
 
   Future<void> viewStory(String storyId) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     try {
-      await _repo.viewStory(storyId, user.id);
+      await _repo.viewStory(storyId, userId);
       if (!state.viewedStoryIds.contains(storyId)) {
         state = state.copyWith(
           viewedStoryIds: [...state.viewedStoryIds, storyId],
