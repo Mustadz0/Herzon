@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 class AppAuthState {
   final UserModel? user;
@@ -17,17 +18,17 @@ class AppAuthState {
 
 class AuthNotifier extends StateNotifier<AppAuthState> {
   final IAuthRepository _repo;
-  StreamSubscription<sb.AuthState>? _sub;
+  StreamSubscription<User?>? _sub;
 
   AuthNotifier(this._repo) : super(const AppAuthState(isLoading: true)) {
     _init();
   }
 
   void _init() {
-    _sub = _repo.onAuthStateChange.listen((sb.AuthState event) {
-      final u = event.session?.user;
-      if (u != null) {
-        _loadProfile(u.id);
+    // Listen to Firebase auth state changes
+    _sub = _repo.onAuthStateChange.listen((User? firebaseUser) {
+      if (firebaseUser != null) {
+        _loadProfile(firebaseUser.uid);
       } else {
         state = const AppAuthState();
       }
@@ -38,38 +39,40 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     state = const AppAuthState(isLoading: true);
     try {
       await _repo.signInWithGoogle();
+      // _init listener will call _loadProfile automatically
     } catch (e) {
       state = AppAuthState(error: e.toString());
     }
   }
 
-  Future<void> signInAnonymously() async {
-    state = const AppAuthState(isLoading: true);
+  Future<void> _loadProfile(String firebaseUid) async {
     try {
-      final res = await _repo.signInAnonymously();
-      if (res.user != null) await _loadProfile(res.user!.id);
-    } catch (e) {
-      state = AppAuthState(error: e.toString());
-    }
-  }
+      final uuid = FirebaseUuid.toUuid(firebaseUid);
+      var profile = await _repo.getUserProfile(firebaseUid);
 
-  Future<void> _loadProfile(String id) async {
-    try {
-      // FIX: always fetch from DB first — never hardcode isAdmin=false
-      var profile = await _repo.getUserProfile(id);
       if (profile == null) {
-        final meta = _repo.currentUser?.userMetadata ?? {};
+        final firebaseUser = _repo.currentUser;
         profile = UserModel(
-          id: id,
-          username: 'user_${id.substring(0, 8)}',
-          displayName: meta['full_name'] as String? ?? 'User',
-          avatarUrl: meta['avatar_url'] as String?,
-          privacySettings: const {'show_activity': true, 'allow_messages': true},
+          id: uuid,
+          username: 'user_${firebaseUid.substring(0, 8)}',
+          displayName: firebaseUser?.displayName ?? 'User',
+          avatarUrl: firebaseUser?.photoURL,
+          privacySettings: const {
+            'show_activity': true,
+            'allow_messages': true,
+            'show_profile_to': 'everyone',
+            'allow_add_proches': true,
+            'show_zone': true,
+            'show_age': true,
+            'show_details': true,
+            'invisible_mode': false,
+          },
         );
         await _repo.updateProfile(profile);
         // Re-fetch after upsert so DB defaults (is_admin etc.) are loaded
-        profile = await _repo.getUserProfile(id) ?? profile;
+        profile = await _repo.getUserProfile(firebaseUid) ?? profile;
       }
+
       state = AppAuthState(user: profile);
     } catch (e) {
       state = AppAuthState(error: e.toString());
@@ -78,9 +81,9 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
 
   /// Call this after updating profile to refresh state.
   Future<void> refreshProfile() async {
-    final id = _repo.currentUser?.id;
-    if (id == null) return;
-    await _loadProfile(id);
+    final uid = _repo.currentUser?.uid;
+    if (uid == null) return;
+    await _loadProfile(uid);
   }
 
   Future<void> signOut() async {
@@ -96,8 +99,7 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
 }
 
 final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  final supabase = sb.Supabase.instance.client;
-  return SupabaseAuthRepository(supabase: supabase);
+  return FirebaseAuthRepository();
 });
 
 final authProvider = StateNotifierProvider<AuthNotifier, AppAuthState>((ref) {
