@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/gamification_provider.dart';
@@ -9,6 +9,7 @@ import '../providers/checkin_provider.dart';
 import '../../data/repositories/follow_repository.dart';
 import '../../services/location_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 import 'feed_screen.dart';
 import 'explorer_screen.dart';
 import 'create_post_screen.dart';
@@ -25,6 +26,7 @@ import 'vibes/vibe_viewer_screen.dart';
 import 'messages_screen.dart';
 import '../widgets/xp_level_badge.dart';
 import '../widgets/conversations_list_widget.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -633,8 +635,10 @@ class _CheckInSheet extends ConsumerWidget {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: () async {
-                final uid = Supabase.instance.client.auth.currentUser?.id;
-                if (uid == null) return;
+                // ✅ Fix: use FirebaseAuth + FirebaseUuid instead of Supabase.auth
+                final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+                if (firebaseUid == null) return;
+                final uid = FirebaseUuid.toUuid(firebaseUid);
                 final loc =
                     await ref.read(locationServiceProvider).initializeLocation();
                 await ref
