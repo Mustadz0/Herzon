@@ -1,6 +1,7 @@
-﻿import 'dart:async';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/repositories/notification_repository.dart';
 
@@ -29,17 +30,18 @@ class NotificationNotifier extends StateNotifier<NotifState> {
   }
 
   void _init() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
     loadNotifications();
   }
 
   Future<void> loadNotifications() async {
     state = state.copyWith(isLoading: true);
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-      final notifs = await _repo.getNotifications(user.id);
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) return;
+      final userId = FirebaseUuid.toUuid(firebaseUser.uid);
+      final notifs = await _repo.getNotifications(userId);
       state = NotifState(notifications: notifs);
     } catch (_) {
       state = state.copyWith(isLoading: false);
@@ -60,9 +62,10 @@ class NotificationNotifier extends StateNotifier<NotifState> {
   }
 
   Future<void> markAllAsRead() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    await _repo.markAllAsRead(user.id);
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
+    await _repo.markAllAsRead(userId);
     state = state.copyWith(
       notifications: state.notifications.map((n) =>
         NotificationModel(
@@ -111,17 +114,18 @@ class AdminNotificationNotifier extends StateNotifier<AdminNotifState> {
   }
 
   void _init() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
     loadNotifications();
   }
 
   Future<void> loadNotifications() async {
     state = state.copyWith(isLoading: true);
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-      final notifs = await _repo.getAdminNotifications(user.id);
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) return;
+      final userId = FirebaseUuid.toUuid(firebaseUser.uid);
+      final notifs = await _repo.getAdminNotifications(userId);
       state = AdminNotifState(notifications: notifs);
     } catch (_) {
       state = state.copyWith(isLoading: false);
@@ -142,9 +146,10 @@ class AdminNotificationNotifier extends StateNotifier<AdminNotifState> {
   }
 
   Future<void> markAllAsRead() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    await _repo.markAllAdminAsRead(user.id);
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
+    await _repo.markAllAdminAsRead(userId);
     state = state.copyWith(
       notifications: state.notifications.map((n) =>
         NotificationModel(
