@@ -1,3 +1,5 @@
+// Fix: MarketplaceNotifier لم يكن يحمّل بيانات تلقائياً — أضيفنا استدعاء loadItems في البناء.
+// Fix: mounted مضاف في كل عملية متأخرة.
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,7 +32,7 @@ class MarketplaceState {
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
       selectedCategory: selectedCategory ?? this.selectedCategory,
-      error: error ?? this.error,
+      error: error,
     );
   }
 }
@@ -39,19 +41,26 @@ class MarketplaceNotifier extends StateNotifier<MarketplaceState> {
   final IMarketplaceRepository _repo;
   final LocationService _locationService;
 
-  MarketplaceNotifier(this._repo, this._locationService) : super(const MarketplaceState());
+  MarketplaceNotifier(this._repo, this._locationService)
+      : super(const MarketplaceState()) {
+    loadItems(); // Fix: auto-load on creation
+  }
 
   Future<void> loadItems({String? category}) async {
-    state = state.copyWith(isLoading: true, error: null, selectedCategory: category);
+    state = state.copyWith(
+        isLoading: true, error: null, selectedCategory: category);
     try {
       final pos = await _locationService.initializeLocation();
       final items = await _repo.getNearbyItems(
-        pos, AppConstants.proximityRadiusMeters,
+        pos,
+        AppConstants.proximityRadiusMeters,
         category: category == 'Tout' ? null : category,
       );
-      state = MarketplaceState(items: items, selectedCategory: category);
+      if (mounted) {
+        state = state.copyWith(items: items, isLoading: false);
+      }
     } catch (e) {
-      state = MarketplaceState(error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -86,12 +95,15 @@ class MarketplaceNotifier extends StateNotifier<MarketplaceState> {
     final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     try {
       await _repo.markAsSold(itemId, userId);
-      await loadItems(category: state.selectedCategory);
-    } catch (_) {}
+      if (mounted) await loadItems(category: state.selectedCategory);
+    } catch (e) {
+      if (mounted) state = state.copyWith(error: e.toString());
+    }
   }
 }
 
-final marketplaceProvider = StateNotifierProvider<MarketplaceNotifier, MarketplaceState>((ref) {
+final marketplaceProvider =
+    StateNotifierProvider<MarketplaceNotifier, MarketplaceState>((ref) {
   return MarketplaceNotifier(
     ref.watch(marketplaceRepositoryProvider),
     ref.watch(locationServiceProvider),

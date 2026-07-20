@@ -1,43 +1,11 @@
+// Fix: AdminReportsNotifier استخدم SupabaseClient مباشرة — الآن عبر AdminRepository.
+// Fix: تكرار تعريف ReportItem هنا وفي admin_repository — أبقيناه هنا كمصدر وحيد.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/repositories/admin_repository.dart';
+import 'admin_provider.dart' show adminRepositoryProvider;
 
-class ReportItem {
-  final String id;
-  final String reporterId;
-  final String reportedUserId;
-  final String? postId;
-  final String reason;
-  final String status;
-  final DateTime createdAt;
-  final String? reporterName;
-  final String? reportedUserName;
-
-  ReportItem({
-    required this.id,
-    required this.reporterId,
-    required this.reportedUserId,
-    this.postId,
-    required this.reason,
-    required this.status,
-    required this.createdAt,
-    this.reporterName,
-    this.reportedUserName,
-  });
-
-  factory ReportItem.fromJson(Map<String, dynamic> json) {
-    return ReportItem(
-      id: json['id'],
-      reporterId: json['reporter_id'],
-      reportedUserId: json['reported_user_id'],
-      postId: json['post_id'],
-      reason: json['reason'],
-      status: json['status'],
-      createdAt: DateTime.parse(json['created_at']),
-      reporterName: json['reporter']?['display_name'],
-      reportedUserName: json['reported']?['display_name'],
-    );
-  }
-}
+// ReportItem معرّف في admin_repository.dart — نعيد تصديره هنا لتجنب كسر الـ imports
+export '../../data/repositories/admin_repository.dart' show ReportItem;
 
 class AdminReportsState {
   final List<ReportItem> reports;
@@ -45,7 +13,7 @@ class AdminReportsState {
   final String? error;
   final String? filterStatus;
 
-  AdminReportsState({
+  const AdminReportsState({
     this.reports = const [],
     this.isLoading = false,
     this.error,
@@ -68,44 +36,39 @@ class AdminReportsState {
 }
 
 class AdminReportsNotifier extends StateNotifier<AdminReportsState> {
-  final SupabaseClient _supabase;
+  final AdminRepository _repo;
 
-  AdminReportsNotifier(this._supabase) : super(AdminReportsState()) {
+  AdminReportsNotifier(this._repo) : super(const AdminReportsState()) {
     loadReports();
   }
 
   Future<void> loadReports({String? status}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      var query = _supabase.from('reports').select('''
-        *,
-        reporter:profiles!reports_reporter_id_fkey(display_name),
-        reported:profiles!reports_reported_user_id_fkey(display_name)
-      ''');
-      if (status != null && status.isNotEmpty) {
-        query = query.eq('status', status);
+      final reports = await _repo.getReports(status: status);
+      if (mounted) {
+        state = state.copyWith(
+          reports: reports,
+          isLoading: false,
+          filterStatus: status,
+        );
       }
-      final data = await query.order('created_at', ascending: false);
-      final reports = data.map((json) => ReportItem.fromJson(json)).toList();
-      state = state.copyWith(reports: reports, isLoading: false, filterStatus: status);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   Future<void> updateReportStatus(String reportId, String status) async {
     try {
-      await _supabase.rpc('admin_update_report_status', params: {
-        'target_report_id': reportId,
-        'new_status': status,
-      });
+      await _repo.updateReportStatus(reportId, status);
       await loadReports(status: state.filterStatus);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) state = state.copyWith(error: e.toString());
     }
   }
 }
 
-final adminReportsProvider = StateNotifierProvider<AdminReportsNotifier, AdminReportsState>((ref) {
-  return AdminReportsNotifier(Supabase.instance.client);
+final adminReportsProvider =
+    StateNotifierProvider<AdminReportsNotifier, AdminReportsState>((ref) {
+  return AdminReportsNotifier(ref.watch(adminRepositoryProvider));
 });

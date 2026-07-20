@@ -1,6 +1,8 @@
+// Fix: AdminUsersNotifier استخدم SupabaseClient مباشرة — الآن عبر AdminRepository.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/user_model.dart';
+import '../../data/repositories/admin_repository.dart';
+import 'admin_provider.dart' show adminRepositoryProvider;
 
 class AdminUsersState {
   final List<UserModel> users;
@@ -8,7 +10,7 @@ class AdminUsersState {
   final String? error;
   final String? searchQuery;
 
-  AdminUsersState({
+  const AdminUsersState({
     this.users = const [],
     this.isLoading = false,
     this.error,
@@ -31,53 +33,48 @@ class AdminUsersState {
 }
 
 class AdminUsersNotifier extends StateNotifier<AdminUsersState> {
-  final SupabaseClient _supabase;
+  final AdminRepository _repo;
 
-  AdminUsersNotifier(this._supabase) : super(AdminUsersState()) {
+  AdminUsersNotifier(this._repo) : super(const AdminUsersState()) {
     loadUsers();
   }
 
   Future<void> loadUsers({String? search}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      var query = _supabase.from('profiles').select();
-      if (search != null && search.isNotEmpty) {
-        final sanitized = search.replaceAll(RegExp(r'[%_]'), r'\\$&');
-        query = query.or('display_name.ilike.%$sanitized%,username.ilike.%$sanitized%');
+      final users = await _repo.getAllUsers(search: search);
+      if (mounted) {
+        state = state.copyWith(
+          users: users,
+          isLoading: false,
+          searchQuery: search,
+        );
       }
-      final data = await query.order('created_at', ascending: false);
-      final users = data.map((json) => UserModel.fromJson(json)).toList();
-      state = state.copyWith(users: users, isLoading: false, searchQuery: search);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   Future<void> toggleAdmin(String userId, bool isAdmin) async {
     try {
-      await _supabase.rpc('admin_set_user_admin', params: {
-        'target_user_id': userId,
-        'make_admin': isAdmin,
-      });
+      await _repo.setUserAdmin(userId, isAdmin);
       await loadUsers(search: state.searchQuery);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) state = state.copyWith(error: e.toString());
     }
   }
 
   Future<void> toggleVibes(String userId, bool canUseVibes) async {
     try {
-      await _supabase.rpc('admin_set_user_vibes', params: {
-        'target_user_id': userId,
-        'can_use_vibes_value': canUseVibes,
-      });
+      await _repo.setUserVibes(userId, canUseVibes);
       await loadUsers(search: state.searchQuery);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) state = state.copyWith(error: e.toString());
     }
   }
 }
 
-final adminUsersProvider = StateNotifierProvider<AdminUsersNotifier, AdminUsersState>((ref) {
-  return AdminUsersNotifier(Supabase.instance.client);
+final adminUsersProvider =
+    StateNotifierProvider<AdminUsersNotifier, AdminUsersState>((ref) {
+  return AdminUsersNotifier(ref.watch(adminRepositoryProvider));
 });
