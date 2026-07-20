@@ -19,6 +19,9 @@ import 'zone_feed_screen.dart';
 ///   • ✨ Toggle button bottom-right → SuggestionPanel slide-up.
 ///   • Recenter button top-right.
 ///   • Search bar top.
+///
+/// Map key is injected at build time:
+///   flutter run --dart-define=MAPTILER_KEY=your_key_here
 class ExplorerScreen extends ConsumerStatefulWidget {
   const ExplorerScreen({super.key});
 
@@ -35,8 +38,13 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   bool _locating = false;
   bool _showSuggestions = false;
 
-  static const String _osmStyle =
-      'https://demotiles.maplibre.org/style.json';
+  // MapTiler key injected via --dart-define=MAPTILER_KEY=xxx
+  static const String _mapTilerKey =
+      String.fromEnvironment('MAPTILER_KEY', defaultValue: '');
+
+  // MapTiler Streets style — professional, Arabic labels supported
+  static String get _mapStyle =>
+      'https://api.maptiler.com/maps/streets/style.json?key=$_mapTilerKey';
 
   @override
   void initState() {
@@ -46,8 +54,12 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
+    _mapController?.onSymbolTapped.remove(_onSymbolTapped);
     super.dispose();
+  }
+
+  void _onSymbolTapped(Symbol symbol) {
+    // reserved for future native symbol taps
   }
 
   // ── Location ────────────────────────────────────────────────────────────
@@ -121,6 +133,14 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   // ── Map callbacks ────────────────────────────────────────────────────────
   void _onMapCreated(MapLibreMapController controller) {
     _mapController = controller;
+    controller.onSymbolTapped.add(_onSymbolTapped);
+  }
+
+  // ── Convert geo coords → screen position for zone markers ───────────────
+  Future<Offset?> _geoToScreen(double lat, double lng) async {
+    if (_mapController == null) return null;
+    final point = await _mapController!.toScreenLocation(LatLng(lat, lng));
+    return Offset(point.x.toDouble(), point.y.toDouble());
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -130,12 +150,15 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     final t     = Theme.of(context);
     final cs    = t.colorScheme;
 
+    // Show warning banner if key is missing (dev only)
+    final bool keyMissing = _mapTilerKey.isEmpty;
+
     return Scaffold(
       body: Stack(
         children: [
           // ── MapLibre map ─────────────────────────────────────────────────
           MapLibreMap(
-            styleString: _osmStyle,
+            styleString: _mapStyle,
             initialCameraPosition: CameraPosition(
               target: LatLng(_lat, _lng),
               zoom: 15,
@@ -144,24 +167,48 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             myLocationEnabled: true,
             myLocationTrackingMode: MyLocationTrackingMode.none,
             compassEnabled: false,
+            attributionButtonMargins: const Point(8, 8),
           ),
 
-          // ── Zone emoji markers ───────────────────────────────────────────
-          if (!state.isLoading)
-            ...state.zones.asMap().entries.map((entry) {
-              final i    = entry.key;
-              final zone = entry.value;
-              return Positioned(
-                left: 40.0 +
-                    (i * 80) %
-                        (MediaQuery.of(context).size.width - 80),
-                top: 180.0 +
-                    (i * 60) %
-                        (MediaQuery.of(context).size.height - 280),
-                child: ZoneMapMarker(
-                  zone: zone,
-                  onTap: () => _openZoneSheet(zone),
+          // ── Dev warning: missing key ──────────────────────────────────────
+          if (keyMissing)
+            Positioned(
+              top: 80,
+              left: 16,
+              right: 16,
+              child: Material(
+                color: cs.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: cs.onErrorContainer, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'MAPTILER_KEY manquant — '
+                          'lancez avec --dart-define=MAPTILER_KEY=xxx',
+                          style: TextStyle(
+                              color: cs.onErrorContainer, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+            ),
+
+          // ── Zone emoji markers (geo-positioned via FutureBuilder) ─────────
+          if (!state.isLoading)
+            ...state.zones.map((zone) {
+              return _GeoMarker(
+                key: ValueKey(zone.id),
+                zone: zone,
+                mapController: _mapController,
+                onTap: () => _openZoneSheet(zone),
               );
             }),
 
@@ -192,6 +239,9 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 14),
                         ),
+                        onChanged: (query) {
+                          // TODO: filter zones by name
+                        },
                       ),
                     ),
                   ),
@@ -315,6 +365,70 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Geo-positioned marker widget ─────────────────────────────────────────────
+/// Converts zone lat/lng to screen pixels via MapLibreMapController
+/// and positions the ZoneMapMarker at the correct map location.
+class _GeoMarker extends StatefulWidget {
+  final ZoneModel zone;
+  final MapLibreMapController? mapController;
+  final VoidCallback onTap;
+
+  const _GeoMarker({
+    super.key,
+    required this.zone,
+    required this.mapController,
+    required this.onTap,
+  });
+
+  @override
+  State<_GeoMarker> createState() => _GeoMarkerState();
+}
+
+class _GeoMarkerState extends State<_GeoMarker> {
+  Offset? _screenPos;
+
+  @override
+  void didUpdateWidget(_GeoMarker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updatePosition();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _updatePosition();
+  }
+
+  Future<void> _updatePosition() async {
+    final ctrl = widget.mapController;
+    if (ctrl == null) return;
+    try {
+      final point = await ctrl.toScreenLocation(
+        LatLng(widget.zone.lat, widget.zone.lng),
+      );
+      if (mounted) {
+        setState(() =>
+            _screenPos = Offset(point.x.toDouble(), point.y.toDouble()));
+      }
+    } catch (_) {
+      // map not ready yet — will retry on next rebuild
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_screenPos == null) return const SizedBox.shrink();
+    return Positioned(
+      left: _screenPos!.dx - 24,
+      top: _screenPos!.dy - 24,
+      child: ZoneMapMarker(
+        zone: widget.zone,
+        onTap: widget.onTap,
       ),
     );
   }
