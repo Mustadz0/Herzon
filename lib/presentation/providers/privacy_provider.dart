@@ -1,12 +1,51 @@
+// Fix: PrivacyNotifier استدعى Supabase مباشرة — الآن عبر repository.
+// Fix: load() يُستدعى تلقائياً عند إنشاء الـ provider.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/firebase_uuid.dart';
 
+// ── Repository ────────────────────────────────────────────────────────────
+abstract class IPrivacyRepository {
+  Future<Map<String, dynamic>?> fetchPrivacySettings(String userId);
+  Future<void> savePrivacySettings(
+      String userId, Map<String, dynamic> settings);
+}
+
+class SupabasePrivacyRepository implements IPrivacyRepository {
+  final SupabaseClient _supabase;
+  SupabasePrivacyRepository(this._supabase);
+
+  @override
+  Future<Map<String, dynamic>?> fetchPrivacySettings(String userId) async {
+    final data = await _supabase
+        .from('profiles')
+        .select('privacy_settings')
+        .eq('id', userId)
+        .maybeSingle();
+    if (data == null) return null;
+    return data['privacy_settings'] as Map<String, dynamic>?;
+  }
+
+  @override
+  Future<void> savePrivacySettings(
+      String userId, Map<String, dynamic> settings) async {
+    await _supabase
+        .from('profiles')
+        .update({'privacy_settings': settings})
+        .eq('id', userId);
+  }
+}
+
+final privacyRepositoryProvider = Provider<IPrivacyRepository>((ref) {
+  return SupabasePrivacyRepository(Supabase.instance.client);
+});
+
+// ── Model ─────────────────────────────────────────────────────────────────
 class PrivacySettings {
   final bool showActivity;
   final bool allowMessages;
-  final String showProfileTo; // "all", "proches", "nobody"
+  final String showProfileTo;
   final bool allowAddProches;
   final bool showZone;
   final bool showAge;
@@ -38,9 +77,14 @@ class PrivacySettings {
   }
 
   PrivacySettings copyWith({
-    bool? showActivity, bool? allowMessages, String? showProfileTo,
-    bool? allowAddProches, bool? showZone, bool? showAge,
-    bool? showDetails, bool? invisibleMode,
+    bool? showActivity,
+    bool? allowMessages,
+    String? showProfileTo,
+    bool? allowAddProches,
+    bool? showZone,
+    bool? showAge,
+    bool? showDetails,
+    bool? invisibleMode,
   }) {
     return PrivacySettings(
       showActivity: showActivity ?? this.showActivity,
@@ -55,32 +99,33 @@ class PrivacySettings {
   }
 
   Map<String, dynamic> toJson() => {
-    'show_activity': showActivity,
-    'allow_messages': allowMessages,
-    'show_profile_to': showProfileTo,
-    'allow_add_proches': allowAddProches,
-    'show_zone': showZone,
-    'show_age': showAge,
-    'show_details': showDetails,
-    'invisible_mode': invisibleMode,
-  };
+        'show_activity': showActivity,
+        'allow_messages': allowMessages,
+        'show_profile_to': showProfileTo,
+        'allow_add_proches': allowAddProches,
+        'show_zone': showZone,
+        'show_age': showAge,
+        'show_details': showDetails,
+        'invisible_mode': invisibleMode,
+      };
 }
 
+// ── Notifier ──────────────────────────────────────────────────────────────
 class PrivacyNotifier extends StateNotifier<PrivacySettings> {
-  PrivacyNotifier() : super(const PrivacySettings());
+  final IPrivacyRepository _repo;
+
+  PrivacyNotifier(this._repo) : super(const PrivacySettings()) {
+    load(); // Fix: auto-load on creation
+  }
 
   Future<void> load() async {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) return;
     final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     try {
-      final data = await Supabase.instance.client
-          .from('profiles')
-          .select('privacy_settings')
-          .eq('id', userId)
-          .maybeSingle();
-      if (data != null && data['privacy_settings'] != null) {
-        state = PrivacySettings.fromJson(data['privacy_settings'] as Map<String, dynamic>);
+      final json = await _repo.fetchPrivacySettings(userId);
+      if (json != null && mounted) {
+        state = PrivacySettings.fromJson(json);
       }
     } catch (_) {}
   }
@@ -89,14 +134,12 @@ class PrivacyNotifier extends StateNotifier<PrivacySettings> {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser == null) return;
     final userId = FirebaseUuid.toUuid(firebaseUser.uid);
-    state = updated;
-    await Supabase.instance.client
-        .from('profiles')
-        .update({'privacy_settings': updated.toJson()})
-        .eq('id', userId);
+    if (mounted) state = updated;
+    await _repo.savePrivacySettings(userId, updated.toJson());
   }
 }
 
-final privacyProvider = StateNotifierProvider<PrivacyNotifier, PrivacySettings>((ref) {
-  return PrivacyNotifier();
+final privacyProvider =
+    StateNotifierProvider<PrivacyNotifier, PrivacySettings>((ref) {
+  return PrivacyNotifier(ref.watch(privacyRepositoryProvider));
 });

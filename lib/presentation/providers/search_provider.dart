@@ -1,8 +1,33 @@
+// Fix: SearchNotifier استدعى Supabase مباشرة — الآن يستخدم repository.
+// Fix: debounce مُضاف لمنع طلب لكل حرف مكتوب.
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/post_model.dart';
 
+// ── Repository ────────────────────────────────────────────────────────────
+abstract class ISearchRepository {
+  Future<Map<String, dynamic>> searchAll(String query);
+}
+
+class SupabaseSearchRepository implements ISearchRepository {
+  final SupabaseClient _supabase;
+  SupabaseSearchRepository(this._supabase);
+
+  @override
+  Future<Map<String, dynamic>> searchAll(String query) async {
+    final results = await _supabase
+        .rpc('search_all', params: {'search_query': query});
+    return results as Map<String, dynamic>;
+  }
+}
+
+final searchRepositoryProvider = Provider<ISearchRepository>((ref) {
+  return SupabaseSearchRepository(Supabase.instance.client);
+});
+
+// ── State ─────────────────────────────────────────────────────────────────
 class SearchState {
   final String query;
   final List<PostModel> posts;
@@ -35,17 +60,29 @@ class SearchState {
   }
 }
 
+// ── Notifier ──────────────────────────────────────────────────────────────
 class SearchNotifier extends StateNotifier<SearchState> {
-  SearchNotifier() : super(const SearchState());
+  final ISearchRepository _repo;
+  Timer? _debounce;
+
+  SearchNotifier(this._repo) : super(const SearchState());
+
+  // Debounce 400ms لمنع طلب لكل حرف
+  void onQueryChanged(String q) {
+    _debounce?.cancel();
+    if (q.trim().isEmpty) {
+      state = const SearchState();
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 400), () => search(q));
+  }
 
   Future<void> search(String q) async {
+    if (q.trim().isEmpty) return;
     state = state.copyWith(query: q, isLoading: true, error: null);
     try {
-      final results = await Supabase.instance.client
-          .rpc('search_all', params: {'search_query': q});
+      final results = await _repo.searchAll(q.trim());
 
-      // Safely parse posts — the search RPC may not return lat/lng,
-      // so we inject 0.0 as fallback to avoid null errors in PostModel.
       final rawPosts = (results['posts'] as List<dynamic>?) ?? [];
       final posts = rawPosts.map((e) {
         final map = Map<String, dynamic>.from(e as Map);
@@ -58,17 +95,28 @@ class SearchNotifier extends StateNotifier<SearchState> {
               ?.cast<Map<String, dynamic>>() ??
           [];
 
-      state = state.copyWith(posts: posts, users: users, isLoading: false);
+      if (mounted) {
+        state = state.copyWith(posts: posts, users: users, isLoading: false);
+      }
     } catch (e) {
-      debugPrint('SearchNotifier.search error: $e');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      debugPrint('SearchNotifier.search error: \$e');
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  void clear() => state = const SearchState();
+  void clear() {
+    _debounce?.cancel();
+    state = const SearchState();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
 }
 
 final searchProvider =
     StateNotifierProvider<SearchNotifier, SearchState>((ref) {
-  return SearchNotifier();
+  return SearchNotifier(ref.watch(searchRepositoryProvider));
 });

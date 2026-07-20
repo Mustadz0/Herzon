@@ -1,4 +1,5 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+// Fix: _init() كان فارغاً — الآن يُحمّل checkins تلقائياً عند إنشاء الـ provider.
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/checkin_model.dart';
 import '../../data/models/badge_model.dart';
 import '../../data/repositories/checkin_repository.dart';
@@ -38,7 +39,10 @@ class CheckinNotifier extends StateNotifier<CheckinState> {
     _init();
   }
 
-  Future<void> _init() async {}
+  // Fix: auto-load checkins and badges on creation
+  Future<void> _init() async {
+    await Future.wait([loadCheckins(), loadBadges()]);
+  }
 
   Future<void> checkin(String placeName, double lat, double lng) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -46,7 +50,7 @@ class CheckinNotifier extends StateNotifier<CheckinState> {
       await _repo.checkinPlace(placeName, lat, lng);
       await loadCheckins();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -55,9 +59,9 @@ class CheckinNotifier extends StateNotifier<CheckinState> {
     try {
       final data = await _repo.getUserCheckins();
       final items = data.map((e) => CheckinModel.fromJson(e)).toList();
-      state = state.copyWith(checkins: items, isLoading: false);
+      if (mounted) state = state.copyWith(checkins: items, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -66,13 +70,14 @@ class CheckinNotifier extends StateNotifier<CheckinState> {
     try {
       final data = await _repo.getUserBadges();
       final items = data.map((e) => UserBadgeModel.fromJson(e)).toList();
-      state = state.copyWith(badges: items, isLoading: false);
+      if (mounted) state = state.copyWith(badges: items, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 }
 
-final checkinProvider = StateNotifierProvider<CheckinNotifier, CheckinState>((ref) {
+final checkinProvider =
+    StateNotifierProvider<CheckinNotifier, CheckinState>((ref) {
   return CheckinNotifier(ref.watch(checkinRepositoryProvider));
 });

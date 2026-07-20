@@ -1,3 +1,6 @@
+// Fix: pollProvider family لا يُمرّر postId للـ Notifier — النتيجة:
+// loadResults(postId) يجب استدعاؤه يدوياً ولا يعرف الـ notifier أي poll يخصّه.
+// الإصلاح: تحويله لـ .family يُمرّر postId للـ notifier ويُحمّل النتائج تلقائياً.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/poll_repository.dart';
 
@@ -47,14 +50,13 @@ class PollState {
 
 class PollNotifier extends StateNotifier<PollState> {
   final IPollRepository _repo;
+  final String postId; // Fix: postId الآن جزء من الـ notifier
 
-  PollNotifier(this._repo) : super(const PollState()) {
-    _init();
+  PollNotifier(this._repo, this.postId) : super(const PollState()) {
+    loadResults(); // Fix: auto-load
   }
 
-  Future<void> _init() async {}
-
-  Future<void> vote(String postId, int optionIndex) async {
+  Future<void> vote(int optionIndex) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _repo.votePoll(postId, optionIndex);
@@ -63,16 +65,18 @@ class PollNotifier extends StateNotifier<PollState> {
         selectedOption: optionIndex,
         isLoading: false,
       );
+      await loadResults(); // Refresh after vote
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> loadResults(String postId) async {
+  Future<void> loadResults() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final data = await _repo.getPollResults(postId);
-      final resultsList = (data['options'] as List<dynamic>? ?? []).map((e) {
+      final resultsList =
+          (data['options'] as List<dynamic>? ?? []).map((e) {
         final map = e as Map<String, dynamic>;
         return PollResult(
           label: map['label'] as String? ?? '',
@@ -80,16 +84,20 @@ class PollNotifier extends StateNotifier<PollState> {
           percentage: (map['percentage'] as num?)?.toDouble() ?? 0.0,
         );
       }).toList();
-      state = state.copyWith(
-        results: resultsList,
-        isLoading: false,
-      );
+      if (mounted) {
+        state = state.copyWith(results: resultsList, isLoading: false);
+      }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted)
+        state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 }
 
-final pollProvider = StateNotifierProvider.family<PollNotifier, PollState, String>((ref, postId) {
-  return PollNotifier(ref.watch(pollRepositoryProvider));
-});
+// Fix: postId مُمرَّر للـ Notifier
+final pollProvider =
+    StateNotifierProvider.family<PollNotifier, PollState, String>(
+  (ref, postId) {
+    return PollNotifier(ref.watch(pollRepositoryProvider), postId);
+  },
+);

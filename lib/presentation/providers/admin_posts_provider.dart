@@ -1,6 +1,9 @@
+// Fix: AdminPostsNotifier استخدم Supabase مباشرة — الآن عبر AdminRepository.
+// Fix: جُرِّد من الـ Supabase dependency المباشرة.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/post_model.dart';
+import '../../data/repositories/admin_repository.dart';
+import 'admin_provider.dart' show adminRepositoryProvider;
 
 class AdminPostsState {
   final List<PostModel> posts;
@@ -8,7 +11,7 @@ class AdminPostsState {
   final String? error;
   final String? searchQuery;
 
-  AdminPostsState({
+  const AdminPostsState({
     this.posts = const [],
     this.isLoading = false,
     this.error,
@@ -31,38 +34,43 @@ class AdminPostsState {
 }
 
 class AdminPostsNotifier extends StateNotifier<AdminPostsState> {
-  final SupabaseClient _supabase;
+  final AdminRepository _repo;
 
-  AdminPostsNotifier(this._supabase) : super(AdminPostsState()) {
+  AdminPostsNotifier(this._repo) : super(const AdminPostsState()) {
     loadPosts();
   }
 
   Future<void> loadPosts({String? search}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      var query = _supabase.from('posts').select('*, profiles(display_name, username, avatar_url)');
-      if (search != null && search.isNotEmpty) {
-        final sanitized = search.replaceAll(RegExp(r'[%_]'), r'\\$&');
-        query = query.ilike('content', '%$sanitized%');
+      final posts = await _repo.getAllPosts(search: search);
+      if (mounted) {
+        state = state.copyWith(
+          posts: posts,
+          isLoading: false,
+          searchQuery: search,
+        );
       }
-      final data = await query.order('created_at', ascending: false).limit(100);
-      final posts = data.map((json) => PostModel.fromJson(json)).toList();
-      state = state.copyWith(posts: posts, isLoading: false, searchQuery: search);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   Future<void> deletePost(String postId) async {
     try {
-      await _supabase.rpc('admin_delete_post', params: {'target_post_id': postId});
-      state = state.copyWith(posts: state.posts.where((p) => p.id != postId).toList());
+      await _repo.deletePost(postId);
+      if (mounted) {
+        state = state.copyWith(
+          posts: state.posts.where((p) => p.id != postId).toList(),
+        );
+      }
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      if (mounted) state = state.copyWith(error: e.toString());
     }
   }
 }
 
-final adminPostsProvider = StateNotifierProvider<AdminPostsNotifier, AdminPostsState>((ref) {
-  return AdminPostsNotifier(Supabase.instance.client);
+final adminPostsProvider =
+    StateNotifierProvider<AdminPostsNotifier, AdminPostsState>((ref) {
+  return AdminPostsNotifier(ref.watch(adminRepositoryProvider));
 });
