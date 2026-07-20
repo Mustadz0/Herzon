@@ -1,9 +1,11 @@
 // Fix #3: Realtime INSERT callback now appends the new post from payload
 // instead of calling loadFeed() (3 HTTP requests) every time.
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/post_model.dart';
 import '../../data/repositories/post_repository.dart';
 import '../../services/location_service.dart';
@@ -129,7 +131,6 @@ class PostNotifier extends StateNotifier<FeedState> {
               final newPost = PostModel.fromJson(
                   payload.newRecord as Map<String, dynamic>);
               if (!mounted) return;
-              // Only add if not hidden and not already in list
               final alreadyExists =
                   state.posts.any((p) => p.id == newPost.id);
               if (!alreadyExists &&
@@ -140,7 +141,6 @@ class PostNotifier extends StateNotifier<FeedState> {
                 );
               }
             } catch (e) {
-              // Fallback: full reload only on parse failure
               debugPrint(
                   'Realtime post parse failed, falling back to loadFeed: $e');
               await loadFeed();
@@ -150,11 +150,22 @@ class PostNotifier extends StateNotifier<FeedState> {
         .subscribe();
   }
 
-  Future<int> createPost(String content, String? contextTag,
-      {List<File>? mediaFiles, String? stickerId}) async {
+  /// FIX: replaced Supabase.auth with FirebaseAuth + FirebaseUuid.
+  /// Added [pollOptions] and [zoneId] parameters to match CreatePostScreen.
+  Future<int> createPost(
+    String content,
+    String? contextTag, {
+    List<File>? mediaFiles,
+    String? stickerId,
+    List<String>? pollOptions,
+    String? zoneId,
+  }) async {
     final pos = await _locationService.initializeLocation();
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) throw Exception('Not authenticated');
+
+    // FIX: use Firebase auth instead of Supabase auth
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    if (firebaseUid == null) throw Exception('Not authenticated');
+    final userId = FirebaseUuid.toUuid(firebaseUid);
 
     List<String> mediaUrls = [];
     String mediaType = 'text';
@@ -168,13 +179,14 @@ class PostNotifier extends StateNotifier<FeedState> {
       } else {
         mediaType = 'image';
       }
+      // FIX: pass UUID-based userId to media upload
       mediaUrls = await _mediaUpload.uploadPostMedia(
-          files: mediaFiles, userId: user.id);
+          files: mediaFiles, userId: userId);
     }
 
     final post = PostModel(
       id: '',
-      userId: user.id,
+      userId: userId,
       content: content,
       latitude: pos.latitude,
       longitude: pos.longitude,
@@ -184,6 +196,8 @@ class PostNotifier extends StateNotifier<FeedState> {
           : (mediaUrls.isNotEmpty ? MediaType.image : MediaType.text),
       contextTag: contextTag,
       stickerId: stickerId,
+      pollOptions: pollOptions,
+      zoneId: zoneId,
     );
     await _repo.createPost(post);
     // Realtime INSERT will handle adding to feed — no manual reload needed.
