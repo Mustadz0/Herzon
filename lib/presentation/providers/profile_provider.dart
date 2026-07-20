@@ -1,72 +1,108 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/models/user_model.dart';
-import '../../data/repositories/auth_repository.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/models/post_model.dart';
+import '../../data/repositories/follow_repository.dart';
+import '../../data/repositories/profile_repository.dart';
+
+// ── State ─────────────────────────────────────────────────────────────────────
 
 class ProfileState {
-  final UserModel? profile;
   final bool isLoading;
+  final ProfileData? profile;
+  final List<PostModel> posts;
+  final int followerCount;
+  final int followingCount;
   final String? error;
-  final bool isSaving;
 
   const ProfileState({
-    this.profile,
     this.isLoading = false,
+    this.profile,
+    this.posts = const [],
+    this.followerCount = 0,
+    this.followingCount = 0,
     this.error,
-    this.isSaving = false,
   });
 
   ProfileState copyWith({
-    UserModel? profile,
     bool? isLoading,
+    ProfileData? profile,
+    List<PostModel>? posts,
+    int? followerCount,
+    int? followingCount,
     String? error,
-    bool? isSaving,
-  }) {
-    return ProfileState(
-      profile: profile ?? this.profile,
-      isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
-      isSaving: isSaving ?? this.isSaving,
-    );
-  }
+  }) =>
+      ProfileState(
+        isLoading: isLoading ?? this.isLoading,
+        profile: profile ?? this.profile,
+        posts: posts ?? this.posts,
+        followerCount: followerCount ?? this.followerCount,
+        followingCount: followingCount ?? this.followingCount,
+        error: error,
+      );
 }
+
+// ── Notifier ──────────────────────────────────────────────────────────────────
 
 class ProfileNotifier extends StateNotifier<ProfileState> {
-  final IAuthRepository _repo;
+  final IProfileRepository _profileRepo;
+  final IFollowRepository _followRepo;
+  final String userId;
 
-  ProfileNotifier(this._repo) : super(const ProfileState());
+  ProfileNotifier({
+    required IProfileRepository profileRepo,
+    required IFollowRepository followRepo,
+    required this.userId,
+  })  : _profileRepo = profileRepo,
+        _followRepo = followRepo,
+        super(const ProfileState());
 
-  Future<void> loadProfile(String userId) async {
+  Future<void> load() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final profile = await _repo.getUserProfile(userId);
-      state = ProfileState(profile: profile);
+      final results = await Future.wait([
+        _profileRepo.getProfile(userId),
+        _profileRepo.getUserPosts(userId),
+        _followRepo.getFollowerCount(userId),
+        _followRepo.getFollowingCount(userId),
+      ]);
+
+      final profile = results[0] as ProfileData;
+      final posts   = results[1] as List<PostModel>;
+      final fc      = results[2] as int;
+      final fwc     = results[3] as int;
+
+      state = state.copyWith(
+        isLoading: false,
+        profile: profile,
+        posts: posts,
+        followerCount: fc,
+        followingCount: fwc,
+      );
     } catch (e) {
-      state = ProfileState(error: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Impossible de charger le profil.',
+      );
     }
   }
 
-  Future<void> updateProfile(UserModel updated) async {
-    state = state.copyWith(isSaving: true, error: null);
-    try {
-      await _repo.updateProfile(updated);
-      state = ProfileState(profile: updated);
-    } catch (e) {
-      state = state.copyWith(isSaving: false, error: e.toString());
-    }
-  }
-
-  Future<void> signOut() async {
-    await _repo.signOut();
-    state = const ProfileState();
+  Future<void> refreshCounts() async {
+    final fc  = await _followRepo.getFollowerCount(userId);
+    final fwc = await _followRepo.getFollowingCount(userId);
+    if (mounted) state = state.copyWith(followerCount: fc, followingCount: fwc);
   }
 }
 
-final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  return SupabaseAuthRepository(supabase: Supabase.instance.client);
-});
+// ── Family provider (keyed by userId) ─────────────────────────────────────────
 
 final profileProvider =
     StateNotifierProvider.family<ProfileNotifier, ProfileState, String>(
-  (ref, userId) => ProfileNotifier(ref.watch(authRepositoryProvider)),
+  (ref, userId) {
+    final notifier = ProfileNotifier(
+      profileRepo: ref.read(profileRepositoryProvider),
+      followRepo:  ref.read(followRepositoryProvider),
+      userId:      userId,
+    );
+    notifier.load();
+    return notifier;
+  },
 );
