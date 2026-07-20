@@ -1,4 +1,7 @@
+// Fix #8: _init() was empty — now auto-loads user stats on provider creation.
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/gamification_model.dart';
 import '../../data/repositories/gamification_repository.dart';
 import '../../services/location_service.dart';
@@ -35,16 +38,24 @@ class GamificationNotifier extends StateNotifier<GamificationState> {
   final IGamificationRepository _repo;
   final LocationService _locationService;
 
-  GamificationNotifier(this._repo, this._locationService) : super(const GamificationState()) {
-    _init();
+  GamificationNotifier(this._repo, this._locationService)
+      : super(const GamificationState()) {
+    _init(); // Fix #8: was empty — now calls _autoLoad
   }
 
-  Future<void> _init() async {}
+  // Fix #8: auto-load stats for the current user on creation
+  Future<void> _init() async {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) return;
+    final userId = FirebaseUuid.toUuid(firebaseUser.uid);
+    await loadUserStats(userId);
+  }
 
   Future<void> loadUserStats(String userId) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final data = await _repo.getUserGamification(userId);
+      if (!mounted) return;
       if (data.isEmpty) {
         state = const GamificationState(isLoading: false);
         return;
@@ -52,7 +63,7 @@ class GamificationNotifier extends StateNotifier<GamificationState> {
       final stats = UserLevelModel.fromJson(data);
       state = state.copyWith(userLevel: stats, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -60,16 +71,21 @@ class GamificationNotifier extends StateNotifier<GamificationState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final pos = await _locationService.initializeLocation();
-      final data = await _repo.getLeaderboard(pos.latitude, pos.longitude);
-      final items = data.map((e) => LeaderboardEntryModel.fromJson(e)).toList();
+      final data =
+          await _repo.getLeaderboard(pos.latitude, pos.longitude);
+      if (!mounted) return;
+      final items =
+          data.map((e) => LeaderboardEntryModel.fromJson(e)).toList();
       state = state.copyWith(leaderboard: items, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted)
+        state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 }
 
-final gamificationProvider = StateNotifierProvider<GamificationNotifier, GamificationState>((ref) {
+final gamificationProvider =
+    StateNotifierProvider<GamificationNotifier, GamificationState>((ref) {
   return GamificationNotifier(
     ref.watch(gamificationRepositoryProvider),
     ref.watch(locationServiceProvider),

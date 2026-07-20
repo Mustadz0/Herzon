@@ -1,4 +1,5 @@
-﻿class NotificationModel {
+// Fix #6: added copyWith so markAsRead/markAllAsRead don't rebuild manually.
+class NotificationModel {
   final String id;
   final String? userId;
   final String? adminId;
@@ -24,6 +25,32 @@
   });
 
   bool get isAdminNotification => recipientType == 'admin';
+
+  NotificationModel copyWith({
+    String? id,
+    String? userId,
+    String? adminId,
+    String? type,
+    String? recipientType,
+    String? title,
+    String? body,
+    Map<String, dynamic>? data,
+    bool? isRead,
+    DateTime? createdAt,
+  }) {
+    return NotificationModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      adminId: adminId ?? this.adminId,
+      type: type ?? this.type,
+      recipientType: recipientType ?? this.recipientType,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      data: data ?? this.data,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(

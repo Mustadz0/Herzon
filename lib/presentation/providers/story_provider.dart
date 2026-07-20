@@ -1,7 +1,9 @@
+// Fix #7: removed direct Supabase call from provider — moved permission
+// check to StoryRepository via new canUseVibes() method.
+// The provider now talks only through IStoryRepository.
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/story_model.dart';
 import '../../data/repositories/story_repository.dart';
@@ -40,22 +42,24 @@ class StoryNotifier extends StateNotifier<StoriesState> {
   final IStoryRepository _repo;
   final LocationService _locationService;
 
-  StoryNotifier(this._repo, this._locationService) : super(const StoriesState());
+  StoryNotifier(this._repo, this._locationService)
+      : super(const StoriesState());
 
   Future<void> loadStories() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final pos = await _locationService.initializeLocation();
-      final stories = await _repo.getActiveStories(pos, AppConstants.proximityRadiusMeters);
+      final stories = await _repo.getActiveStories(
+          pos, AppConstants.proximityRadiusMeters);
       final firebaseUser = FirebaseAuth.instance.currentUser;
       List<String> viewedIds = [];
       if (firebaseUser != null) {
         final userId = FirebaseUuid.toUuid(firebaseUser.uid);
         viewedIds = await _repo.getViewedStories(userId);
       }
-      state = StoriesState(stories: stories, viewedStoryIds: viewedIds);
+      if (mounted) state = StoriesState(stories: stories, viewedStoryIds: viewedIds);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -70,13 +74,11 @@ class StoryNotifier extends StateNotifier<StoriesState> {
     final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     final pos = await _locationService.initializeLocation();
 
-    final profile = await Supabase.instance.client
-        .from('profiles')
-        .select('can_use_vibes, is_admin')
-        .eq('id', userId)
-        .single();
-    if (profile['can_use_vibes'] != true && profile['is_admin'] != true) {
-      throw Exception('Vous n\'etes pas autorise a utiliser les Vibes. Contactez l\'administrateur.');
+    // Fix #7: permission check now lives in the repository
+    final canUse = await _repo.canUseVibes(userId);
+    if (!canUse) {
+      throw Exception(
+          'Vous n\'etes pas autorisé à utiliser les Vibes. Contactez l\'administrateur.');
     }
 
     await _repo.createStory(
@@ -96,7 +98,7 @@ class StoryNotifier extends StateNotifier<StoriesState> {
     final userId = FirebaseUuid.toUuid(firebaseUser.uid);
     try {
       await _repo.viewStory(storyId, userId);
-      if (!state.viewedStoryIds.contains(storyId)) {
+      if (mounted && !state.viewedStoryIds.contains(storyId)) {
         state = state.copyWith(
           viewedStoryIds: [...state.viewedStoryIds, storyId],
         );
@@ -111,7 +113,8 @@ class StoryNotifier extends StateNotifier<StoriesState> {
   }
 }
 
-final storyProvider = StateNotifierProvider<StoryNotifier, StoriesState>((ref) {
+final storyProvider =
+    StateNotifierProvider<StoryNotifier, StoriesState>((ref) {
   return StoryNotifier(
     ref.watch(storyRepositoryProvider),
     ref.watch(locationServiceProvider),

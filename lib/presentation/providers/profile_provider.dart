@@ -1,3 +1,5 @@
+// Fix #5: changed ref.read → ref.watch for repositories so the notifier
+// correctly tracks provider updates (e.g., after sign-out/sign-in).
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/post_model.dart';
 import '../../data/repositories/follow_repository.dart';
@@ -66,41 +68,45 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       ]);
 
       final profile = results[0] as ProfileData;
-      final posts   = results[1] as List<PostModel>;
-      final fc      = results[2] as int;
-      final fwc     = results[3] as int;
+      final posts = results[1] as List<PostModel>;
+      final fc = results[2] as int;
+      final fwc = results[3] as int;
 
-      state = state.copyWith(
-        isLoading: false,
-        profile: profile,
-        posts: posts,
-        followerCount: fc,
-        followingCount: fwc,
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          profile: profile,
+          posts: posts,
+          followerCount: fc,
+          followingCount: fwc,
+        );
+      }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Impossible de charger le profil.',
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Impossible de charger le profil.',
+        );
+      }
     }
   }
 
   Future<void> refreshCounts() async {
-    final fc  = await _followRepo.getFollowerCount(userId);
+    final fc = await _followRepo.getFollowerCount(userId);
     final fwc = await _followRepo.getFollowingCount(userId);
     if (mounted) state = state.copyWith(followerCount: fc, followingCount: fwc);
   }
 }
 
-// ── Family provider (keyed by userId) ─────────────────────────────────────────
+// ── Family provider — Fix #5: ref.watch instead of ref.read ───────────────────
 
 final profileProvider =
     StateNotifierProvider.family<ProfileNotifier, ProfileState, String>(
   (ref, userId) {
     final notifier = ProfileNotifier(
-      profileRepo: ref.read(profileRepositoryProvider),
-      followRepo:  ref.read(followRepositoryProvider),
-      userId:      userId,
+      profileRepo: ref.watch(profileRepositoryProvider), // Fix #5
+      followRepo: ref.watch(followRepositoryProvider),   // Fix #5
+      userId: userId,
     );
     notifier.load();
     return notifier;

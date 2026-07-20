@@ -1,3 +1,5 @@
+// Fix #3: Realtime INSERT callback now appends the new post from payload
+// instead of calling loadFeed() (3 HTTP requests) every time.
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,7 +49,6 @@ class FeedState {
     );
   }
 
-  /// Returns visible posts (not hidden)
   List<PostModel> get visiblePosts =>
       posts.where((p) => !hiddenPostIds.contains(p.id)).toList();
 }
@@ -75,15 +76,17 @@ class PostNotifier extends StateNotifier<FeedState> {
       final userReactions = await _fetchUserReactions();
       final hiddenIds = await _repo.getHiddenPostIds();
       _currentPage = 1;
-      state = FeedState(
-        posts: posts,
-        hasMore: posts.length < total,
-        userReactions: userReactions,
-        hiddenPostIds: hiddenIds,
-      );
+      if (mounted) {
+        state = FeedState(
+          posts: posts,
+          hasMore: posts.length < total,
+          userReactions: userReactions,
+          hiddenPostIds: hiddenIds,
+        );
+      }
       _subscribeRealtime();
     } catch (e) {
-      state = FeedState(error: e.toString());
+      if (mounted) state = FeedState(error: e.toString());
     }
   }
 
@@ -98,15 +101,17 @@ class PostNotifier extends StateNotifier<FeedState> {
           page: _currentPage);
       final total = await _repo
           .getNearbyPostsCount(pos, AppConstants.proximityRadiusMeters);
-      state = state.copyWith(
-        posts: [...state.posts, ...newPosts],
-        isLoadingMore: false,
-        hasMore: state.posts.length + newPosts.length < total,
-      );
+      if (mounted) {
+        state = state.copyWith(
+          posts: [...state.posts, ...newPosts],
+          isLoadingMore: false,
+          hasMore: state.posts.length + newPosts.length < total,
+        );
+      }
     } catch (e, stackTrace) {
       debugPrint('PostProvider loadMore error: $e\n$stackTrace');
       _currentPage--;
-      state = state.copyWith(isLoadingMore: false);
+      if (mounted) state = state.copyWith(isLoadingMore: false);
     }
   }
 
@@ -119,10 +124,26 @@ class PostNotifier extends StateNotifier<FeedState> {
           schema: 'public',
           table: 'posts',
           callback: (payload) async {
+            // Fix #3: parse new post directly from payload — no full reload.
             try {
-              await loadFeed();
+              final newPost = PostModel.fromJson(
+                  payload.newRecord as Map<String, dynamic>);
+              if (!mounted) return;
+              // Only add if not hidden and not already in list
+              final alreadyExists =
+                  state.posts.any((p) => p.id == newPost.id);
+              if (!alreadyExists &&
+                  !state.hiddenPostIds.contains(newPost.id)) {
+                state = state.copyWith(
+                  posts: [newPost, ...state.posts],
+                  hasMore: state.hasMore,
+                );
+              }
             } catch (e) {
-              debugPrint('Realtime feed refresh error: $e');
+              // Fallback: full reload only on parse failure
+              debugPrint(
+                  'Realtime post parse failed, falling back to loadFeed: $e');
+              await loadFeed();
             }
           },
         )
@@ -165,16 +186,18 @@ class PostNotifier extends StateNotifier<FeedState> {
       stickerId: stickerId,
     );
     await _repo.createPost(post);
-    await loadFeed();
+    // Realtime INSERT will handle adding to feed — no manual reload needed.
     return 10;
   }
 
   Future<void> deletePost(String postId) async {
     try {
       await _repo.deletePost(postId);
-      state = state.copyWith(
-        posts: state.posts.where((p) => p.id != postId).toList(),
-      );
+      if (mounted) {
+        state = state.copyWith(
+          posts: state.posts.where((p) => p.id != postId).toList(),
+        );
+      }
     } catch (e) {
       debugPrint('PostProvider deletePost error: $e');
     }
@@ -183,17 +206,19 @@ class PostNotifier extends StateNotifier<FeedState> {
   Future<void> editPost(String postId, String content) async {
     try {
       await _repo.updatePost(postId, content);
-      state = state.copyWith(
-        posts: state.posts
-            .map((p) => p.id == postId ? p.copyWith(content: content) : p)
-            .toList(),
-      );
+      if (mounted) {
+        state = state.copyWith(
+          posts: state.posts
+              .map((p) =>
+                  p.id == postId ? p.copyWith(content: content) : p)
+              .toList(),
+        );
+      }
     } catch (e) {
       debugPrint('PostProvider editPost error: $e');
     }
   }
 
-  // ── Hide / Unhide ────────────────────────────────────────────
   void hidePost(String postId) {
     final updated = {...state.hiddenPostIds, postId};
     state = state.copyWith(hiddenPostIds: updated);
@@ -214,17 +239,14 @@ class PostNotifier extends StateNotifier<FeedState> {
     });
   }
 
-  // ── Reactions ────────────────────────────────────────────────
   Future<int> reactToPost(String postId, String reactionType) async {
     if (_isReacting) return 0;
     _isReacting = true;
-
     _optimisticallyUpdateReaction(postId, reactionType, 1);
     state = state.copyWith(
       userReactions:
           _updateUserReaction(state.userReactions, postId, reactionType, true),
     );
-
     try {
       await _repo.reactToPost(postId, reactionType);
       return 2;
@@ -243,13 +265,11 @@ class PostNotifier extends StateNotifier<FeedState> {
   Future<void> removeReaction(String postId, String reactionType) async {
     if (_isReacting) return;
     _isReacting = true;
-
     _optimisticallyUpdateReaction(postId, reactionType, -1);
     state = state.copyWith(
       userReactions: _updateUserReaction(
           state.userReactions, postId, reactionType, false),
     );
-
     try {
       await _repo.removeReaction(postId, reactionType);
     } catch (_) {
@@ -286,6 +306,7 @@ class PostNotifier extends StateNotifier<FeedState> {
 
   void _optimisticallyUpdateReaction(
       String postId, String reactionType, int delta) {
+    if (!mounted) return;
     state = state.copyWith(
       posts: state.posts.map((p) {
         if (p.id != postId) return p;
