@@ -1,215 +1,138 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/notification_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../providers/notification_provider.dart';
+import 'user_profile_screen.dart';
+import 'post_detail_screen.dart';
+
+extension _ThemeDark on ThemeData {
+  bool get isDark => brightness == Brightness.dark;
+}
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final t = Theme.of(context);
     final state = ref.watch(notificationProvider);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: isDark ? AppTheme.navDark : AppTheme.navLight,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: const SizedBox.expand(),
-          ),
-        ),
-        title: Row(
-          children: [
-            ShaderMask(
-              shaderCallback: (b) => AppTheme.brandGradient.createShader(b),
-              child: Text(
-                'Notifications',
-                style: tt.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            if (state.unreadCount > 0) ...
-              [
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: cs.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${state.unreadCount}',
-                    style: tt.labelSmall
-                        ?.copyWith(color: cs.onPrimary, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-          ],
-        ),
+        title: const Text('Notifications'),
         actions: [
-          if (state.notifications.isNotEmpty)
+          if (state.notifications.any((n) => !n.isRead))
             TextButton(
-              onPressed: () =>
-                  ref.read(notificationProvider.notifier).markAllAsRead(),
-              child: Text(
-                'Tout lire',
-                style: tt.labelMedium?.copyWith(color: cs.primary),
-              ),
+              onPressed: () => ref.read(notificationProvider.notifier).markAllAsRead(),
+              child: const Text('Tout lire'),
             ),
-          const SizedBox(width: 4),
         ],
       ),
-      body: state.isLoading
+      body: state.isLoading && state.notifications.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : state.notifications.isEmpty
-              ? _EmptyNotifications(cs: cs, tt: tt)
-              : ListView.separated(
-                  padding: const EdgeInsets.only(top: kToolbarHeight + 16, bottom: 24),
-                  itemCount: state.notifications.length,
-                  separatorBuilder: (_, __) => Divider(
-                    height: 1,
-                    indent: 72,
-                    color: cs.outlineVariant.withValues(alpha: 0.3),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.notifications_none, size: 56,
+                        color: t.colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 12),
+                      Text('Aucune notification', style: t.textTheme.bodyLarge),
+                    ],
                   ),
-                  itemBuilder: (_, i) => _NotificationTile(
-                    notification: state.notifications[i],
-                    onTap: () => ref
-                        .read(notificationProvider.notifier)
-                        .markAsRead(state.notifications[i].id),
+                )
+              : RefreshIndicator(
+                  onRefresh: () => ref.read(notificationProvider.notifier).loadNotifications(),
+                  child: ListView.separated(
+                    itemCount: state.notifications.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final n = state.notifications[index];
+                      return ListTile(
+                        tileColor: n.isRead
+                            ? null
+                            : AppTheme.primary.withValues(alpha: 0.06),
+                        leading: Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient:
+                                n.actorAvatarUrl == null ? AppTheme.brandGradient : null,
+                          ),
+                          child: n.actorAvatarUrl != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(22),
+                                  child: Image.network(n.actorAvatarUrl!, fit: BoxFit.cover))
+                              : Icon(_iconForType(n.type),
+                                  color: Colors.white, size: 20),
+                        ),
+                        title: Text(
+                          _labelForNotif(n),
+                          style: t.textTheme.bodyMedium?.copyWith(
+                            fontWeight: n.isRead ? FontWeight.normal : FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: n.createdAt != null
+                            ? Text(_formatTime(n.createdAt!),
+                                style: t.textTheme.bodySmall)
+                            : null,
+                        trailing: n.isRead
+                            ? null
+                            : Container(
+                                width: 8, height: 8,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                        onTap: () {
+                          if (!n.isRead) {
+                            ref.read(notificationProvider.notifier).markAsRead(n.id);
+                          }
+                          _handleTap(context, n);
+                        },
+                      );
+                    },
                   ),
                 ),
     );
   }
-}
 
-class _EmptyNotifications extends StatelessWidget {
-  final ColorScheme cs;
-  final TextTheme tt;
-  const _EmptyNotifications({required this.cs, required this.tt});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.notifications_none_rounded,
-                size: 44, color: cs.primary.withValues(alpha: 0.5)),
-          ),
-          const SizedBox(height: 20),
-          Text('Aucune notification',
-              style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(
-            'Vous serez notifié ici des nouvelles activités',
-            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'like': return Icons.favorite;
+      case 'comment': return Icons.chat_bubble;
+      case 'follow': return Icons.person_add;
+      case 'mention': return Icons.alternate_email;
+      default: return Icons.notifications;
+    }
   }
-}
 
-class _NotificationTile extends StatelessWidget {
-  final dynamic notification;
-  final VoidCallback onTap;
-  const _NotificationTile(
-      {required this.notification, required this.onTap});
+  String _labelForNotif(dynamic n) {
+    final actor = n.actorName ?? 'Quelqu\'un';
+    switch (n.type) {
+      case 'like': return '$actor a réagi à votre publication';
+      case 'comment': return '$actor a commenté votre publication';
+      case 'follow': return '$actor vous suit maintenant';
+      case 'mention': return '$actor vous a mentionné';
+      default: return n.body ?? 'Nouvelle notification';
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final bool isRead = notification.isRead as bool? ?? true;
+  void _handleTap(BuildContext context, dynamic n) {
+    if (n.actorId != null && (n.type == 'follow')) {
+      Navigator.push(context,
+        MaterialPageRoute(builder: (_) => UserProfileScreen(userId: n.actorId!)));
+    }
+    // post-related → navigate to post (requires postId on model)
+  }
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: isRead
-            ? Colors.transparent
-            : cs.primary.withValues(alpha: 0.05),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Avatar / icon
-            Stack(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.brandGradient,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.person,
-                      color: Colors.white, size: 22),
-                ),
-                if (!isRead)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: cs.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: cs.surface, width: 1.5),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title as String? ?? '',
-                    style: tt.bodyMedium?.copyWith(
-                      fontWeight: isRead
-                          ? FontWeight.w400
-                          : FontWeight.w600,
-                    ),
-                  ),
-                  if ((notification.body as String?)?.isNotEmpty == true)
-                    Text(
-                      notification.body as String,
-                      style: tt.bodySmall
-                          ?.copyWith(color: cs.onSurfaceVariant),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _formatTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes}min';
+    if (diff.inHours < 24) return 'il y a ${diff.inHours}h';
+    if (diff.inDays < 7) return 'il y a ${diff.inDays}j';
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }

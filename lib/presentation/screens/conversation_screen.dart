@@ -1,22 +1,28 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../providers/messenger_provider.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/message_model.dart';
-import '../widgets/sticker_picker.dart';
+import '../providers/messenger_provider.dart';
+
+extension _ThemeDark on ThemeData {
+  bool get isDark => brightness == Brightness.dark;
+}
 
 class ConversationScreen extends ConsumerStatefulWidget {
   final String conversationId;
-  final String otherUserId;
   final String otherUserName;
+  final String? otherUserAvatar;
+  final String otherUserId;
 
   const ConversationScreen({
     super.key,
     required this.conversationId,
-    required this.otherUserId,
     required this.otherUserName,
+    this.otherUserAvatar,
+    required this.otherUserId,
   });
 
   @override
@@ -24,26 +30,72 @@ class ConversationScreen extends ConsumerStatefulWidget {
 }
 
 class _ConversationScreenState extends ConsumerState<ConversationScreen> {
-  final _controller = TextEditingController();
+  final _msgController = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
-  bool _showStickerPicker = false;
+  bool _isSending = false;
+  RealtimeChannel? _channel;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(messagesProvider(widget.conversationId).notifier).markAsRead();
-      _scrollToBottom();
+      ref.read(messagesProvider(widget.conversationId).notifier).loadMessages();
     });
+    _subscribeRealtime();
+  }
+
+  void _subscribeRealtime() {
+    _channel = Supabase.instance.client
+        .channel('conv:${widget.conversationId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          table: 'messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: widget.conversationId,
+          ),
+          callback: (_) {
+            ref.read(messagesProvider(widget.conversationId).notifier).loadMessages();
+            _scrollToBottom();
+          },
+        )
+        .subscribe();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _channel?.unsubscribe();
+    _msgController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _send() async {
+    final content = _msgController.text.trim();
+    if (content.isEmpty) return;
+    setState(() => _isSending = true);
+    try {
+      // FIX: UUID من Firebase
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      final senderUuid = FirebaseUuid.toUuid(uid);
+      await ref
+          .read(messagesProvider(widget.conversationId).notifier)
+          .sendMessage(content: content, senderId: senderUuid);
+      _msgController.clear();
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
   }
 
   void _scrollToBottom() {
@@ -51,309 +103,196 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-
-    ref.read(messagesProvider(widget.conversationId).notifier).sendMessage(
-          content: text,
-        );
-    _controller.clear();
-    _scrollToBottom();
-  }
-
-  void _sendSticker(String stickerId) {
-    ref.read(messagesProvider(widget.conversationId).notifier).sendMessage(
-          content: '',
-          messageType: 'sticker',
-          stickerId: stickerId,
-        );
-    setState(() => _showStickerPicker = false);
-    _scrollToBottom();
-  }
-
   @override
   Widget build(BuildContext context) {
+    final t = Theme.of(context);
     final messagesAsync = ref.watch(messagesProvider(widget.conversationId));
+    // FIX: FirebaseAuth بدل Supabase.auth
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    final myUuid = myUid != null ? FirebaseUuid.toUuid(myUid) : null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          color: const Color(0xFF1E293B),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
+        title: Row(
           children: [
-            Text(
-              widget.otherUserName,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E293B),
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: widget.otherUserAvatar == null ? AppTheme.brandGradient : null,
               ),
+              child: widget.otherUserAvatar != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.network(widget.otherUserAvatar!, fit: BoxFit.cover))
+                  : const Icon(Icons.person, color: Colors.white, size: 18),
             ),
-            Text(
-              'En ligne',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                color: const Color(0xFF10B981),
-              ),
-            ),
+            const SizedBox(width: 10),
+            Text(widget.otherUserName),
           ],
         ),
-        centerTitle: true,
       ),
       body: Column(
         children: [
-          // Messages list
           Expanded(
             child: messagesAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
-              error: (e, _) => Center(
-                child: Text('Erreur: $e', style: GoogleFonts.plusJakartaSans(color: Colors.red)),
-              ),
-              data: (messages) {
-                if (messages.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[200]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Envoyez le premier message!',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ],
+              data: (messages) => messages.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.chat_bubble_outline, size: 48,
+                            color: t.colorScheme.onSurfaceVariant),
+                          const SizedBox(height: 12),
+                          Text('Commencez la conversation !',
+                            style: t.textTheme.bodyLarge),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: messages.length,
+                      itemBuilder: (_, i) {
+                        final msg = messages[i];
+                        final isMe = myUuid != null && msg.senderId == myUuid;
+                        return _MessageBubble(message: msg, isMe: isMe);
+                      },
                     ),
-                  );
-                }
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = messages[index];
-                    final isMe = msg.senderId == Supabase.instance.client.auth.currentUser?.id;
-                    final showTime = index == 0 ||
-                        (messages[index].createdAt != null &&
-                            messages[index - 1].createdAt != null &&
-                            messages[index].createdAt!.difference(messages[index - 1].createdAt!).inMinutes > 5);
-
-                    return Column(
-                      children: [
-                        if (showTime && msg.createdAt != null)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              _formatMessageTime(msg.createdAt!),
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                color: const Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ),
-                        _buildMessageBubble(msg, isMe),
-                      ],
-                    );
-                  },
-                );
-              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Erreur: $e')),
             ),
           ),
-          // Sticker picker
-          if (_showStickerPicker)
-            StickerPicker(
-              onStickerSelected: _sendSticker,
-              onClose: () => setState(() => _showStickerPicker = false),
-            ),
-          // Input area
+          // Input bar
           Container(
-            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
+              color: t.scaffoldBackgroundColor,
+              border: Border(
+                top: BorderSide(
+                  color: t.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                ),
+              ),
+            ),
+            padding: EdgeInsets.only(
+              left: 12, right: 12, top: 8,
+              bottom: MediaQuery.of(context).padding.bottom + 8,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _msgController,
+                    focusNode: _focusNode,
+                    decoration: InputDecoration(
+                      hintText: 'Message...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: t.isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF1F5F9),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 10),
+                    ),
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _send(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppTheme.brandGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: _isSending
+                        ? const SizedBox(
+                            width: 18, height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send, size: 18, color: Colors.white),
+                    onPressed: _isSending ? null : _send,
+                  ),
                 ),
               ],
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.emoji_emotions_outlined,
-                      color: _showStickerPicker ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
-                    ),
-                    onPressed: () => setState(() => _showStickerPicker = !_showStickerPicker),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        decoration: InputDecoration(
-                          hintText: 'Votre message...',
-                          hintStyle: GoogleFonts.plusJakartaSans(
-                            color: const Color(0xFF94A3B8),
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        ),
-                        style: GoogleFonts.plusJakartaSans(fontSize: 14),
-                        maxLines: null,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4F46E5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                      onPressed: _send,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildMessageBubble(MessageModel msg, bool isMe) {
-    if (msg.isSticker) {
-      return Align(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 4),
-          padding: const EdgeInsets.all(8),
-          child: Text(
-            _getStickerEmoji(msg.stickerId),
-            style: const TextStyle(fontSize: 48),
-          ),
-        ),
-      );
-    }
+class _MessageBubble extends StatelessWidget {
+  final MessageModel message;
+  final bool isMe;
+  const _MessageBubble({required this.message, required this.isMe});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final isDark = t.brightness == Brightness.dark;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
+        margin: const EdgeInsets.only(bottom: 8),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.72,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFF4F46E5) : Colors.white,
-          borderRadius: BorderRadius.circular(18).copyWith(
-            bottomRight: isMe ? const Radius.circular(4) : null,
-            bottomLeft: !isMe ? const Radius.circular(4) : null,
+          gradient: isMe ? AppTheme.brandGradient : null,
+          color: isMe
+              ? null
+              : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isMe ? 18 : 4),
+            bottomRight: Radius.circular(isMe ? 4 : 18),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              msg.content ?? '',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
-                color: isMe ? Colors.white : const Color(0xFF1E293B),
+              message.content,
+              style: t.textTheme.bodyMedium?.copyWith(
+                color: isMe ? Colors.white : null,
               ),
             ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  msg.createdAt != null ? DateFormat('HH:mm').format(msg.createdAt!) : '',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
-                    color: isMe ? Colors.white70 : const Color(0xFF94A3B8),
-                  ),
+            const SizedBox(height: 2),
+            if (message.createdAt != null)
+              Text(
+                _formatTime(message.createdAt!),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isMe
+                      ? Colors.white.withValues(alpha: 0.7)
+                      : t.colorScheme.onSurfaceVariant,
                 ),
-                if (isMe) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    msg.isRead ? Icons.done_all : Icons.done,
-                    size: 14,
-                    color: msg.isRead ? const Color(0xFF10B981) : Colors.white70,
-                  ),
-                ],
-              ],
-            ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  String _getStickerEmoji(String? stickerId) {
-    if (stickerId == null) return '😀';
-    // Simple mapping - in production, use actual sticker assets
-    const stickers = {
-      'heart': '❤️',
-      'fire': '🔥',
-      'thumbsup': '👍',
-      'laugh': '😂',
-      'wow': '😮',
-      'sad': '😢',
-      'clap': '👏',
-      'wave': '👋',
-      'party': '🎉',
-      'star': '⭐',
-    };
-    return stickers[stickerId] ?? '😀';
-  }
-
-  String _formatMessageTime(DateTime time) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final messageDate = DateTime(time.year, time.month, time.day);
-    final diff = today.difference(messageDate).inDays;
-    if (diff == 0) {
-      return 'Aujourd\'hui ${DateFormat('HH:mm').format(time)}';
-    } else if (diff == 1) {
-      return 'Hier ${DateFormat('HH:mm').format(time)}';
-    } else {
-      return DateFormat('dd/MM HH:mm').format(time);
-    }
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 }

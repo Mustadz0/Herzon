@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/search_provider.dart';
-import '../widgets/post_card.dart';
-import '../widgets/user_list_tile.dart';
 import '../../core/theme/app_theme.dart';
+import '../providers/search_provider.dart';
+import 'user_profile_screen.dart';
+import 'post_detail_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -14,176 +14,159 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-  final _ctrl = TextEditingController();
-  final _focus = FocusNode();
+  final _searchController = TextEditingController();
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _focus.requestFocus());
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
   void dispose() {
+    _searchController.dispose();
     _tabController.dispose();
-    _ctrl.dispose();
-    _focus.dispose();
     super.dispose();
   }
 
-  void _onSearch(String q) {
-    final trimmed = q.trim();
-    if (trimmed.isEmpty) return;
-    ref.read(searchProvider.notifier).search(trimmed);
+  void _onSearch(String query) {
+    if (query.trim().isEmpty) {
+      ref.read(searchProvider.notifier).clear();
+      return;
+    }
+    ref.read(searchProvider.notifier).search(query.trim());
   }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final state = ref.watch(searchProvider);
+    final t = Theme.of(context);
+    final isDark = t.brightness == Brightness.dark;
+    final searchState = ref.watch(searchProvider);
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0,
-        title: Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: SearchBar(
-            controller: _ctrl,
-            focusNode: _focus,
-            hintText: 'Rechercher personnes, posts...',
-            hintStyle: WidgetStatePropertyAll(
-              tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+        title: TextField(
+          controller: _searchController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Rechercher...',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide.none,
             ),
-            leading: Icon(Icons.search, color: cs.onSurfaceVariant),
-            trailing: [
-              if (_ctrl.text.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _ctrl.clear();
-                    ref.read(searchProvider.notifier).clear();
-                  },
-                ),
-            ],
-            onChanged: _onSearch,
-            onSubmitted: _onSearch,
-            elevation: const WidgetStatePropertyAll(0),
-            backgroundColor: WidgetStatePropertyAll(cs.surfaceContainerLow),
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.5)),
-              ),
-            ),
+            filled: true,
+            fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref.read(searchProvider.notifier).clear();
+                    },
+                  )
+                : null,
           ),
+          onChanged: _onSearch,
         ),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Posts'),
             Tab(text: 'Personnes'),
+            Tab(text: 'Publications'),
+            Tab(text: 'Zones'),
           ],
-          indicatorColor: cs.primary,
-          labelColor: cs.primary,
-          unselectedLabelColor: cs.onSurfaceVariant,
-          dividerColor: cs.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
-      body: state.isLoading
-          ? Center(
-              child: CircularProgressIndicator(color: cs.primary))
-          : state.query.isEmpty
-              ? _EmptyHint(cs: cs, tt: tt)
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // Posts tab
-                    state.posts.isEmpty
-                        ? _NoResults(
-                            query: state.query, cs: cs, tt: tt)
-                        : ListView.builder(
-                            itemCount: state.posts.length,
-                            itemBuilder: (_, i) =>
-                                PostCard(post: state.posts[i]),
-                          ),
-                    // People tab
-                    state.users.isEmpty
-                        ? _NoResults(
-                            query: state.query, cs: cs, tt: tt)
-                        : ListView.builder(
-                            itemCount: state.users.length,
-                            itemBuilder: (_, i) =>
-                                UserListTile(user: state.users[i]),
-                          ),
-                  ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Users tab
+          _buildList(
+            isLoading: searchState.isLoading,
+            items: searchState.users,
+            emptyMessage: 'Aucun utilisateur trouvé',
+            builder: (user) => ListTile(
+              leading: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: user.avatarUrl == null ? AppTheme.brandGradient : null,
                 ),
-    );
-  }
-}
-
-class _EmptyHint extends StatelessWidget {
-  final ColorScheme cs;
-  final TextTheme tt;
-  const _EmptyHint({required this.cs, required this.tt});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
+                child: user.avatarUrl != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Image.network(user.avatarUrl!, fit: BoxFit.cover))
+                    : const Icon(Icons.person, color: Colors.white),
+              ),
+              title: Text(user.displayName ?? user.username ?? 'Anonyme'),
+              subtitle: user.username != null ? Text('@${user.username}') : null,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => UserProfileScreen(userId: user.id)),
+              ),
             ),
-            child: Icon(Icons.search_rounded,
-                size: 36, color: cs.primary.withValues(alpha: 0.5)),
           ),
-          const SizedBox(height: 16),
-          Text('Commencez à taper...',
-              style: tt.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Text(
-            'Recherchez des posts ou des personnes',
-            style:
-                tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          // Posts tab
+          _buildList(
+            isLoading: searchState.isLoading,
+            items: searchState.posts,
+            emptyMessage: 'Aucune publication trouvée',
+            builder: (post) => ListTile(
+              title: Text(post.content, maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: Text(post.userDisplayName ?? post.userUsername ?? 'Anonyme'),
+              leading: const Icon(Icons.article_outlined),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
+              ),
+            ),
+          ),
+          // Zones tab
+          _buildList(
+            isLoading: searchState.isLoading,
+            items: searchState.zones,
+            emptyMessage: 'Aucune zone trouvée',
+            builder: (zone) => ListTile(
+              leading: Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppTheme.brandGradient,
+                ),
+                child: Center(
+                  child: Text(zone.emoji ?? '📍',
+                    style: const TextStyle(fontSize: 20)),
+                ),
+              ),
+              title: Text(zone.name ?? 'Zone'),
+              subtitle: Text(zone.heatLabel ?? ''),
+            ),
           ),
         ],
       ),
     );
   }
-}
 
-class _NoResults extends StatelessWidget {
-  final String query;
-  final ColorScheme cs;
-  final TextTheme tt;
-  const _NoResults(
-      {required this.query, required this.cs, required this.tt});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off_rounded,
-              size: 48, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
-          const SizedBox(height: 16),
-          Text('Aucun résultat pour "$query"',
-              style: tt.bodyMedium
-                  ?.copyWith(color: cs.onSurfaceVariant)),
-        ],
-      ),
+  Widget _buildList<T>({
+    required bool isLoading,
+    required List<T> items,
+    required String emptyMessage,
+    required Widget Function(T) builder,
+  }) {
+    if (isLoading) return const Center(child: CircularProgressIndicator());
+    if (items.isEmpty) {
+      return Center(
+        child: Text(emptyMessage,
+          style: Theme.of(context).textTheme.bodyLarge),
+      );
+    }
+    return ListView.separated(
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (_, i) => builder(items[i]),
     );
   }
 }
