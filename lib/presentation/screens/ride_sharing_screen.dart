@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:herzon/data/models/ride_model.dart';
+import 'package:herzon/presentation/screens/create_ride_screen.dart';
+import 'package:herzon/presentation/screens/ride_detail_screen.dart';
 import 'package:herzon/presentation/widgets/ride_card.dart';
 import 'package:herzon/services/location_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -40,7 +42,8 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
       final locationService = LocationService();
       final pos = await locationService.initializeLocation();
 
-      final response = await Supabase.instance.client.rpc('get_nearby_rides', params: {
+      final response = await Supabase.instance.client
+          .rpc('get_nearby_rides', params: {
         'p_user_lat': pos.latitude,
         'p_user_lng': pos.longitude,
         'p_radius_meters': 50000,
@@ -51,20 +54,20 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
       _rides = data.map((json) {
         final m = json as Map<String, dynamic>;
         return RideModel(
-          id: m['id'] as String,
-          driverId: m['driver_id'] as String,
-          originLat: (m['origin_lat'] ?? pos.latitude) as double,
-          originLng: (m['origin_lng'] ?? pos.longitude) as double,
-          originName: (m['origin_name'] ?? 'Position actuelle') as String,
-          destinationLat: (m['destination_lat'] ?? pos.latitude) as double,
-          destinationLng: (m['destination_lng'] ?? pos.longitude) as double,
+          id:              m['id']                          as String,
+          driverId:        m['driver_id']                   as String,
+          originLat:       (m['origin_lat']      ?? pos.latitude)  as double,
+          originLng:       (m['origin_lng']      ?? pos.longitude) as double,
+          originName:      (m['origin_name']     ?? 'Position actuelle') as String,
+          destinationLat:  (m['destination_lat'] ?? pos.latitude)  as double,
+          destinationLng:  (m['destination_lng'] ?? pos.longitude) as double,
           destinationName: (m['destination_name'] ?? 'Destination') as String,
-          departureTime: DateTime.parse(m['departure_time'] as String),
-          seatsAvailable: (m['seats_available'] as num).toInt(),
-          pricePerSeat: (m['price_per_seat'] ?? 0) as double,
-          description: m['description'] as String?,
-          status: (m['status'] ?? 'active') as String,
-          createdAt: DateTime.parse(m['created_at'] as String),
+          departureTime:   DateTime.parse(m['departure_time'] as String),
+          seatsAvailable:  (m['seats_available'] as num).toInt(),
+          pricePerSeat:    (m['price_per_seat']  ?? 0)             as double,
+          description:     m['description']                        as String?,
+          status:          (m['status']          ?? 'active')      as String,
+          createdAt:       DateTime.parse(m['created_at']          as String),
         );
       }).toList();
       setState(() => _isLoading = false);
@@ -86,9 +89,9 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
               .toLowerCase()
               .contains(_searchController.text.toLowerCase());
       final matchesDate = _filterDate == null ||
-          (ride.departureTime.year == _filterDate!.year &&
-              ride.departureTime.month == _filterDate!.month &&
-              ride.departureTime.day == _filterDate!.day);
+          (ride.departureTime.year  == _filterDate!.year &&
+           ride.departureTime.month == _filterDate!.month &&
+           ride.departureTime.day   == _filterDate!.day);
       return matchesSearch && matchesDate;
     }).toList();
   }
@@ -97,12 +100,25 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _filterDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      firstDate:   DateTime.now(),
+      lastDate:    DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null) {
-      setState(() => _filterDate = picked);
-    }
+    if (picked != null) setState(() => _filterDate = picked);
+  }
+
+  Future<void> _openCreateRide() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const CreateRideScreen()),
+    );
+    if (created == true) _loadRides();
+  }
+
+  void _openRideDetail(RideModel ride) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RideDetailScreen(ride: ride)),
+    );
   }
 
   @override
@@ -145,8 +161,7 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Chip(
                 label: Text(
-                  '${_filterDate!.day}/${_filterDate!.month}/${_filterDate!.year}',
-                ),
+                    '${_filterDate!.day}/${_filterDate!.month}/${_filterDate!.year}'),
                 onDeleted: () => setState(() => _filterDate = null),
               ),
             ),
@@ -158,26 +173,32 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Color(0xFFEF4444)),
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Color(0xFFEF4444)),
                             const SizedBox(height: 16),
-                            Text('Erreur: $_error', style: const TextStyle(color: Colors.red)),
+                            Text('Erreur: $_error',
+                                style:
+                                    const TextStyle(color: Colors.red)),
                             const SizedBox(height: 16),
-                            ElevatedButton(onPressed: _loadRides, child: const Text('Réessayer')),
+                            ElevatedButton(
+                                onPressed: _loadRides,
+                                child: const Text('Réessayer')),
                           ],
                         ),
                       )
                     : RefreshIndicator(
                         onRefresh: _loadRides,
                         child: _filteredRides.isEmpty
-                            ? const Center(child: Text('Aucune ride à proximité'))
+                            ? const Center(
+                                child: Text('Aucune ride à proximité'))
                             : ListView.builder(
-                                padding: const EdgeInsets.only(bottom: 80),
+                                padding:
+                                    const EdgeInsets.only(bottom: 80),
                                 itemCount: _filteredRides.length,
                                 itemBuilder: (context, index) => RideCard(
                                   ride: _filteredRides[index],
-                                  onTap: () {
-                                    // Navigate to ride detail
-                                  },
+                                  onTap: () =>
+                                      _openRideDetail(_filteredRides[index]),
                                 ),
                               ),
                       ),
@@ -185,9 +206,8 @@ class _RideSharingScreenState extends State<RideSharingScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigate to create ride screen
-        },
+        onPressed: _openCreateRide,
+        tooltip: 'Proposer un ride',
         child: const Icon(Icons.add_rounded),
       ),
     );
