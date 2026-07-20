@@ -25,6 +25,7 @@ import 'package:herzon/services/feature_flag_service.dart';
 import 'package:herzon/services/notification_service.dart';
 import 'package:herzon/services/crashlytics_service.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 
 void main() async {
@@ -90,7 +91,6 @@ void main() async {
   };
 
   // Validate secrets are present before proceeding
-  // Throws a clear error at startup rather than a cryptic runtime failure
   AppConfig.validate();
 
   try {
@@ -110,9 +110,10 @@ void main() async {
       url: AppConfig.supabaseUrl,
       anonKey: AppConfig.supabaseAnonKey,
     );
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId != null) {
-      await CrashlyticsService.setUser(userId);
+    // FIX: استخدام FirebaseAuth بدل Supabase.auth لتحديد المستخدم
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await CrashlyticsService.setUser(uid);
     }
   } catch (e) {
     debugPrint('Supabase init failed: $e');
@@ -124,9 +125,12 @@ void main() async {
     debugPrint('FeatureFlagService.init failed: $e');
   }
 
+  // FIX: إضافة debugPrint في catch بدل ابتلاع الأخطاء صامتاً
   try {
     await NotificationService.instance.init();
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('NotificationService.init failed: $e');
+  }
 
   try {
     await FirebaseAppCheck.instance.activate(
@@ -162,31 +166,33 @@ void main() async {
   );
 }
 
+// FIX: Riverpod provider للـ onboarding بدل static future (يتجدد عند الحاجة)
+final onboardingCompleteProvider = FutureProvider<bool>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool('onboarding_complete') ?? false;
+});
+
 class HerzonApp extends ConsumerWidget {
   const HerzonApp({super.key});
 
-  static final Future<bool> _onboardingFuture = _checkOnboarding();
-
-  static Future<bool> _checkOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('onboarding_complete') ?? false;
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<bool>(
-      future: _onboardingFuture,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
-          );
-        }
+    final onboardingAsync = ref.watch(onboardingCompleteProvider);
 
-        final showOnboarding = !snapshot.data!;
+    return onboardingAsync.when(
+      loading: () => const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      error: (_, __) => const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      data: (onboardingComplete) {
         final auth = ref.watch(authProvider);
 
         Widget home;
@@ -194,7 +200,7 @@ class HerzonApp extends ConsumerWidget {
           home = const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
-        } else if (showOnboarding) {
+        } else if (!onboardingComplete) {
           home = const OnboardingScreen();
         } else if (auth.error != null) {
           home = Scaffold(
@@ -202,7 +208,8 @@ class HerzonApp extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const Icon(Icons.error_outline,
+                      size: 48, color: Colors.red),
                   const SizedBox(height: 12),
                   const Text('Authentication error. Please try again.'),
                   const SizedBox(height: 12),
@@ -233,8 +240,17 @@ class HerzonApp extends ConsumerWidget {
             '/profile': (context) {
               final userId =
                   ModalRoute.of(context)?.settings.arguments as String?;
+              // FIX: إعادة شاشة خطأ واضحة بدل LoginScreen المُربكة
               if (userId == null || userId.isEmpty) {
-                return const LoginScreen();
+                return Scaffold(
+                  appBar: AppBar(),
+                  body: const Center(
+                    child: Text(
+                      'Profile not found.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                );
               }
               return UserProfileScreen(userId: userId);
             },
