@@ -9,7 +9,9 @@ extension _ThemeDark on ThemeData {
 }
 
 class EditProfileScreen extends ConsumerStatefulWidget {
-  const EditProfileScreen({super.key});
+  /// Optional pre-loaded user object; only used to pre-fill fields.
+  final dynamic user;
+  const EditProfileScreen({super.key, this.user});
 
   @override
   ConsumerState<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -25,13 +27,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    // Pre-fill from passed user object if available
+    if (widget.user != null) {
+      _displayNameCtrl.text = widget.user.displayName ?? '';
+      _usernameCtrl.text = widget.user.username ?? '';
+      _bioCtrl.text = widget.user.bio ?? '';
+    } else {
+      _loadProfile();
+    }
   }
 
   Future<void> _loadProfile() async {
     setState(() => _isLoading = true);
     try {
-      // FIX: UUID من Firebase بدل Supabase.auth
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
       final uuid = FirebaseUuid.toUuid(uid);
@@ -101,8 +109,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -132,7 +141,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           TextField(
             controller: _usernameCtrl,
             decoration: const InputDecoration(
-              labelText: 'Nom d\'utilisateur',
+              labelText: "Nom d'utilisateur",
               prefixText: '@',
               border: OutlineInputBorder(),
             ),
