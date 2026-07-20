@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/comment_model.dart';
 import '../../data/repositories/comment_repository.dart';
 import '../../core/theme/app_theme.dart';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 extension _ThemeDark on ThemeData {
-  // Fix #1: ThemeData has no .isDark — use brightness instead.
   bool get isDark => brightness == Brightness.dark;
 }
 
-// ── StateNotifier with Realtime ───────────────────────────────────────────────
 class _CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
   final ICommentRepository _repo;
   final String postId;
@@ -49,21 +48,16 @@ class _CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
         .subscribe();
   }
 
-  Future<void> addComment(String userId, String content,
-      {String? parentId}) async {
+  Future<void> addComment(String userId, String content, {String? parentId}) async {
     await _repo.addComment(postId, userId, content, parentId: parentId);
-    // Realtime will trigger _load() automatically.
   }
 
   Future<void> deleteComment(String commentId) async {
     await _repo.deleteComment(commentId);
-    // Optimistic removal while Realtime confirms.
     final current = state.valueOrNull ?? [];
     if (mounted) {
       state = AsyncValue.data(
-        current
-            .where((c) => c.id != commentId && c.parentId != commentId)
-            .toList(),
+        current.where((c) => c.id != commentId && c.parentId != commentId).toList(),
       );
     }
   }
@@ -81,8 +75,6 @@ final commentsNotifierProvider = StateNotifierProvider.family<
       _CommentsNotifier(ref.watch(commentRepositoryProvider), postId),
 );
 
-// Fix #2: legacy alias now delegates to the Realtime-aware notifier so
-// any file that still reads commentsProvider also gets live updates.
 final commentsProvider = FutureProvider.family<List<CommentModel>, String>(
   (ref, postId) async {
     final async = ref.watch(commentsNotifierProvider(postId));
@@ -93,7 +85,6 @@ final commentsProvider = FutureProvider.family<List<CommentModel>, String>(
   },
 );
 
-// ── Screen ────────────────────────────────────────────────────────────────────
 class CommentsScreen extends ConsumerStatefulWidget {
   final String postId;
   const CommentsScreen({super.key, required this.postId});
@@ -104,7 +95,6 @@ class CommentsScreen extends ConsumerStatefulWidget {
 
 class _CommentsScreenState extends ConsumerState<CommentsScreen> {
   final _controller = TextEditingController();
-  // Fix #3: ScrollController for auto-scroll after send.
   final _scrollController = ScrollController();
   bool _isSending = false;
   CommentModel? _replyingTo;
@@ -116,8 +106,6 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
     super.dispose();
   }
 
-  /// Scrolls to the bottom of the list after a short delay so
-  /// the new comment has time to render.
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -136,14 +124,16 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
     if (content.isEmpty) return;
     setState(() => _isSending = true);
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
+      // FIX: FirebaseAuth + UUID
+      final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+      if (firebaseUid == null) return;
+      final userId = FirebaseUuid.toUuid(firebaseUid);
       await ref
           .read(commentsNotifierProvider(widget.postId).notifier)
-          .addComment(user.id, content, parentId: _replyingTo?.id);
+          .addComment(userId, content, parentId: _replyingTo?.id);
       _controller.clear();
       setState(() => _replyingTo = null);
-      _scrollToBottom(); // Fix #3: auto-scroll
+      _scrollToBottom();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Row(children: [
@@ -160,8 +150,7 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1, milliseconds: 500),
           backgroundColor: AppTheme.primary,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
       }
     } catch (e) {
@@ -178,13 +167,14 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final commentsAsync = ref.watch(commentsNotifierProvider(widget.postId));
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    // FIX: FirebaseAuth + UUID
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    final currentUserId = firebaseUid != null ? FirebaseUuid.toUuid(firebaseUid) : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Commentaires')),
       body: Column(
         children: [
-          // ── Comments list ────────────────────────────────────────────────
           Expanded(
             child: commentsAsync.when(
               data: (all) {
@@ -197,88 +187,70 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
                         Icon(
                           Icons.chat_bubble_outline,
                           size: 48,
-                          color: t.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.3),
+                          color: t.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                         ),
                         const SizedBox(height: 16),
-                        Text('Aucun commentaire',
-                            style: t.textTheme.titleMedium),
+                        Text('Aucun commentaire', style: t.textTheme.titleMedium),
                         const SizedBox(height: 4),
-                        Text(
-                          'Soyez le premier à commenter',
-                          style: TextStyle(
-                              color: t.colorScheme.onSurfaceVariant),
-                        ),
+                        Text('Soyez le premier à commenter',
+                          style: TextStyle(color: t.colorScheme.onSurfaceVariant)),
                       ],
                     ),
                   );
                 }
                 return ListView.builder(
-                  controller: _scrollController, // Fix #3: attach controller
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: roots.length,
                   itemBuilder: (_, i) {
                     final c = roots[i];
-                    final replies =
-                        all.where((r) => r.parentId == c.id).toList();
+                    final replies = all.where((r) => r.parentId == c.id).toList();
                     return _CommentTile(
                       comment: c,
                       replies: replies,
                       currentUserId: currentUserId,
                       onReply: () => setState(() => _replyingTo = c),
                       onDelete: (id) => ref
-                          .read(commentsNotifierProvider(widget.postId)
-                              .notifier)
+                          .read(commentsNotifierProvider(widget.postId).notifier)
                           .deleteComment(id),
                     );
                   },
                 );
               },
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Center(
-                child: Text(
-                  'Erreur: $err',
-                  style: TextStyle(color: t.colorScheme.error),
-                ),
-              ),
+                child: Text('Erreur: $err',
+                  style: TextStyle(color: t.colorScheme.error))),
             ),
           ),
 
-          // ── Reply banner ─────────────────────────────────────────────────
           if (_replyingTo != null)
             Container(
               color: AppTheme.primary.withValues(alpha: 0.1),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
                   const Icon(Icons.reply, size: 16, color: AppTheme.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Répondre à '
-                      '${_replyingTo!.displayName ?? _replyingTo!.username ?? 'Anonyme'}',
-                      style: const TextStyle(
-                          color: AppTheme.primary, fontSize: 13),
+                      'Répondre à ${_replyingTo!.displayName ?? _replyingTo!.username ?? 'Anonyme'}',
+                      style: const TextStyle(color: AppTheme.primary, fontSize: 13),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => setState(() => _replyingTo = null),
-                    child: const Icon(Icons.close,
-                        size: 16, color: AppTheme.primary),
+                    child: const Icon(Icons.close, size: 16, color: AppTheme.primary),
                   ),
                 ],
               ),
             ),
 
-          // ── Input bar ────────────────────────────────────────────────────
           Container(
             decoration: BoxDecoration(
               color: t.scaffoldBackgroundColor,
               border: Border(
                 top: BorderSide(
-                  // Fix #1: use isDark extension instead of t.isDark
                   color: t.isDark
                       ? const Color(0xFF1E293B)
                       : const Color(0xFFE2E8F0),
@@ -286,9 +258,7 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
               ),
             ),
             padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 12,
+              left: 16, right: 16, top: 12,
               bottom: MediaQuery.of(context).padding.bottom + 12,
             ),
             child: Row(
@@ -305,7 +275,6 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      // Fix #1: use isDark extension
                       fillColor: t.isDark
                           ? const Color(0xFF1E293B)
                           : const Color(0xFFF1F5F9),
@@ -327,13 +296,10 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
                   child: IconButton(
                     icon: _isSending
                         ? const SizedBox(
-                            width: 18,
-                            height: 18,
+                            width: 18, height: 18,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.send,
-                            size: 18, color: Colors.white),
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send, size: 18, color: Colors.white),
                     onPressed: _isSending ? null : _sendComment,
                   ),
                 ),
@@ -346,7 +312,6 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
   }
 }
 
-// ── Comment tile ──────────────────────────────────────────────────────────────
 class _CommentTile extends StatelessWidget {
   final CommentModel comment;
   final List<CommentModel> replies;
@@ -388,17 +353,13 @@ class _CommentTile extends StatelessWidget {
     );
   }
 
-  Widget _buildBubble(
-    BuildContext context,
-    ThemeData t,
-    CommentModel c, {
-    required bool isReply,
-  }) {
+  Widget _buildBubble(BuildContext ctx, ThemeData t, CommentModel c,
+      {required bool isReply}) {
     final isOwn = c.userId == currentUserId;
+    final isDark = t.brightness == Brightness.dark;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Avatar
         Container(
           width: isReply ? 30 : 38,
           height: isReply ? 30 : 38,
@@ -409,8 +370,7 @@ class _CommentTile extends StatelessWidget {
           child: c.avatarUrl != null
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(isReply ? 15 : 19),
-                  child: Image.network(c.avatarUrl!, fit: BoxFit.cover),
-                )
+                  child: Image.network(c.avatarUrl!, fit: BoxFit.cover))
               : const Icon(Icons.person, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 10),
@@ -421,8 +381,7 @@ class _CommentTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
                 decoration: BoxDecoration(
-                  // Fix #1: use isDark extension
-                  color: t.isDark
+                  color: isDark
                       ? const Color(0xFF1E293B)
                       : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(16),
@@ -439,11 +398,8 @@ class _CommentTile extends StatelessWidget {
                         ),
                         const Spacer(),
                         if (c.createdAt != null)
-                          Text(
-                            _formatTime(c.createdAt!),
-                            style: t.textTheme.bodySmall
-                                ?.copyWith(fontSize: 10),
-                          ),
+                          Text(_formatTime(c.createdAt!),
+                            style: t.textTheme.bodySmall?.copyWith(fontSize: 10)),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -457,37 +413,28 @@ class _CommentTile extends StatelessWidget {
                   if (!isReply)
                     GestureDetector(
                       onTap: onReply,
-                      child: Row(
-                        children: [
-                          Icon(Icons.reply,
-                              size: 14,
-                              color: t.colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Répondre',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: t.colorScheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
+                      child: Row(children: [
+                        Icon(Icons.reply, size: 14,
+                          color: t.colorScheme.onSurfaceVariant),
+                        const SizedBox(width: 3),
+                        Text('Répondre',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: t.colorScheme.onSurfaceVariant)),
+                      ]),
                     ),
                   if (isOwn) ...[
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () => onDelete(c.id),
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_outline,
-                              size: 14, color: Colors.red.shade400),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Supprimer',
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.red.shade400),
-                          ),
-                        ],
-                      ),
+                      child: Row(children: [
+                        Icon(Icons.delete_outline, size: 14,
+                          color: Colors.red.shade400),
+                        const SizedBox(width: 3),
+                        Text('Supprimer',
+                          style: TextStyle(
+                            fontSize: 11, color: Colors.red.shade400)),
+                      ]),
                     ),
                   ],
                 ],

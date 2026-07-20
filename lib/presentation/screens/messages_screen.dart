@@ -1,230 +1,159 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../providers/messenger_provider.dart';
-import '../../data/models/message_model.dart';
 import 'conversation_screen.dart';
+import 'search_screen.dart';
 
-class ConversationsListScreen extends ConsumerStatefulWidget {
-  const ConversationsListScreen({super.key});
-
-  @override
-  ConsumerState<ConversationsListScreen> createState() => _ConversationsListScreenState();
+extension _ThemeDark on ThemeData {
+  bool get isDark => brightness == Brightness.dark;
 }
 
-class _ConversationsListScreenState extends ConsumerState<ConversationsListScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(conversationsProvider.notifier).loadConversations();
-    });
-  }
+class MessagesScreen extends ConsumerWidget {
+  const MessagesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final conversationsAsync = ref.watch(conversationsProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context);
+    // FIX: FirebaseAuth + UUID
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    final myId = firebaseUid != null ? FirebaseUuid.toUuid(firebaseUid) : null;
+    final convsAsync = ref.watch(conversationsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          color: const Color(0xFF1E293B),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Messages',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: conversationsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Color(0xFFEF4444)),
-              const SizedBox(height: 16),
-              Text('Erreur: $e', style: GoogleFonts.plusJakartaSans(color: Colors.red)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.read(conversationsProvider.notifier).loadConversations(),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
-        ),
-        data: (conversations) => RefreshIndicator(
-          onRefresh: () => ref.read(conversationsProvider.notifier).loadConversations(),
-          child: conversations.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[200]),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Aucune conversation',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Envoyez un message depuis un profil',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          color: const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: conversations.length,
-                  itemBuilder: (context, index) {
-                    final conv = conversations[index];
-                    return _buildConversationTile(conv);
-                  },
-                ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConversationTile(ConversationModel conv) {
-    final hasUnread = conv.unreadCount > 0;
-    final timeStr = conv.lastMessageAt != null
-        ? _formatTime(conv.lastMessageAt!)
-        : '';
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: hasUnread ? const Color(0xFF4F46E5).withValues(alpha: 0.03) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        title: const Text('Messages'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SearchScreen()),
+            ),
           ),
         ],
       ),
-      child: ListTile(
-        onTap: () => _openConversation(conv),
-        contentPadding: const EdgeInsets.all(12),
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundImage: conv.otherUserAvatar != null
-                  ? NetworkImage(conv.otherUserAvatar!)
-                  : null,
-              backgroundColor: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-              child: conv.otherUserAvatar == null
-                  ? Text(
-                      (conv.otherUserName?.isNotEmpty == true ? conv.otherUserName![0] : '?').toUpperCase(),
-                      style: GoogleFonts.plusJakartaSans(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: const Color(0xFF4F46E5),
-                      ),
-                    )
-                  : null,
-            ),
-            if (hasUnread)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF4F46E5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    conv.unreadCount.toString(),
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        title: Text(
-          conv.otherUserName ?? 'Utilisateur inconnu',
-          style: GoogleFonts.plusJakartaSans(
-            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
-            fontSize: 15,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
-        subtitle: Text(
-          conv.lastMessage ?? 'Aucun message',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 13,
-            color: hasUnread ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
-            fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: timeStr.isNotEmpty
-            ? Text(
-                timeStr,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  color: hasUnread ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
-                  fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+      body: convsAsync.when(
+        data: (convs) => convs.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.chat_bubble_outline, size: 56,
+                      color: t.colorScheme.onSurfaceVariant),
+                    const SizedBox(height: 12),
+                    Text('Aucune conversation', style: t.textTheme.bodyLarge),
+                    const SizedBox(height: 4),
+                    Text('Cherchez quelqu\'un pour commencer',
+                      style: t.textTheme.bodySmall),
+                  ],
                 ),
               )
-            : null,
+            : ListView.separated(
+                itemCount: convs.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final conv = convs[i];
+                  final isUnread = conv.unreadCount > 0;
+                  return ListTile(
+                    leading: Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: conv.otherUserAvatar == null
+                            ? AppTheme.brandGradient
+                            : null,
+                      ),
+                      child: conv.otherUserAvatar != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: Image.network(
+                                conv.otherUserAvatar!, fit: BoxFit.cover))
+                          : const Icon(Icons.person, color: Colors.white),
+                    ),
+                    title: Text(
+                      conv.otherUserName ?? 'Utilisateur',
+                      style: TextStyle(
+                        fontWeight: isUnread
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      conv.lastMessage ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isUnread
+                            ? t.colorScheme.onSurface
+                            : t.colorScheme.onSurfaceVariant,
+                        fontWeight: isUnread
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (conv.lastMessageAt != null)
+                          Text(_formatTime(conv.lastMessageAt!),
+                            style: t.textTheme.bodySmall?.copyWith(
+                              color: isUnread
+                                  ? AppTheme.primary
+                                  : t.colorScheme.onSurfaceVariant,
+                              fontWeight: isUnread
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            )),
+                        if (isUnread) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${conv.unreadCount}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ConversationScreen(
+                          conversationId: conv.id,
+                          otherUserId: conv.otherUserId,
+                          otherUserName: conv.otherUserName ?? 'Utilisateur',
+                          otherUserAvatar: conv.otherUserAvatar,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erreur: $e')),
       ),
     );
   }
 
-  String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-    if (diff.inDays == 0) {
-      return DateFormat('HH:mm').format(time);
-    } else if (diff.inDays == 1) {
-      return 'Hier';
-    } else if (diff.inDays < 7) {
-      return DateFormat('EEEE', 'fr').format(time);
-    } else {
-      return DateFormat('dd/MM').format(time);
-    }
-  }
-
-  void _openConversation(ConversationModel conv) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ConversationScreen(
-          conversationId: conv.id,
-          otherUserId: conv.otherUserId,
-          otherUserName: conv.otherUserName ?? 'Utilisateur',
-        ),
-      ),
-    ).then((_) {
-      ref.read(conversationsProvider.notifier).loadConversations();
-    });
+  String _formatTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}min';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}j';
+    return '${dt.day}/${dt.month}';
   }
 }

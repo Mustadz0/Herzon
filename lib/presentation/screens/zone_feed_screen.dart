@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:herzon/core/theme/app_theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../../data/models/zone_model.dart';
-import '../../data/models/zone_post_model.dart';
-import '../providers/zone_feed_provider.dart';
+import '../providers/post_provider.dart';
+import '../providers/zone_provider.dart';
+import '../widgets/post_card.dart';
+import 'post_detail_screen.dart';
+import 'create_post_screen.dart';
 
-/// Read-only zone feed screen.
-/// No posting, reactions, or comments — Explorer = passive mode (CLAUDE.md §Two Modes).
+extension _ThemeDark on ThemeData {
+  bool get isDark => brightness == Brightness.dark;
+}
+
 class ZoneFeedScreen extends ConsumerStatefulWidget {
   final ZoneModel zone;
   final double userLat;
@@ -29,49 +35,49 @@ class _ZoneFeedScreenState extends ConsumerState<ZoneFeedScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load();
+      ref.read(postProvider.notifier).loadZonePosts(widget.zone.id);
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(zoneFeedProvider(widget.zone.zoneKey));
-    final t     = Theme.of(context);
-    final cs    = t.colorScheme;
+    final t = Theme.of(context);
+    final postState = ref.watch(postProvider);
+    // FIX: FirebaseAuth + UUID
+    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    final currentUid = firebaseUid != null ? FirebaseUuid.toUuid(firebaseUid) : null;
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            Text(widget.zone.emoji, style: const TextStyle(fontSize: 22)),
+            Text(widget.zone.emoji,
+              style: const TextStyle(fontSize: 22)),
             const SizedBox(width: 8),
-            Text(
-              widget.zone.zoneName,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
+            Text(widget.zone.zoneName),
           ],
         ),
         actions: [
-          // Read-only badge
           Container(
-            margin: const EdgeInsets.only(right: 12),
+            margin: const EdgeInsets.only(right: 8),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.12),
+              color: _heatColor(widget.zone.heatScore).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.visibility_outlined,
-                    size: 14, color: AppTheme.primary),
+                Icon(Icons.local_fire_department,
+                  size: 14,
+                  color: _heatColor(widget.zone.heatScore)),
                 const SizedBox(width: 4),
                 Text(
-                  'Lecture seule',
+                  widget.zone.heatLabel,
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w700,
+                    color: _heatColor(widget.zone.heatScore),
                   ),
                 ),
               ],
@@ -79,215 +85,67 @@ class _ZoneFeedScreenState extends ConsumerState<ZoneFeedScreen> {
           ),
         ],
       ),
-
-      // No FAB — read-only
       body: RefreshIndicator(
         onRefresh: () async =>
-            ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load(),
-        child: _buildBody(state, t, cs),
-      ),
-    );
-  }
-
-  Widget _buildBody(
-      ZoneFeedState state, ThemeData t, ColorScheme cs) {
-    if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state.error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.wifi_off_rounded,
-                  size: 48, color: cs.onSurfaceVariant),
-              const SizedBox(height: 12),
-              Text(
-                state.error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () =>
-                    ref.read(zoneFeedProvider(widget.zone.zoneKey).notifier).load(),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Réessayer'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (state.posts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.zone.emoji,
-              style: const TextStyle(fontSize: 52),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Aucune activité récente\ndans cette zone.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: cs.onSurfaceVariant,
-                fontSize: 15,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: state.posts.length,
-      itemBuilder: (_, i) => _ZonePostCard(post: state.posts[i]),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// _ZonePostCard — read-only card (no reaction/comment buttons)
-// ─────────────────────────────────────────────────────────────────────────
-class _ZonePostCard extends StatelessWidget {
-  final ZonePostModel post;
-  const _ZonePostCard({required this.post});
-
-  @override
-  Widget build(BuildContext context) {
-    final t  = Theme.of(context);
-    final cs = t.colorScheme;
-    final tt = t.textTheme;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: t.isDark ? AppTheme.cardDark : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: t.isDark
-              ? const Color(0xFF1E293B)
-              : const Color(0xFFF1F5F9),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Author row ──────────────────────────────────────────
-          Row(
-            children: [
-              // Avatar
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: AppTheme.brandGradient,
-                ),
-                child: post.userAvatarUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(19),
-                        child: CachedNetworkImage(
-                          imageUrl: post.userAvatarUrl!,
-                          fit: BoxFit.cover,
+            ref.read(postProvider.notifier).loadZonePosts(widget.zone.id),
+        child: postState.isLoading && postState.posts.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : postState.posts.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(widget.zone.emoji,
+                          style: const TextStyle(fontSize: 56)),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Aucune publication dans cette zone',
+                          style: t.textTheme.bodyLarge,
                         ),
-                      )
-                    : const Icon(Icons.person,
-                        size: 20, color: Colors.white),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.userDisplayName ?? post.userUsername ?? 'Anonyme',
-                      style: tt.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Soyez le premier à publier !',
+                          style: t.textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              // Timestamp
-              post.createdAt != null
-                  ? Text(
-                      _formatTime(post.createdAt!),
-                      style: tt.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant),
-                    )
-                  : const SizedBox.shrink(),
-            ],
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    itemCount: postState.posts.length,
+                    itemBuilder: (_, i) {
+                      final post = postState.posts[i];
+                      return PostCard(
+                        post: post,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PostDetailScreen(post: post),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CreatePostScreen(zoneId: widget.zone.id),
           ),
-
-          // ── Content ─────────────────────────────────────────────
-          if (post.content != null && post.content!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(post.content!, style: tt.bodyMedium),
-          ],
-
-          // ── Media ───────────────────────────────────────────────
-          if (post.mediaUrls.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(
-                imageUrl: post.mediaUrls.first,
-                width: double.infinity,
-                height: 200,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ],
-
-          // ── Stats row (read-only counters, no tap) ──────────────
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.local_fire_department_outlined,
-                  size: 16, color: cs.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Text(
-                '${post.reactionCounts.values.fold(0, (a, b) => a + b)}',
-                style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Icon(Icons.chat_bubble_outline_rounded,
-                  size: 16, color: cs.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Text(
-                '${post.commentCount}',
-                style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-              const Spacer(),
-              // Read-only lock icon
-              Icon(Icons.lock_outline_rounded,
-                  size: 14, color: cs.onSurfaceVariant),
-            ],
-          ),
-        ],
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('Publier ici'),
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
       ),
     );
   }
 
-  String _formatTime(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1)  return 'À l\'instant';
-    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inHours   < 24) return 'Il y a ${diff.inHours} h';
-    return 'Il y a ${diff.inDays} j';
+  Color _heatColor(double score) {
+    if (score >= 80) return Colors.red;
+    if (score >= 50) return Colors.orange;
+    if (score >= 20) return Colors.amber;
+    return Colors.blue;
   }
 }

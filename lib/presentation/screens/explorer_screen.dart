@@ -12,18 +12,11 @@ import '../widgets/zone_map_marker.dart';
 import '../widgets/suggestion_panel.dart';
 import 'zone_feed_screen.dart';
 
-/// Explorer screen — full-screen MapLibre map with hot zone overlays
-/// and an interest-based suggestion panel.
-///
-/// Rules (CLAUDE.md §Two Modes):
-///   • Read-only: no posting, commenting, or messaging.
-///   • Tapping a zone → ZoneBottomSheet → ZoneFeedScreen (read-only).
-///   • ✨ Toggle button bottom-right → SuggestionPanel slide-up.
-///   • Recenter button top-right.
-///   • Search bar top — debounced 400 ms, queries Supabase.
-///
-/// Map key is injected at build time:
-///   flutter run --dart-define=MAPTILER_KEY=your_key_here
+// FIX: ThemeData has no .isDark — add extension
+extension _ThemeDark on ThemeData {
+  bool get isDark => brightness == Brightness.dark;
+}
+
 class ExplorerScreen extends ConsumerStatefulWidget {
   const ExplorerScreen({super.key});
 
@@ -36,14 +29,12 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Timer? _debounce;
 
-  // Default centre: Bab Ezzouar, Alger
   double _lat = 36.7372;
   double _lng = 3.1874;
   bool _locating = false;
   bool _showSuggestions = false;
   bool _searchFocused = false;
 
-  // MapTiler key injected via --dart-define=MAPTILER_KEY=xxx
   static const String _mapTilerKey =
       String.fromEnvironment('MAPTILER_KEY', defaultValue: '');
 
@@ -66,7 +57,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
 
   void _onSymbolTapped(Symbol symbol) {}
 
-  // ── Search (debounced 400 ms) ─────────────────────────────────────────────
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
@@ -81,20 +71,17 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     FocusScope.of(context).unfocus();
   }
 
-  // ── Location ──────────────────────────────────────────────────────────────
   Future<void> _fetchLocation() async {
     setState(() => _locating = true);
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return;
-
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return;
       }
       if (permission == LocationPermission.deniedForever) return;
-
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -120,13 +107,12 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
         );
   }
 
-  // ── Zone bottom sheet → zone feed ─────────────────────────────────────────
   void _openZoneSheet(ZoneModel zone) {
+    final t = Theme.of(context);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: false,
-      backgroundColor:
-          Theme.of(context).isDark ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: t.isDark ? const Color(0xFF121212) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -149,13 +135,11 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     );
   }
 
-  // ── Map created ────────────────────────────────────────────────────────────
   void _onMapCreated(MapLibreMapController controller) {
     _mapController = controller;
     controller.onSymbolTapped.add(_onSymbolTapped);
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(zoneProvider);
@@ -167,7 +151,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // ── MapLibre map ───────────────────────────────────────────────────
           MapLibreMap(
             styleString: _mapStyle,
             initialCameraPosition: CameraPosition(
@@ -181,18 +164,14 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             attributionButtonMargins: const Point(8, 8),
           ),
 
-          // ── Dev warning: missing key ───────────────────────────────────────
           if (keyMissing)
             Positioned(
-              top: 80,
-              left: 16,
-              right: 16,
+              top: 80, left: 16, right: 16,
               child: Material(
                 color: cs.errorContainer,
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(
                     children: [
                       Icon(Icons.warning_amber_rounded,
@@ -200,10 +179,8 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'MAPTILER_KEY manquant — '
-                          'lancez avec --dart-define=MAPTILER_KEY=xxx',
-                          style: TextStyle(
-                              color: cs.onErrorContainer, fontSize: 12),
+                          'MAPTILER_KEY manquant — lancez avec --dart-define=MAPTILER_KEY=xxx',
+                          style: TextStyle(color: cs.onErrorContainer, fontSize: 12),
                         ),
                       ),
                     ],
@@ -212,7 +189,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               ),
             ),
 
-          // ── Zone markers ──────────────────────────────────────────────────
           if (!state.isLoading)
             ...state.displayedZones.map((zone) {
               return _GeoMarker(
@@ -223,75 +199,58 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
               );
             }),
 
-          // ── Top bar ───────────────────────────────────────────────────────
           SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   child: Row(
                     children: [
                       Expanded(
                         child: Material(
-                          color:
-                              t.isDark ? AppTheme.cardDark : Colors.white,
+                          color: t.isDark ? AppTheme.cardDark : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           elevation: 2,
-                          shadowColor:
-                              AppTheme.primary.withValues(alpha: 0.12),
+                          shadowColor: AppTheme.primary.withValues(alpha: 0.12),
                           child: TextField(
                             controller: _searchCtrl,
                             onChanged: _onSearchChanged,
-                            onTap: () =>
-                                setState(() => _searchFocused = true),
+                            onTap: () => setState(() => _searchFocused = true),
                             decoration: InputDecoration(
                               hintText: 'Rechercher une zone…',
-                              hintStyle: TextStyle(
-                                  color: cs.onSurfaceVariant),
+                              hintStyle: TextStyle(color: cs.onSurfaceVariant),
                               prefixIcon: Icon(
                                 Icons.search_rounded,
-                                color: isSearching
-                                    ? AppTheme.primary
-                                    : cs.onSurfaceVariant,
+                                color: isSearching ? AppTheme.primary : cs.onSurfaceVariant,
                               ),
                               suffixIcon: isSearching || _searchFocused
                                   ? IconButton(
-                                      icon: const Icon(
-                                          Icons.close_rounded),
+                                      icon: const Icon(Icons.close_rounded),
                                       onPressed: _clearSearch,
                                     )
                                   : null,
                               border: InputBorder.none,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 14),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Recenter button
                       GestureDetector(
                         onTap: _locating ? null : _fetchLocation,
                         child: Container(
-                          width: 46,
-                          height: 46,
+                          width: 46, height: 46,
                           decoration: BoxDecoration(
-                            gradient: _locating
-                                ? null
-                                : AppTheme.brandGradient,
-                            color: _locating
-                                ? cs.surfaceContainerHighest
-                                : null,
+                            gradient: _locating ? null : AppTheme.brandGradient,
+                            color: _locating ? cs.surfaceContainerHighest : null,
                             borderRadius: BorderRadius.circular(14),
                             boxShadow: _locating
                                 ? null
                                 : [
                                     BoxShadow(
-                                      color: AppTheme.secondary
-                                          .withValues(alpha: 0.3),
+                                      color: AppTheme.secondary.withValues(alpha: 0.3),
                                       blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),
@@ -300,33 +259,24 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                           child: _locating
                               ? const Padding(
                                   padding: EdgeInsets.all(12),
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : const Icon(
-                                  Icons.my_location_rounded,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
+                              : const Icon(Icons.my_location_rounded,
+                                  color: Colors.white, size: 22),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                // ── Search results dropdown ──────────────────────────────
                 if (isSearching)
                   _SearchDropdown(
                     zones: state.searchResults,
                     isLoading: state.isLoading,
                     onSelect: (zone) {
                       _clearSearch();
-                      // Fly to selected zone on the map
                       _mapController?.animateCamera(
-                        CameraUpdate.newLatLngZoom(
-                          LatLng(zone.lat, zone.lng),
-                          16,
-                        ),
+                        CameraUpdate.newLatLngZoom(LatLng(zone.lat, zone.lng), 16),
                       );
                       _openZoneSheet(zone);
                     },
@@ -335,34 +285,26 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
             ),
           ),
 
-          // ── Loading overlay ───────────────────────────────────────────────
           if (state.isLoading && !isSearching)
             const Center(child: CircularProgressIndicator()),
 
-          // ── Error banner ──────────────────────────────────────────────────
           if (state.error != null && !_showSuggestions)
             Positioned(
-              bottom: 88,
-              left: 16,
-              right: 16,
+              bottom: 88, left: 16, right: 16,
               child: Material(
                 color: cs.errorContainer,
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Text(
-                    state.error!,
-                    style: TextStyle(color: cs.onErrorContainer),
-                  ),
+                  child: Text(state.error!,
+                    style: TextStyle(color: cs.onErrorContainer)),
                 ),
               ),
             ),
 
-          // ── Suggestion toggle FAB ──────────────────────────────────────────
           if (!_showSuggestions && !isSearching)
             Positioned(
-              bottom: 24,
-              right: 16,
+              bottom: 24, right: 16,
               child: GestureDetector(
                 onTap: () => setState(() => _showSuggestions = true),
                 child: Container(
@@ -377,34 +319,27 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.auto_awesome_rounded,
-                          color: Colors.white, size: 18),
+                      Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
                       SizedBox(width: 6),
-                      Text(
-                        'Suggestions',
+                      Text('Suggestions',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
-                        ),
-                      ),
+                        )),
                     ],
                   ),
                 ),
               ),
             ),
 
-          // ── Suggestion panel ──────────────────────────────────────────────
           if (_showSuggestions)
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
+              bottom: 0, left: 0, right: 0,
               child: SuggestionPanel(
                 userLat: _lat,
                 userLng: _lng,
@@ -417,7 +352,6 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   }
 }
 
-// ── Search results dropdown ────────────────────────────────────────────────
 class _SearchDropdown extends StatelessWidget {
   final List<ZoneModel> zones;
   final bool isLoading;
@@ -448,17 +382,14 @@ class _SearchDropdown extends StatelessWidget {
             child: isLoading
                 ? const Padding(
                     padding: EdgeInsets.all(20),
-                    child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                   )
                 : zones.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'Aucune zone trouvée',
+                        child: Text('Aucune zone trouvée',
                           style: TextStyle(color: cs.onSurfaceVariant),
-                          textAlign: TextAlign.center,
-                        ),
+                          textAlign: TextAlign.center),
                       )
                     : ListView.separated(
                         shrinkWrap: true,
@@ -472,31 +403,18 @@ class _SearchDropdown extends StatelessWidget {
                           final zone = zones[i];
                           return ListTile(
                             dense: true,
-                            leading: Text(
-                              zone.emoji,
-                              style: const TextStyle(fontSize: 22),
-                            ),
-                            title: Text(
-                              zone.zoneName,
+                            leading: Text(zone.emoji,
+                              style: const TextStyle(fontSize: 22)),
+                            title: Text(zone.zoneName,
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: cs.onSurface,
-                              ),
-                            ),
-                            subtitle: Text(
-                              zone.heatLabel,
+                                color: cs.onSurface)),
+                            subtitle: Text(zone.heatLabel,
                               style: TextStyle(
-                                color: cs.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
-                            ),
-                            trailing: Text(
-                              '${zone.activeUsers} 👤',
+                                color: cs.onSurfaceVariant, fontSize: 12)),
+                            trailing: Text('${zone.activeUsers} 👤',
                               style: TextStyle(
-                                color: cs.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
-                            ),
+                                color: cs.onSurfaceVariant, fontSize: 12)),
                             onTap: () => onSelect(zone),
                           );
                         },
@@ -508,7 +426,6 @@ class _SearchDropdown extends StatelessWidget {
   }
 }
 
-// ── Geo-positioned marker widget ───────────────────────────────────────────
 class _GeoMarker extends StatefulWidget {
   final ZoneModel zone;
   final MapLibreMapController? mapController;
@@ -548,8 +465,7 @@ class _GeoMarkerState extends State<_GeoMarker> {
         LatLng(widget.zone.lat, widget.zone.lng),
       );
       if (mounted) {
-        setState(() =>
-            _screenPos = Offset(point.x.toDouble(), point.y.toDouble()));
+        setState(() => _screenPos = Offset(point.x.toDouble(), point.y.toDouble()));
       }
     } catch (_) {}
   }
