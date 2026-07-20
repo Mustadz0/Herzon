@@ -126,7 +126,6 @@ class PostNotifier extends StateNotifier<FeedState> {
           schema: 'public',
           table: 'posts',
           callback: (payload) async {
-            // Fix #3: parse new post directly from payload — no full reload.
             try {
               final newPost = PostModel.fromJson(
                   payload.newRecord as Map<String, dynamic>);
@@ -150,8 +149,8 @@ class PostNotifier extends StateNotifier<FeedState> {
         .subscribe();
   }
 
-  /// FIX: replaced Supabase.auth with FirebaseAuth + FirebaseUuid.
-  /// Added [pollOptions] and [zoneId] parameters to match CreatePostScreen.
+  /// Creates a post.
+  /// [pollOptions]: list of option strings — converted to [PollOptionData] here.
   Future<int> createPost(
     String content,
     String? contextTag, {
@@ -162,7 +161,6 @@ class PostNotifier extends StateNotifier<FeedState> {
   }) async {
     final pos = await _locationService.initializeLocation();
 
-    // FIX: use Firebase auth instead of Supabase auth
     final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
     if (firebaseUid == null) throw Exception('Not authenticated');
     final userId = FirebaseUuid.toUuid(firebaseUid);
@@ -179,10 +177,14 @@ class PostNotifier extends StateNotifier<FeedState> {
       } else {
         mediaType = 'image';
       }
-      // FIX: pass UUID-based userId to media upload
       mediaUrls = await _mediaUpload.uploadPostMedia(
           files: mediaFiles, userId: userId);
     }
+
+    // FIX: convert List<String> → List<PollOptionData> so PostModel type matches
+    final List<PollOptionData>? pollData = pollOptions
+        ?.map((text) => PollOptionData(text: text))
+        .toList();
 
     final post = PostModel(
       id: '',
@@ -196,11 +198,10 @@ class PostNotifier extends StateNotifier<FeedState> {
           : (mediaUrls.isNotEmpty ? MediaType.image : MediaType.text),
       contextTag: contextTag,
       stickerId: stickerId,
-      pollOptions: pollOptions,
+      pollOptions: pollData,
       zoneId: zoneId,
     );
     await _repo.createPost(post);
-    // Realtime INSERT will handle adding to feed — no manual reload needed.
     return 10;
   }
 

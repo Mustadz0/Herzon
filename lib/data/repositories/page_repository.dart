@@ -1,5 +1,7 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/firebase_uuid.dart';
 
 abstract class IPageRepository {
   /// Get nearby pages (with latitude/longitude and distance)
@@ -30,6 +32,13 @@ class SupabasePageRepository implements IPageRepository {
 
   SupabasePageRepository({required SupabaseClient supabase}) : _supabase = supabase;
 
+  /// Returns the current user's UUID v5 (converted from Firebase UID).
+  String _currentUuid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) throw Exception('Not authenticated');
+    return FirebaseUuid.toUuid(uid);
+  }
+
   @override
   Future<List<Map<String, dynamic>>> getNearbyPages(double userLat, double userLng, {String? category}) async {
     final params = <String, dynamic>{
@@ -57,10 +66,14 @@ class SupabasePageRepository implements IPageRepository {
     String? contactPhone,
     String? websiteUrl,
   }) async {
+    // FIX: كان يعتمد على Supabase auth.uid() داخل RPC — لكن المشروع يستخدم
+    // Firebase Auth فقط، لذا نمرر p_owner_id صراحةً من Firebase UUID.
+    final ownerId = _currentUuid();
     final params = <String, dynamic>{
       'p_name': name,
       'p_slug': slug,
       'p_category': category,
+      'p_owner_id': ownerId,
     };
     if (description != null) params['p_description'] = description;
     if (latitude != null) params['p_lat'] = latitude;
