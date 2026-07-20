@@ -5,14 +5,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import '../providers/post_provider.dart';
-import '../providers/poll_provider.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/sticker_constants.dart';
 import '../widgets/sticker_picker.dart';
 import '../widgets/poll_creation_widget.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
-  const CreatePostScreen({super.key});
+  /// Optional zone to attach this post to. Passed by ZoneFeedScreen.
+  final String? zoneId;
+  const CreatePostScreen({super.key, this.zoneId});
 
   @override
   ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -44,7 +45,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     final images = await picker.pickMultiImage();
     setState(() {
       _selectedMedia = images.map((e) => File(e.path)).toList();
-      // Polls and media are mutually exclusive
       if (images.isNotEmpty) _pollEnabled = false;
     });
   }
@@ -65,7 +65,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         _selectedVideo = File(video.path);
         _selectedMedia = [];
         _selectedStickerId = null;
-        _pollEnabled = false; // Polls and video mutually exclusive
+        _pollEnabled = false;
       });
     }
   }
@@ -85,7 +85,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     setState(() {
       _pollEnabled = !_pollEnabled;
       if (_pollEnabled) {
-        // Polls and media are mutually exclusive
         _selectedMedia = [];
         _selectedVideo = null;
         _videoController?.dispose();
@@ -120,12 +119,9 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
 
     setState(() => _isPosting = true);
     try {
-      List<File> mediaFiles = [];
-      if (_selectedVideo != null) {
-        mediaFiles = [_selectedVideo!];
-      } else if (_selectedMedia.isNotEmpty) {
-        mediaFiles = _selectedMedia;
-      }
+      final List<File> mediaFiles = _selectedVideo != null
+          ? [_selectedVideo!]
+          : _selectedMedia;
 
       await ref.read(postProvider.notifier).createPost(
             text,
@@ -133,13 +129,16 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             mediaFiles: mediaFiles,
             stickerId: _selectedStickerId,
             pollOptions: hasPoll ? _pollOptions : null,
+            // FIX: pass zoneId if coming from ZoneFeedScreen
+            zoneId: widget.zoneId,
           );
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isPosting = false);
     }
@@ -211,7 +210,35 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // ── Text input ──────────────────────────────────────────────
+                // Zone badge (shown when posting inside a zone)
+                if (widget.zoneId != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on,
+                            size: 14, color: Color(0xFF4F46E5)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Publication dans cette zone',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF4F46E5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 TextField(
                   controller: _controller,
                   maxLines: 5,
@@ -230,7 +257,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   style: GoogleFonts.plusJakartaSans(fontSize: 15),
                 ),
 
-                // ── Poll builder ─────────────────────────────────────────────
                 PollCreationWidget(
                   enabled: _pollEnabled,
                   onToggle: _togglePoll,
@@ -239,7 +265,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 ),
                 if (_pollEnabled) const SizedBox(height: 12),
 
-                // ── Sticker preview ──────────────────────────────────────────
                 if (_selectedStickerId != null) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -258,7 +283,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   ),
                 ],
 
-                // ── Video preview ────────────────────────────────────────────
                 if (_selectedVideo != null &&
                     _videoController != null &&
                     _videoController!.value.isInitialized) ...[
@@ -272,18 +296,25 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                           aspectRatio: _videoController!.value.aspectRatio,
                           child: VideoPlayer(_videoController!),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: const BoxDecoration(
-                            color: Colors.black45,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
+                        GestureDetector(
+                          onTap: () => setState(() {
                             _videoController!.value.isPlaying
-                                ? Icons.pause
-                                : Icons.play_arrow,
-                            color: Colors.white,
-                            size: 32,
+                                ? _videoController!.pause()
+                                : _videoController!.play();
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: Colors.black45,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _videoController!.value.isPlaying
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 32,
+                            ),
                           ),
                         ),
                       ],
@@ -291,7 +322,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   ),
                 ],
 
-                // ── Image previews ───────────────────────────────────────────
                 if (_selectedMedia.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   SizedBox(
@@ -336,7 +366,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                   ),
                 ],
 
-                // ── Context tags ─────────────────────────────────────────────
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
@@ -377,14 +406,12 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             ),
           ),
 
-          // ── Sticker picker ───────────────────────────────────────────────
           if (_showStickerPicker)
             StickerPicker(
               onStickerSelected: _selectSticker,
               onClose: () => setState(() => _showStickerPicker = false),
             ),
 
-          // ── Bottom toolbar ───────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
