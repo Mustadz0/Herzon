@@ -9,6 +9,7 @@ import 'package:herzon/core/config/app_config.dart';
 import 'package:herzon/core/theme/app_theme.dart';
 import 'package:herzon/data/repositories/auth_repository.dart';
 import 'package:herzon/data/repositories/post_repository.dart';
+import 'package:herzon/data/repositories/poll_repository.dart';
 import 'package:herzon/presentation/providers/auth_provider.dart';
 import 'package:herzon/presentation/screens/login_screen.dart';
 import 'package:herzon/presentation/screens/home_screen.dart';
@@ -104,12 +105,7 @@ void main() async {
     return true;
   };
 
-  // Validate secrets are present before proceeding
-  try {
-    AppConfig.validate();
-  } catch (e) {
-    debugPrint('AppConfig validation failed: $e');
-  }
+  AppConfig.validate();
 
   try {
     await Hive.initFlutter().timeout(const Duration(seconds: 10));
@@ -195,6 +191,9 @@ void main() async {
           ),
           postRepositoryProvider.overrideWithValue(
             SupabasePostRepository(supabase: Supabase.instance.client),
+          ),
+          pollRepositoryProvider.overrideWithValue(
+            SupabasePollRepository(supabase: Supabase.instance.client),
           ),
         ],
       ],

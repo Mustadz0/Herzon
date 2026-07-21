@@ -61,3 +61,4 @@ package-lock.json
 nul
 main.dart.run.xml
 sup**/sup*db*/
+supabase/scratch/

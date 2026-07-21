@@ -148,7 +148,7 @@ class SupabasePostRepository implements IPostRepository {
       'post_id': postId,
       'user_id': uuid,
       'reaction_type': reactionType,
-    }, onConflict: 'post_id,user_id');
+    }, onConflict: 'post_id,user_id,reaction_type');
   }
 
   @override

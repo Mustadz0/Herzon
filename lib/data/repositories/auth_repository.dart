@@ -42,13 +42,13 @@ class SupabaseAuthRepository implements IAuthRepository {
   Future<void> signInWithGoogle() async {
     final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
-      debugPrint('[Auth] Google sign-in cancelled by user');
+      if (!kReleaseMode) debugPrint('[Auth] Google sign-in cancelled by user');
       return;
     }
-    debugPrint('[Auth] Google user: ${googleUser.email}');
+    if (!kReleaseMode) debugPrint('[Auth] Google user: ${googleUser.email}');
 
     final googleAuth = await googleUser.authentication;
-    debugPrint('[Auth] Got tokens: idToken=${googleAuth.idToken != null}, accessToken=${googleAuth.accessToken != null}');
+    if (!kReleaseMode) debugPrint('[Auth] Got tokens: idToken=${googleAuth.idToken != null}, accessToken=${googleAuth.accessToken != null}');
 
     final credential = fb.GoogleAuthProvider.credential(
       idToken: googleAuth.idToken,
@@ -56,7 +56,7 @@ class SupabaseAuthRepository implements IAuthRepository {
     );
 
     final result = await _firebaseAuth.signInWithCredential(credential);
-    debugPrint('[Auth] Firebase sign-in: ${result.user?.uid}');
+    if (!kReleaseMode) debugPrint('[Auth] Firebase sign-in: ${result.user?.uid}');
   }
 
   @override

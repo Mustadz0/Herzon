@@ -73,7 +73,7 @@ class AdminRepository {
     if (profile['is_admin'] != true) throw Exception('Unauthorized: admin only');
   }
 
-  String _sanitizeSearch(String query) => query.replaceAll(RegExp(r'[%_]'), r'\\$&');
+  String _sanitizeSearch(String query) => query.replaceAll(RegExp(r'[%_]'), r'\$0');
 
   Future<DashboardStats> getStats() async {
     await _verifyAdmin();
