@@ -92,20 +92,11 @@ void main() async {
     );
   };
 
-  FlutterError.onError = (details) {
-    CrashlyticsService.recordError(
-      details.exception,
-      details.stack,
-      reason: 'FlutterError: ${details.context}',
-    );
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    CrashlyticsService.recordError(error, stack, reason: 'PlatformDispatcher');
-    return true;
-  };
-
-  AppConfig.validate();
+  try {
+    AppConfig.validate();
+  } catch (e) {
+    debugPrint('AppConfig validation failed: $e');
+  }
 
   try {
     await Hive.initFlutter().timeout(const Duration(seconds: 10));
@@ -123,7 +114,7 @@ void main() async {
   try {
     await Supabase.initialize(
       url: AppConfig.supabaseUrl,
-      anonKey: AppConfig.supabaseAnonKey,
+      publishableKey: AppConfig.supabaseAnonKey,
       accessToken: () async => FirebaseAuth.instance.currentUser?.getIdToken(),
     ).timeout(const Duration(seconds: 10));
     supabaseReady = true;

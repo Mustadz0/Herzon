@@ -25,7 +25,13 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
   }
 
   void _init() {
-    _sub = _repo.authStateChanges.listen((fb.User? firebaseUser) {
+    final user = _repo.currentUser;
+    if (user != null) {
+      _loadProfile(user.uid);
+    } else {
+      state = const AppAuthState();
+    }
+    _sub = _repo.authStateChanges.skip(1).listen((fb.User? firebaseUser) {
       if (firebaseUser != null) {
         _loadProfile(firebaseUser.uid);
       } else {
@@ -89,7 +95,10 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
 }
 
 final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  final supabase = Supabase.instance.client;
+  SupabaseClient? supabase;
+  try {
+    supabase = Supabase.instance.client;
+  } catch (_) {}
   return SupabaseAuthRepository(supabase: supabase);
 });
 

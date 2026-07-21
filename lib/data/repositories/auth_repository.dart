@@ -16,11 +16,11 @@ abstract class IAuthRepository {
 }
 
 class SupabaseAuthRepository implements IAuthRepository {
-  final SupabaseClient _supabase;
+  final SupabaseClient? _supabase;
   final GoogleSignIn _googleSignIn;
   final fb.FirebaseAuth _firebaseAuth;
 
-  SupabaseAuthRepository({required SupabaseClient supabase})
+  SupabaseAuthRepository({required SupabaseClient? supabase})
       : _supabase = supabase,
         _firebaseAuth = fb.FirebaseAuth.instance,
         _googleSignIn = GoogleSignIn(
@@ -68,8 +68,10 @@ class SupabaseAuthRepository implements IAuthRepository {
 
   @override
   Future<UserModel?> getUserProfile(String userId) async {
+    final s = _supabase;
+    if (s == null) return null;
     final uuid = firebaseUidToUuid(userId);
-    final responses = await _supabase
+    final responses = await s
         .from('profiles')
         .select()
         .eq('id', uuid);
@@ -80,8 +82,10 @@ class SupabaseAuthRepository implements IAuthRepository {
 
   @override
   Future<void> updateProfile(UserModel user) async {
+    final s = _supabase;
+    if (s == null) return;
     final json = user.toJson();
     json['id'] = firebaseUidToUuid(user.id);
-    await _supabase.from('profiles').upsert(json);
+    await s.from('profiles').upsert(json);
   }
 }
