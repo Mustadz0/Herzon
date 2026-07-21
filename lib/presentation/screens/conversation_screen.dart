@@ -32,18 +32,45 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   final _focusNode = FocusNode();
   bool _showStickerPicker = false;
   bool _otherUserOnline = false;
+  RealtimeChannel? _onlineChannel;
 
   @override
   void initState() {
     super.initState();
-    _checkOnlineStatus();
+    _subscribeToOnlineStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(messagesProvider(widget.conversationId).notifier).markAsRead();
       _scrollToBottom();
     });
   }
 
-  void _checkOnlineStatus() async {
+  void _subscribeToOnlineStatus() {
+    _onlineChannel = Supabase.instance.client
+        .channel('online-status-${widget.otherUserId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'profiles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.otherUserId,
+          ),
+          callback: (payload) {
+            final newLastActive = payload.newRecord['last_active_at'] as String?;
+            if (newLastActive != null) {
+              final lastActive = DateTime.parse(newLastActive);
+              _otherUserOnline = DateTime.now().difference(lastActive).inMinutes < 5;
+              if (mounted) setState(() {});
+            }
+          },
+        )
+        .subscribe();
+
+    _fetchOnlineStatus();
+  }
+
+  void _fetchOnlineStatus() async {
     try {
       final profile = await Supabase.instance.client
           .from('profiles')
@@ -60,6 +87,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   @override
   void dispose() {
+    _onlineChannel?.unsubscribe();
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();

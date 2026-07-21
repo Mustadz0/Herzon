@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/firebase_uuid.dart';
+import '../../services/crashlytics_service.dart';
 import '../providers/feature_flag_provider.dart';
 
 class AdminFeatureFlagsScreen extends ConsumerStatefulWidget {
@@ -16,6 +17,7 @@ class AdminFeatureFlagsScreen extends ConsumerStatefulWidget {
 class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScreen> {
   bool _isAdmin = false;
   bool _checkingAdmin = true;
+  String? _adminCheckError;
 
   @override
   void initState() {
@@ -26,7 +28,10 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
   Future<void> _verifyAdmin() async {
     try {
       final fbUser = FirebaseAuth.instance.currentUser;
-      if (fbUser == null) throw Exception('Not authenticated');
+      if (fbUser == null) {
+        _adminCheckError = 'Veuillez vous connecter';
+        return;
+      }
       final userId = FirebaseUuid.toUuid(fbUser.uid);
       final profile = await Supabase.instance.client
           .from('profiles')
@@ -34,7 +39,10 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
           .eq('id', userId)
           .maybeSingle();
       _isAdmin = profile?['is_admin'] == true;
-    } catch (_) {}
+    } catch (e) {
+      _adminCheckError = 'Erreur de vérification: $e';
+      CrashlyticsService.recordError(e, StackTrace.current, reason: 'admin_feature_flags verify');
+    }
     if (mounted) {
       setState(() => _checkingAdmin = false);
       if (_isAdmin) {
@@ -59,14 +67,37 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
       return Scaffold(
         appBar: AppBar(title: const Text('Feature Flags (Admin)')),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_outline, size: 64, color: Colors.grey[300]),
-              const SizedBox(height: 16),
-              Text('Accès réservé aux administrateurs',
-                style: TextStyle(fontSize: 16, color: Colors.grey[600])),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _adminCheckError != null ? Icons.error_outline : Icons.lock_outline,
+                  size: 64,
+                  color: _adminCheckError != null ? Colors.orange[300] : Colors.grey[300],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _adminCheckError ?? 'Accès réservé aux administrateurs',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                ),
+                if (_adminCheckError != null) ...[
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _checkingAdmin = true;
+                        _adminCheckError = null;
+                      });
+                      _verifyAdmin();
+                    },
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       );
@@ -160,6 +191,8 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
       await Supabase.instance.client
           .from('feature_config')
           .upsert({ 'flag_key': key, 'is_enabled': value, 'updated_at': DateTime.now().toIso8601String() });
-    } catch (e) { debugPrint('AdminFeatureFlags: $e'); }
+    } catch (e) {
+      CrashlyticsService.recordError(e, StackTrace.current, reason: 'AdminFeatureFlags toggle');
+    }
   }
 }
