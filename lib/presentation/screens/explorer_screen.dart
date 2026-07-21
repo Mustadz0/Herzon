@@ -35,8 +35,8 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
   bool _locating = false;
   bool _showSuggestions = false;
 
-  static const String _osmStyle =
-      'https://demotiles.maplibre.org/style.json';
+  static const String _mapStyle =
+      'https://api.maptiler.com/maps/streets-v2/style.json?key=gAJhABdiCcjYGKwRa3jS';
 
   @override
   void initState() {
@@ -134,8 +134,8 @@ class _ExplorerScreenState extends ConsumerState<ExplorerScreen> {
       body: Stack(
         children: [
           // ── MapLibre map ─────────────────────────────────────────────────
-          MapLibreMap(
-            styleString: _osmStyle,
+            MapLibreMap(
+              styleString: _mapStyle,
             initialCameraPosition: CameraPosition(
               target: LatLng(_lat, _lng),
               zoom: 15,
