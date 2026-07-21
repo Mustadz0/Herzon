@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/search_provider.dart';
@@ -17,6 +18,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   late final TabController _tabController;
   final _ctrl = TextEditingController();
   final _focus = FocusNode();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -28,6 +30,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _tabController.dispose();
     _ctrl.dispose();
     _focus.dispose();
@@ -35,9 +38,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   }
 
   void _onSearch(String q) {
-    final trimmed = q.trim();
-    if (trimmed.isEmpty) return;
-    ref.read(searchProvider.notifier).search(trimmed);
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      final trimmed = q.trim();
+      if (trimmed.isEmpty) return;
+      if (!mounted) return;
+      ref.read(searchProvider.notifier).search(trimmed);
+    });
   }
 
   @override

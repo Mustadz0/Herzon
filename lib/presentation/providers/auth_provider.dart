@@ -46,15 +46,6 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
     }
   }
 
-  Future<void> signInAnonymously() async {
-    state = const AppAuthState(isLoading: true);
-    try {
-      await _repo.signInAnonymously();
-    } catch (e) {
-      state = AppAuthState(error: e.toString());
-    }
-  }
-
   Future<void> _loadProfile(String id) async {
     try {
       var profile = await _repo.getUserProfile(id);

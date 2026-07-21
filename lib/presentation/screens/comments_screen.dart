@@ -29,6 +29,7 @@ class _CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
   }
 
   void _subscribeRealtime() {
+    _channel?.unsubscribe();
     _channel = Supabase.instance.client
         .channel('comments:$postId')
         .onPostgresChanges(
@@ -51,9 +52,8 @@ class _CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
     // Realtime will trigger _load() automatically
   }
 
-  Future<void> deleteComment(String commentId) async {
-    await _repo.deleteComment(commentId);
-    // Optimistic removal
+  Future<void> deleteComment(String commentId, String userId) async {
+    await _repo.deleteComment(commentId, userId);
     final current = state.valueOrNull ?? [];
     state = AsyncValue.data(
       current.where((c) => c.id != commentId && c.parentId != commentId).toList(),
@@ -193,7 +193,7 @@ class _CommentsScreenState extends ConsumerState<CommentsScreen> {
                       onDelete: (id) => ref
                           .read(commentsNotifierProvider(widget.postId)
                               .notifier)
-                          .deleteComment(id),
+                          .deleteComment(id, currentUserId),
                     );
                   },
                 );
@@ -446,7 +446,7 @@ class _CommentTile extends StatelessWidget {
   }
 
   String _formatTime(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
+    final diff = DateTime.now().toUtc().difference(dt.toUtc());
     if (diff.inMinutes < 60) return '${diff.inMinutes}min';
     if (diff.inHours < 24) return '${diff.inHours}h';
     return '${diff.inDays}j';

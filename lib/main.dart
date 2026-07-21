@@ -123,7 +123,7 @@ void main() async {
   try {
     await Supabase.initialize(
       url: AppConfig.supabaseUrl,
-      publishableKey: AppConfig.supabaseAnonKey,
+      anonKey: AppConfig.supabaseAnonKey,
       accessToken: () async => FirebaseAuth.instance.currentUser?.getIdToken(),
     ).timeout(const Duration(seconds: 10));
     supabaseReady = true;
@@ -137,6 +137,11 @@ void main() async {
     }
   } catch (e) {
     debugPrint('Supabase init failed: $e');
+    supabaseReady = false;
+  }
+
+  if (!supabaseReady) {
+    debugPrint('CRITICAL: Supabase not available — app will show error state');
   }
 
   // Fire-and-forget: non-critical services — don't block runApp

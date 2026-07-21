@@ -10,7 +10,6 @@ abstract class IAuthRepository {
   fb.User? get currentUser;
   Stream<fb.User?> get authStateChanges;
   Future<void> signInWithGoogle();
-  Future<void> signInAnonymously();
   Future<void> signOut();
   Future<UserModel?> getUserProfile(String userId);
   Future<void> updateProfile(UserModel user);
@@ -57,11 +56,6 @@ class SupabaseAuthRepository implements IAuthRepository {
 
     final result = await _firebaseAuth.signInWithCredential(credential);
     if (!kReleaseMode) debugPrint('[Auth] Firebase sign-in: ${result.user?.uid}');
-  }
-
-  @override
-  Future<void> signInAnonymously() async {
-    await _firebaseAuth.signInAnonymously();
   }
 
   @override

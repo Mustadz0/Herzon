@@ -21,9 +21,10 @@ class SupabaseFeatureFlagRepository implements IFeatureFlagRepository {
 
   @override
   Future<Map<String, dynamic>> getFeatureFlags() async {
-    final data = await _supabase.from('feature_flags').select('key, value');
+    final data = await _supabase.from('feature_config').select('key, value');
     return {
-      for (final row in (data as List<dynamic>)) row['key'] as String: row['value']
+      for (final row in (data as List<dynamic>))
+        row['key'] as String: (row['value'] as Map<String, dynamic>?)?['enabled'] ?? false
     };
   }
 

@@ -166,18 +166,26 @@ class SupabasePostRepository implements IPostRepository {
 
   @override
   Future<void> deletePost(String postId) async {
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
     await _supabase
         .from('posts')
         .update({'deleted_at': DateTime.now().toIso8601String()})
-        .eq('id', postId);
+        .eq('id', postId)
+        .eq('user_id', uuid);
   }
 
   @override
   Future<void> updatePost(String postId, String content) async {
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser == null) throw Exception('Not authenticated');
+    final uuid = FirebaseUuid.toUuid(fbUser.uid);
     await _supabase
         .from('posts')
         .update({'content': content})
-        .eq('id', postId);
+        .eq('id', postId)
+        .eq('user_id', uuid);
   }
 
   @override

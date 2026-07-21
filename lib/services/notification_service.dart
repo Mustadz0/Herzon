@@ -1,4 +1,5 @@
-﻿import 'package:firebase_messaging/firebase_messaging.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:supabase_flutter/supabase_flutter.dart';

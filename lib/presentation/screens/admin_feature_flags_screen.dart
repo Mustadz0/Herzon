@@ -17,6 +17,7 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
   bool _isAdmin = false;
   bool _checkingAdmin = true;
   String? _adminCheckError;
+  DateTime? _lastToggle;
 
   @override
   void initState() {
@@ -134,6 +135,9 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
                         style: TextStyle(color: entry.value ? AppTheme.success : t.colorScheme.onSurfaceVariant)),
                       value: entry.value,
                       onChanged: flagState.isLoading ? null : (val) async {
+                        final now = DateTime.now();
+                        if (_lastToggle != null && now.difference(_lastToggle!).inMilliseconds < 500) return;
+                        _lastToggle = now;
                         await _toggleFlag(entry.key, val);
                         ref.read(featureFlagProvider.notifier).loadFlags();
                       },

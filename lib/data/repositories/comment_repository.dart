@@ -6,7 +6,7 @@ abstract class ICommentRepository {
   Future<List<CommentModel>> getComments(String postId);
   Future<void> addComment(String postId, String userId, String content,
       {String? parentId});
-  Future<void> deleteComment(String commentId);
+  Future<void> deleteComment(String commentId, String userId);
 }
 
 class SupabaseCommentRepository implements ICommentRepository {
@@ -50,8 +50,8 @@ class SupabaseCommentRepository implements ICommentRepository {
   }
 
   @override
-  Future<void> deleteComment(String commentId) async {
-    await _supabase.from('comments').delete().eq('id', commentId);
+  Future<void> deleteComment(String commentId, String userId) async {
+    await _supabase.from('comments').delete().eq('id', commentId).eq('user_id', userId);
   }
 }
 
