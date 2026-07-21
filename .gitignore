@@ -62,3 +62,5 @@ nul
 main.dart.run.xml
 sup**/sup*db*/
 supabase/scratch/
+migrate.js
+migrate.py
