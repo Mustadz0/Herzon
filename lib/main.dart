@@ -140,9 +140,10 @@ void main() async {
   }
 
   // Fire-and-forget: non-critical services — don't block runApp
+  final featureFlagService = FeatureFlagService();
   unawaited(() async {
     try {
-      await FeatureFlagService.init().timeout(const Duration(seconds: 8), onTimeout: () {
+      await featureFlagService.init().timeout(const Duration(seconds: 8), onTimeout: () {
         debugPrint('FeatureFlagService.init timed out');
       });
     } catch (e) {

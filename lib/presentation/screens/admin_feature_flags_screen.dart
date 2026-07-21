@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/firebase_uuid.dart';
 import '../../services/crashlytics_service.dart';
 import '../providers/feature_flag_provider.dart';
 
@@ -30,15 +29,10 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
       final fbUser = FirebaseAuth.instance.currentUser;
       if (fbUser == null) {
         _adminCheckError = 'Veuillez vous connecter';
+        if (mounted) setState(() => _checkingAdmin = false);
         return;
       }
-      final userId = FirebaseUuid.toUuid(fbUser.uid);
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', userId)
-          .maybeSingle();
-      _isAdmin = profile?['is_admin'] == true;
+      _isAdmin = await Supabase.instance.client.rpc('current_user_is_admin') == true;
     } catch (e) {
       _adminCheckError = 'Erreur de vérification: $e';
       CrashlyticsService.recordError(e, StackTrace.current, reason: 'admin_feature_flags verify');
@@ -188,9 +182,10 @@ class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScree
 
   Future<void> _toggleFlag(String key, bool value) async {
     try {
-      await Supabase.instance.client
-          .from('feature_config')
-          .upsert({ 'flag_key': key, 'is_enabled': value, 'updated_at': DateTime.now().toIso8601String() });
+      await Supabase.instance.client.rpc('admin_toggle_feature_flag', params: {
+        'flag_key': key,
+        'is_enabled': value,
+      });
     } catch (e) {
       CrashlyticsService.recordError(e, StackTrace.current, reason: 'AdminFeatureFlags toggle');
     }

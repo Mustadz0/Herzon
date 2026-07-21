@@ -97,9 +97,7 @@ class SupabaseMessageRepository implements IMessageRepository {
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
         .order('created_at')
-        .map((events) {
-          if (events.isEmpty) throw StateError('No messages in stream');
-          return MessageModel.fromJson(events.last);
-        });
+        .expand((events) => events)
+        .map((json) => MessageModel.fromJson(json));
   }
 }

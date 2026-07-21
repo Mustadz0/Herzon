@@ -47,11 +47,13 @@ class NotificationService {
   Future<void> deleteToken() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
+      final token = await _fcm.getToken();
+      if (user != null && token != null) {
         await Supabase.instance.client
             .from('device_tokens')
             .delete()
-            .eq('user_id', user.id);
+            .eq('user_id', user.id)
+            .eq('fcm_token', token);
       }
     } catch (e) { debugPrint('NotificationService: $e'); }
   }
@@ -81,10 +83,14 @@ class _NotificationTapHandlerState extends State<NotificationTapHandler> {
   void _handleTap(RemoteMessage message) {
     final data = message.data;
     if (!mounted) return;
-    if (data['post_id'] != null) {
-      Navigator.of(context).pushNamed('/comments', arguments: data['post_id']);
-    } else if (data['follower_id'] != null) {
-      Navigator.of(context).pushNamed('/profile', arguments: data['follower_id']);
+    try {
+      if (data['post_id'] != null) {
+        Navigator.of(context, rootNavigator: true).pushNamed('/comments', arguments: data['post_id']);
+      } else if (data['follower_id'] != null) {
+        Navigator.of(context, rootNavigator: true).pushNamed('/profile', arguments: data['follower_id']);
+      }
+    } catch (e) {
+      debugPrint('NotificationTapHandler: $e');
     }
   }
 

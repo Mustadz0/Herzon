@@ -1,19 +1,20 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FeatureFlagService {
-  static Map<String, dynamic> _flags = {};
-  static Map<String, String> _experiments = {};
+  Map<String, dynamic> _flags = {};
+  Map<String, String> _experiments = {};
   static const String _cacheBoxName = 'feature_flags';
-  static Box? _cacheBox;
+  Box? _cacheBox;
 
-  static Future<void> init() async {
+  Future<void> init() async {
     _cacheBox = await Hive.openBox(_cacheBoxName);
     await _loadFromCache();
     await refresh();
   }
 
-  static Future<void> _loadFromCache() async {
+  Future<void> _loadFromCache() async {
     if (_cacheBox == null) return;
     final cached = _cacheBox!.get('flags') as Map?;
     if (cached != null) {
@@ -29,7 +30,7 @@ class FeatureFlagService {
     }
   }
 
-  static Future<void> refresh() async {
+  Future<void> refresh() async {
     try {
       final client = Supabase.instance.client;
       final flagsResult = await client.rpc('get_user_feature_flags');
@@ -48,14 +49,13 @@ class FeatureFlagService {
       }
       await _saveToCache();
     } catch (e) {
-      // Use cached defaults if RPC fails
       if (_flags.isEmpty) {
         _flags = _defaultFlags();
       }
     }
   }
 
-  static Map<String, dynamic> _defaultFlags() => {
+  Map<String, dynamic> _defaultFlags() => {
     'show_ridesharing': {'enabled': false},
     'show_polls': {'enabled': true},
     'show_pages': {'enabled': false},
@@ -64,13 +64,13 @@ class FeatureFlagService {
     'nearby_radius': {'value': 500},
   };
 
-  static Future<void> _saveToCache() async {
+  Future<void> _saveToCache() async {
     if (_cacheBox == null) return;
     await _cacheBox!.put('flags', _flags);
     await _cacheBox!.put('experiments', _experiments);
   }
 
-  static bool isEnabled(String key, {bool defaultValue = false}) {
+  bool isEnabled(String key, {bool defaultValue = false}) {
     final value = _flags[key];
     if (value is bool) return value;
     if (value is Map && value['enabled'] is bool) {
@@ -79,14 +79,24 @@ class FeatureFlagService {
     return defaultValue;
   }
 
-  static dynamic getValue(String key, {dynamic defaultValue}) {
+  dynamic getValue(String key, {dynamic defaultValue}) {
     return _flags.containsKey(key) ? _flags[key] : defaultValue;
   }
 
-  static String getExperimentVariant(
+  String getExperimentVariant(
     String experimentName, {
     String defaultVariant = 'control',
   }) {
     return _experiments[experimentName] ?? defaultVariant;
   }
+
+  Future<void> dispose() async {
+    await _cacheBox?.close();
+  }
 }
+
+final featureFlagServiceProvider = Provider<FeatureFlagService>((ref) {
+  final service = FeatureFlagService();
+  ref.onDispose(() => service.dispose());
+  return service;
+});

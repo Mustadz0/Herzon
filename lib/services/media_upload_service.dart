@@ -17,6 +17,16 @@ class MediaUploadService {
   static const Set<String> _allowedVideoExts = {'.mp4', '.mov'};
   static const Uuid _uuid = Uuid();
 
+  static const _magicBytes = <String, List<int>>{
+    'jpg': [0xFF, 0xD8, 0xFF],
+    'jpeg': [0xFF, 0xD8, 0xFF],
+    'png': [0x89, 0x50, 0x4E, 0x47],
+    'gif': [0x47, 0x49, 0x46],
+    'webp': [0x52, 0x49, 0x46, 0x46],
+    'mp4': [0x00, 0x00, 0x00],
+    'mov': [0x00, 0x00, 0x00],
+  };
+
   final SupabaseClient _supabase;
 
   MediaUploadService({required SupabaseClient supabase}) : _supabase = supabase;
@@ -26,6 +36,28 @@ class MediaUploadService {
     return dot == -1 ? '' : path.substring(dot).toLowerCase();
   }
 
+  Future<void> _validateMagicBytes(File file, String ext) async {
+    final key = ext.replaceFirst('.', '');
+    final expected = _magicBytes[key];
+    if (expected == null) return;
+    final raf = await file.open(mode: FileMode.read);
+    try {
+      final header = await raf.read(expected.length);
+      if (header.length < expected.length) throw Exception('Fichier corrompu ou invalide.');
+      for (var i = 0; i < expected.length; i++) {
+        if (header[i] != expected[i]) {
+          if (key == 'mp4' || key == 'mov') {
+            // MP4/MOV boxes start with varying bytes — skip magic check for video
+            return;
+          }
+          throw Exception('Le fichier ne correspond pas au type attendu ($ext).');
+        }
+      }
+    } finally {
+      await raf.close();
+    }
+  }
+
   Future<void> _validatePostMedia(File file) async {
     final ext = _ext(file.path);
     final isImage = _allowedImageExts.contains(ext);
@@ -33,6 +65,8 @@ class MediaUploadService {
     if (!isImage && !isVideo) {
       throw Exception('Type de fichier non autorise.');
     }
+
+    await _validateMagicBytes(file, ext);
 
     final length = await file.length();
     final maxBytes = isVideo ? _maxVideoBytes : _maxImageBytes;
@@ -48,6 +82,7 @@ class MediaUploadService {
     if (!_allowedImageExts.contains(ext) || ext == '.gif') {
       throw Exception('Format d avatar non autorise.');
     }
+    await _validateMagicBytes(file, ext);
     if (await file.length() > 2 * 1024 * 1024) {
       throw Exception('L avatar depasse 2 Mo.');
     }
@@ -59,17 +94,30 @@ class MediaUploadService {
   }) async {
     if (files.isEmpty) return [];
 
-    final urls = <String>[];
-    final bucket = _supabase.storage.from('post-media');
-
     for (final file in files) {
       await _validatePostMedia(file);
-      final ext = _ext(file.path);
-      final path =
-          '$userId/${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4()}$ext';
-      await bucket.upload(path, file);
-      final url = bucket.getPublicUrl(path);
-      urls.add(url);
+    }
+
+    final urls = <String>[];
+    final paths = <String>[];
+    final bucket = _supabase.storage.from('post-media');
+
+    try {
+      for (final file in files) {
+        final ext = _ext(file.path);
+        final path =
+            '$userId/${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4()}$ext';
+        await bucket.upload(path, file);
+        paths.add(path);
+        urls.add(bucket.getPublicUrl(path));
+      }
+    } catch (e) {
+      for (final path in paths) {
+        try {
+          await bucket.remove([path]);
+        } catch (_) {}
+      }
+      rethrow;
     }
 
     return urls;
