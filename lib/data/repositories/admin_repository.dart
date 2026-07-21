@@ -111,12 +111,13 @@ class AdminRepository {
     final data = await query.order('created_at', ascending: false);
     return data.map((json) {
       final profile = json['profiles'] as Map<String, dynamic>?;
+      final coords = ((json['location'] as Map<String, dynamic>?)?['coordinates'] as List?)?.cast<num>();
       return PostModel(
         id: json['id'] as String,
         userId: json['user_id'] as String,
         content: json['content'] as String,
-        latitude: ((json['location'] as Map<String, dynamic>?)?['coordinates'] as List?)?.last ?? 0.0,
-        longitude: ((json['location'] as Map<String, dynamic>?)?['coordinates'] as List?)?.first ?? 0.0,
+        latitude: coords?.lastOrNull?.toDouble() ?? 0.0,
+        longitude: coords?.firstOrNull?.toDouble() ?? 0.0,
         contextTag: json['context_tag'] as String?,
         reactionCounts: json['reaction_counts'] != null ? Map<String, int>.from(json['reaction_counts'] as Map) : const {},
         userUsername: profile?['username'] as String?,
@@ -150,6 +151,7 @@ class AdminRepository {
   }
 
   Future<void> updateReportStatus(String reportId, String status) async {
+    await _verifyAdmin();
     await _supabase.rpc('admin_update_report_status', params: {
       'target_report_id': reportId,
       'new_status': status,
@@ -157,6 +159,7 @@ class AdminRepository {
   }
 
   Future<void> deletePost(String postId) async {
+    await _verifyAdmin();
     await _supabase.rpc('admin_delete_post', params: {'target_post_id': postId});
   }
 }
