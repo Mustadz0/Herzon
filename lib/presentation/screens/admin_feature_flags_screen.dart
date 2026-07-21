@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/firebase_uuid.dart';
 import '../providers/feature_flag_provider.dart';
 
 class AdminFeatureFlagsScreen extends ConsumerStatefulWidget {
@@ -12,18 +14,63 @@ class AdminFeatureFlagsScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminFeatureFlagsScreenState extends ConsumerState<AdminFeatureFlagsScreen> {
+  bool _isAdmin = false;
+  bool _checkingAdmin = true;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(featureFlagProvider.notifier).loadFlags();
-    });
+    _verifyAdmin();
+  }
+
+  Future<void> _verifyAdmin() async {
+    try {
+      final fbUser = FirebaseAuth.instance.currentUser;
+      if (fbUser == null) throw Exception('Not authenticated');
+      final userId = FirebaseUuid.toUuid(fbUser.uid);
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', userId)
+          .maybeSingle();
+      _isAdmin = profile?['is_admin'] == true;
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _checkingAdmin = false);
+      if (_isAdmin) {
+        ref.read(featureFlagProvider.notifier).loadFlags();
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final flagState = ref.watch(featureFlagProvider);
+
+    if (_checkingAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Feature Flags (Admin)')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Feature Flags (Admin)')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outline, size: 64, color: Colors.grey[300]),
+              const SizedBox(height: 16),
+              Text('Accès réservé aux administrateurs',
+                style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Feature Flags (Admin)')),

@@ -8,6 +8,7 @@ import '../../core/utils/firebase_uuid.dart';
 import '../providers/messenger_provider.dart';
 import '../../data/models/message_model.dart';
 import '../widgets/sticker_picker.dart';
+import '../../core/constants/sticker_constants.dart';
 
 class ConversationScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -30,14 +31,31 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
   bool _showStickerPicker = false;
+  bool _otherUserOnline = false;
 
   @override
   void initState() {
     super.initState();
+    _checkOnlineStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(messagesProvider(widget.conversationId).notifier).markAsRead();
       _scrollToBottom();
     });
+  }
+
+  void _checkOnlineStatus() async {
+    try {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('last_active_at')
+          .eq('id', widget.otherUserId)
+          .maybeSingle();
+      if (profile != null && profile['last_active_at'] != null) {
+        final lastActive = DateTime.parse(profile['last_active_at'] as String);
+        _otherUserOnline = DateTime.now().difference(lastActive).inMinutes < 5;
+        if (mounted) setState(() {});
+      }
+    } catch (_) {}
   }
 
   @override
@@ -106,10 +124,10 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               ),
             ),
             Text(
-              'En ligne',
+              _otherUserOnline ? 'En ligne' : 'Hors ligne',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
-                color: const Color(0xFF10B981),
+                color: _otherUserOnline ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
               ),
             ),
           ],
@@ -329,20 +347,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   String _getStickerEmoji(String? stickerId) {
     if (stickerId == null) return '😀';
-    // Simple mapping - in production, use actual sticker assets
-    const stickers = {
-      'heart': '❤️',
-      'fire': '🔥',
-      'thumbsup': '👍',
-      'laugh': '😂',
-      'wow': '😮',
-      'sad': '😢',
-      'clap': '👏',
-      'wave': '👋',
-      'party': '🎉',
-      'star': '⭐',
-    };
-    return stickers[stickerId] ?? '😀';
+    return AppStickers.getStickerById(stickerId)?.emoji ?? '😀';
   }
 
   String _formatMessageTime(DateTime time) {
