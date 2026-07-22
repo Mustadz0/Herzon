@@ -14,6 +14,7 @@ class AppAuthState {
   const AppAuthState({this.user, this.isLoading = false, this.error});
 
   bool get isAuthenticated => user != null;
+  bool get isAnonymous => user?.isAnonymous ?? false;
 }
 
 class AuthNotifier extends StateNotifier<AppAuthState> {
