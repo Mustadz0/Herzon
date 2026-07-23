@@ -20,6 +20,7 @@ class AppAuthState {
 class AuthNotifier extends StateNotifier<AppAuthState> {
   final IAuthRepository _repo;
   StreamSubscription<fb.User?>? _sub;
+  String? _lastProcessedUid;
 
   AuthNotifier(this._repo) : super(const AppAuthState(isLoading: true)) {
     _init();
@@ -28,11 +29,17 @@ class AuthNotifier extends StateNotifier<AppAuthState> {
   void _init() {
     final user = _repo.currentUser;
     if (user != null) {
+      _lastProcessedUid = user.uid;
       _loadProfile(user.uid);
     } else {
       state = const AppAuthState();
     }
-    _sub = _repo.authStateChanges.skip(1).listen((fb.User? firebaseUser) {
+    _sub = _repo.authStateChanges.listen((fb.User? firebaseUser) {
+      final uid = firebaseUser?.uid;
+      // Dedupe: skip if we just processed this same uid (the initial sync
+      // check + first stream emission handle the same Firebase user state).
+      if (uid == _lastProcessedUid) return;
+      _lastProcessedUid = uid;
       if (firebaseUser != null) {
         _loadProfile(firebaseUser.uid);
       } else {
