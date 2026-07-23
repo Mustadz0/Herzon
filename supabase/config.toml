@@ -423,3 +423,14 @@ entrypoint = "./functions/je-suis-la/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/je-suis-la/*.html" ]
+
+[functions.delete-account]
+enabled = true
+# We require Supabase-issued JWT OR Firebase ID token + x-firebase-uid header
+# (handled in the function itself). Default verify_jwt = true means Supabase
+# ensures calls have a valid Supabase JWT; if the Flutter app has none
+# (custom JWT auth), we keep verify_jwt = true and the function falls back
+# to header-based auth. Supabase still gates the invocation by
+# requiring a valid access token for the API gateway.
+import_map = "./functions/delete-account/deno.json"
+entrypoint = "./functions/delete-account/index.ts"

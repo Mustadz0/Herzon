@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:herzon/core/utils/admin_guard.dart';
+import 'package:herzon/core/utils/safe_error.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
   const AdminAnalyticsScreen({super.key});
@@ -26,6 +28,13 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
       _isLoading = true;
       _error = null;
     });
+    if (!await verifyAdmin()) {
+      setState(() {
+        _error = 'Unauthorized';
+        _isLoading = false;
+      });
+      return;
+    }
     try {
       final results = await Future.wait([
         Supabase.instance.client.rpc('get_user_growth').catchError((_) => []),
@@ -48,7 +57,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = safeErrorMessage(e);
         _isLoading = false;
       });
     }

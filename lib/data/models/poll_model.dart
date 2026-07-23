@@ -21,8 +21,8 @@ class PollModel {
       options: optionsList
           .map((e) => PollOptionItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      totalVotes: json['total_votes'] as int? ?? 0,
-      userVoteIndex: json['user_vote_index'] as int?,
+      totalVotes: (json['total_votes'] as num?)?.toInt() ?? 0,
+      userVoteIndex: (json['user_vote_index'] as num?)?.toInt(),
     );
   }
 
@@ -52,7 +52,7 @@ class PollOptionItem implements PollOption {
   factory PollOptionItem.fromJson(Map<String, dynamic> json) {
     return PollOptionItem(
       text: json['text'] as String? ?? '',
-      votes: json['votes'] as int? ?? 0,
+      votes: (json['votes'] as num?)?.toInt() ?? 0,
       percentage: (json['percentage'] as num?)?.toDouble() ?? 0.0,
     );
   }

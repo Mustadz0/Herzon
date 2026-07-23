@@ -76,7 +76,7 @@ class PollNotifier extends StateNotifier<PollState> {
         final map = e as Map<String, dynamic>;
         return PollResult(
           label: map['label'] as String? ?? '',
-          votes: map['votes'] as int? ?? 0,
+          votes: (map['votes'] as num?)?.toInt() ?? 0,
           percentage: (map['percentage'] as num?)?.toDouble() ?? 0.0,
         );
       }).toList();

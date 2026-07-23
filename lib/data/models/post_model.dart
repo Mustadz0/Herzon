@@ -139,8 +139,8 @@ class PostModel {
       distanceMeters: (json['distance'] as num?)?.toDouble() ?? 0.0,
       commentCount: (json['comment_count'] as num?)?.toInt() ?? 0,
       pollOptions: pollOptions,
-      userPollVoteIndex: json['user_poll_vote_index'] as int?,
-      pollTotalVotes: json['poll_total_votes'] as int?,
+      userPollVoteIndex: (json['user_poll_vote_index'] as num?)?.toInt(),
+      pollTotalVotes: (json['poll_total_votes'] as num?)?.toInt(),
       stickerId: json['sticker_id'] as String?,
       videoUrl: json['video_url'] as String?,
     );

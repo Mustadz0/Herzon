@@ -21,7 +21,7 @@
     description: json['description'] as String,
     iconUrl: json['icon_url'] as String?,
     category: json['category'] as String,
-    requiredXp: json['required_xp'] as int? ?? 0,
+    requiredXp: (json['required_xp'] as num?)?.toInt() ?? 0,
   );
 
   Map<String, dynamic> toJson() => {

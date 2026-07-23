@@ -1,4 +1,5 @@
-﻿import 'package:supabase_flutter/supabase_flutter.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 
@@ -121,4 +122,22 @@ class AdminRepository {
   Future<void> deletePost(String postId) async {
     await _supabase.rpc('admin_delete_post', params: {'target_post_id': postId});
   }
+
+  Future<void> toggleAdmin({required String userId, required bool isAdmin}) async {
+    await _supabase.rpc('admin_set_user_admin', params: {
+      'target_user_id': userId,
+      'make_admin': isAdmin,
+    });
+  }
+
+  Future<void> toggleVibes({required String userId, required bool canUseVibes}) async {
+    await _supabase.rpc('admin_set_user_vibes', params: {
+      'target_user_id': userId,
+      'can_use_vibes_value': canUseVibes,
+    });
+  }
 }
+
+final adminRepositoryProvider = Provider<AdminRepository>((ref) {
+  return AdminRepository(supabase: Supabase.instance.client);
+});

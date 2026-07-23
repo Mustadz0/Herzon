@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:herzon/core/utils/admin_guard.dart';
+import 'package:herzon/core/utils/safe_error.dart';
 
 class AdminMessagesScreen extends StatefulWidget {
   const AdminMessagesScreen({super.key});
@@ -26,6 +28,13 @@ class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
       _isLoading = true;
       _error = null;
     });
+    if (!await verifyAdmin()) {
+      setState(() {
+        _error = 'Unauthorized';
+        _isLoading = false;
+      });
+      return;
+    }
     try {
       final data = await Supabase.instance.client.from('conversations').select('''
         *,
@@ -39,7 +48,7 @@ class _AdminMessagesScreenState extends State<AdminMessagesScreen> {
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = safeErrorMessage(e);
         _isLoading = false;
       });
     }

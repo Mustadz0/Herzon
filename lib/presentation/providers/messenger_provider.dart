@@ -64,11 +64,23 @@ class MessagesNotifier extends StateNotifier<AsyncValue<List<MessageModel>>> {
   void _subscribeToMessages() {
     _subscription = _repository.subscribeToMessages(conversationId).listen(
       (message) {
+        // Guard: if the state already has this message id, no-op (handles UPDATE
+        // events that the Realtime stream emits alongside INSERT events).
         state.whenData((messages) {
-          if (!messages.any((m) => m.id == message.id)) {
+          final exists = messages.any((m) => m.id == message.id);
+          if (exists) {
+            // Update in-place: replace the existing message with the new one
+            final updated = [
+              for (final m in messages) if (m.id == message.id) message else m,
+            ];
+            state = AsyncValue.data(updated);
+          } else {
             state = AsyncValue.data([...messages, message]);
           }
         });
+      },
+      onError: (e, st) {
+        debugPrint('subscribeToMessages error: $e');
       },
     );
   }

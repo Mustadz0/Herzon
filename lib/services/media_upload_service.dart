@@ -23,8 +23,6 @@ class MediaUploadService {
     'png': [0x89, 0x50, 0x4E, 0x47],
     'gif': [0x47, 0x49, 0x46],
     'webp': [0x52, 0x49, 0x46, 0x46],
-    'mp4': [0x00, 0x00, 0x00],
-    'mov': [0x00, 0x00, 0x00],
   };
 
   final SupabaseClient _supabase;
@@ -38,6 +36,38 @@ class MediaUploadService {
 
   Future<void> _validateMagicBytes(File file, String ext) async {
     final key = ext.replaceFirst('.', '');
+    // Video files use ISO-Box format: scan the first 16 bytes for `ftyp`
+    // (file type box at offset 4-7) or `moov`/`mdat` (which appear later).
+    // This is the canonical atomic-parser trick.
+    if (key == 'mp4' || key == 'mov') {
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        final header = await raf.read(16);
+        if (header.length < 8) throw Exception('Fichier corrompu ou invalide.');
+        // Look for 'ftyp' ASCII at offset 4-7.
+        if (header.length >= 8 &&
+            header[4] == 0x66 /* f */ &&
+            header[5] == 0x74 /* t */ &&
+            header[6] == 0x79 /* y */ &&
+            header[7] == 0x70 /* p */) {
+          return;
+        }
+        // Some containers have ftyp near offset 0 (rare for mp4).
+        // Also accept if 'ftyp' appears anywhere in first 16 bytes.
+        for (var i = 0; i <= header.length - 4; i++) {
+          if (header[i] == 0x66 &&
+              header[i + 1] == 0x74 &&
+              header[i + 2] == 0x79 &&
+              header[i + 3] == 0x70) {
+            return;
+          }
+        }
+        throw Exception('Le fichier ne correspond pas au format MP4/MOV attendu.');
+      } finally {
+        await raf.close();
+      }
+    }
+
     final expected = _magicBytes[key];
     if (expected == null) return;
     final raf = await file.open(mode: FileMode.read);
@@ -46,10 +76,6 @@ class MediaUploadService {
       if (header.length < expected.length) throw Exception('Fichier corrompu ou invalide.');
       for (var i = 0; i < expected.length; i++) {
         if (header[i] != expected[i]) {
-          if (key == 'mp4' || key == 'mov') {
-            // MP4/MOV boxes start with varying bytes — skip magic check for video
-            return;
-          }
           throw Exception('Le fichier ne correspond pas au type attendu ($ext).');
         }
       }

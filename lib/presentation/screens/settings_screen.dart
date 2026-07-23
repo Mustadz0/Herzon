@@ -286,9 +286,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               final fbUser = FirebaseAuth.instance.currentUser;
               if (fbUser != null) {
-                await Supabase.instance.client.functions
-                    .invoke('delete-account');
-                await Supabase.instance.client.auth.signOut();
+                final firebaseUid = fbUser.uid;
+                final idToken = await fbUser.getIdToken();
+                await Supabase.instance.client.functions.invoke(
+                  'delete-account',
+                  headers: {
+                    'x-firebase-uid': firebaseUid,
+                    'Authorization': 'Bearer $idToken',
+                  },
+                );
+                await FirebaseAuth.instance.signOut();
               }
               if (context.mounted) {
                 Navigator.pushNamedAndRemoveUntil(

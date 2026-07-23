@@ -25,7 +25,7 @@
     placeName: json['place_name'] as String,
     placeLat: (json['place_lat'] as num?)?.toDouble(),
     placeLng: (json['place_lng'] as num?)?.toDouble(),
-    checkinCount: json['checkin_count'] as int? ?? 1,
+    checkinCount: (json['checkin_count'] as num?)?.toInt() ?? 1,
     lastCheckinAt: DateTime.parse(json['last_checkin_at'] as String),
     createdAt: DateTime.parse(json['created_at'] as String),
   );

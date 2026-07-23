@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/admin_repository.dart';
+import '../../core/utils/safe_error.dart';
+
 class AdminReportsState {
   final List<ReportItem> reports;
   final bool isLoading;
@@ -30,44 +31,36 @@ class AdminReportsState {
 }
 
 class AdminReportsNotifier extends StateNotifier<AdminReportsState> {
-  final SupabaseClient _supabase;
+  final AdminRepository _repo;
 
-  AdminReportsNotifier(this._supabase) : super(AdminReportsState()) {
+  AdminReportsNotifier(this._repo) : super(AdminReportsState()) {
     loadReports();
   }
 
   Future<void> loadReports({String? status}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      var query = _supabase.from('reports').select('''
-        *,
-        reporter:profiles!reports_reporter_id_fkey(display_name),
-        reported:profiles!reports_reported_user_id_fkey(display_name)
-      ''');
+      var reports = await _repo.getReports();
       if (status != null && status.isNotEmpty) {
-        query = query.eq('status', status);
+        reports = reports.where((r) => r.status == status).toList();
       }
-      final data = await query.order('created_at', ascending: false);
-      final reports = data.map((json) => ReportItem.fromJson(json)).toList();
       state = state.copyWith(reports: reports, isLoading: false, filterStatus: status);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: safeErrorMessage(e));
     }
   }
 
   Future<void> updateReportStatus(String reportId, String status) async {
     try {
-      await _supabase.rpc('admin_update_report_status', params: {
-        'target_report_id': reportId,
-        'new_status': status,
-      });
+      await _repo.updateReportStatus(reportId, status);
       await loadReports(status: state.filterStatus);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: safeErrorMessage(e));
     }
   }
 }
 
-final adminReportsProvider = StateNotifierProvider<AdminReportsNotifier, AdminReportsState>((ref) {
-  return AdminReportsNotifier(Supabase.instance.client);
+final adminReportsProvider =
+    StateNotifierProvider<AdminReportsNotifier, AdminReportsState>((ref) {
+  return AdminReportsNotifier(ref.watch(adminRepositoryProvider));
 });

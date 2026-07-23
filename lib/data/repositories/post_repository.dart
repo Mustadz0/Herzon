@@ -92,8 +92,8 @@ class SupabasePostRepository implements IPostRepository {
         commentCount:
             (j['comment_count'] as num?)?.toInt() ?? 0,
         pollOptions: pollOptions,
-        pollTotalVotes: j['poll_total_votes'] as int?,
-        userPollVoteIndex: j['user_poll_vote_index'] as int?,
+        pollTotalVotes: (j['poll_total_votes'] as num?)?.toInt(),
+        userPollVoteIndex: (j['user_poll_vote_index'] as num?)?.toInt(),
         stickerId: j['sticker_id'] as String?,
         videoUrl: j['video_url'] as String?,
       );

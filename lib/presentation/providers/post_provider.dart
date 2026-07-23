@@ -122,7 +122,9 @@ class PostNotifier extends StateNotifier<FeedState> {
           table: 'posts',
           callback: (payload) async {
             try {
-              await loadFeed();
+              if (payload.newRecord.isNotEmpty) {
+                await loadFeed();
+              }
             } catch (e) {
               debugPrint('Realtime feed refresh error: $e');
             }
@@ -223,47 +225,51 @@ class PostNotifier extends StateNotifier<FeedState> {
   // ── Reactions ────────────────────────────────────────────────
   Future<int> reactToPost(String postId, String reactionType) async {
     if (_isReacting) return 0;
-    _isReacting = true;
-
-    _optimisticallyUpdateReaction(postId, reactionType, 1);
-    state = state.copyWith(
-      userReactions:
-          _updateUserReaction(state.userReactions, postId, reactionType, true),
-    );
-
     try {
-      await _repo.reactToPost(postId, reactionType);
-      return 2;
-    } catch (_) {
+      _isReacting = true;
+
+      _optimisticallyUpdateReaction(postId, reactionType, 1);
+      state = state.copyWith(
+        userReactions:
+            _updateUserReaction(state.userReactions, postId, reactionType, true),
+      );
+
+      try {
+        await _repo.reactToPost(postId, reactionType);
+        return 2;
+      } catch (_) {
+        _optimisticallyUpdateReaction(postId, reactionType, -1);
+        state = state.copyWith(
+          userReactions: _updateUserReaction(
+              state.userReactions, postId, reactionType, false),
+        );
+      }
+    } finally {
+      _isReacting = false;
+    }
+    return 0;
+  }
+
+  Future<void> removeReaction(String postId, String reactionType) async {
+    if (_isReacting) return;
+    try {
+      _isReacting = true;
+
       _optimisticallyUpdateReaction(postId, reactionType, -1);
       state = state.copyWith(
         userReactions: _updateUserReaction(
             state.userReactions, postId, reactionType, false),
       );
-      return 0;
-    } finally {
-      _isReacting = false;
-    }
-  }
 
-  Future<void> removeReaction(String postId, String reactionType) async {
-    if (_isReacting) return;
-    _isReacting = true;
-
-    _optimisticallyUpdateReaction(postId, reactionType, -1);
-    state = state.copyWith(
-      userReactions: _updateUserReaction(
-          state.userReactions, postId, reactionType, false),
-    );
-
-    try {
-      await _repo.removeReaction(postId, reactionType);
-    } catch (_) {
-      _optimisticallyUpdateReaction(postId, reactionType, 1);
-      state = state.copyWith(
-        userReactions: _updateUserReaction(
-            state.userReactions, postId, reactionType, true),
-      );
+      try {
+        await _repo.removeReaction(postId, reactionType);
+      } catch (_) {
+        _optimisticallyUpdateReaction(postId, reactionType, 1);
+        state = state.copyWith(
+          userReactions: _updateUserReaction(
+              state.userReactions, postId, reactionType, true),
+        );
+      }
     } finally {
       _isReacting = false;
     }
